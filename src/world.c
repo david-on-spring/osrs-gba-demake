@@ -26,9 +26,9 @@ const s8 SDY[4] = {1, -1, 0, 0};   // screen: y grows south
 // ---------------------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------------------
-// Map state. The map lives entirely in ROM (map_meta/map_over/map_type); runtime changes
-// such as stumps and mined-out rocks are a small override table, with a bitmap so lookups
-// for unchanged cells cost one bit test.
+// Map state. The map lives in ROM (map.h); runtime changes such as stumps and mined-out rocks
+// are a small override table keyed by cell, with a filter so lookups for unchanged cells cost
+// one bit test.
 typedef struct { u32 cell; u16 meta, over; u8 type, mask; } Override;
 static Override ovr[MAX_OVR];
 int n_ovr;
@@ -64,7 +64,8 @@ void ovr_clear(int x, int y, int p, int mask) {
     o->mask &= ~mask;
     if (o->mask) return;
     *o = ovr[--n_ovr];
-    ovr_unmark(cell);
+    for (int i = 0; i < 32; i++) ovr_filter[i] = 0;   // filter bits may be shared: rebuild it
+    for (int i = 0; i < n_ovr; i++) ovr_mark(ovr[i].cell);
 }
 
 int world_type(int x, int y, int p) {
@@ -87,11 +88,12 @@ int world_roof(int x, int y, int p) { return map_roof_at(x, y, p); }
 
 // everything draw_tile() needs from one cell (the cell must be in_map)
 void world_cell_gfx(int x, int y, int p, int *meta, int *over, int *roof) {
-    u32 c = map_key(x, y, p);
-    *meta = map_meta[c];
-    *over = map_over[c];
-    *roof = map_roof[c];
-    const Override *o = ovr_find(c);
+    const MapBlock *b = map_block(x, y, p);
+    int i = map_cell(x, y);
+    *meta = b->meta[i];
+    *over = b->over[i];
+    *roof = b->roof[i];
+    const Override *o = n_ovr ? ovr_find(map_key(x, y, p)) : 0;
     if (o) {
         if (o->mask & OV_META) *meta = o->meta;
         if (o->mask & OV_OVER) *over = o->over;
@@ -133,9 +135,13 @@ int spot_at(int x, int y, int p) {
     return -1;
 }
 
+// terrain only: fires don't block (walk over them as in OSRS). From the regions' walkability
+// bitmaps, so NPCs anywhere in the world move without decompressing their surroundings.
 int walkable(int x, int y, int p) {
     if (!in_map(x, y, p)) return 0;
-    return world_type(x, y, p) <= T_WALKABLE_MAX;   // fires don't block (walk over them as in OSRS)
+    const Override *o = n_ovr ? ovr_find(map_key(x, y, p)) : 0;
+    if (o && (o->mask & OV_TYPE)) return o->type <= T_WALKABLE_MAX;
+    return map_walk_at(x, y, p);
 }
 
 int free_tile(int x, int y, int p) {
@@ -151,6 +157,17 @@ int free_tile(int x, int y, int p) {
 static u8 cur_zone = 0xFF, cur_roof;
 static struct { u8 phase, t, dir, plane; s16 x, y; } warp;   // phase 1 fading out, 2 fading in
 #define WARP_FRAMES 8
+
+// where the map should be loaded: the camera's centre, or where a staircase or teleport is going
+void world_focus(int *x, int *y, int *p) {
+    if (warp.phase == 1) {
+        *x = warp.x, *y = warp.y, *p = warp.plane;
+        return;
+    }
+    *x = WORLD_X0 + ((cam_x + SCREEN_W / 2) >> 4);
+    *y = WORLD_Y1 - ((cam_y + SCREEN_H / 2) >> 4);
+    *p = pl.plane;
+}
 
 int world_zone(int x, int y, int p) {
     for (int i = 0; i < ZONE_COUNT; i++)

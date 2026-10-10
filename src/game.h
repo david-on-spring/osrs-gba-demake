@@ -297,6 +297,7 @@ int world_type(int x, int y, int p);    // cell type (T_*), including runtime ch
 int world_meta(int x, int y, int p);    // ground metatile
 int world_over(int x, int y, int p);    // overlay metatile (tree canopies)
 void world_cell_gfx(int x, int y, int p, int *meta, int *over, int *roof);   // the three at once, for drawing
+void world_focus(int *x, int *y, int *p);  // the tile the map should be loaded around
 void world_init(void);
 void world_new_game(void);
 void world_update(void);
