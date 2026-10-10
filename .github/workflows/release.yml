@@ -1,0 +1,36 @@
+name: Release
+
+# Push a tag like v1.0.4 to build, test and attach the ROM to that tag's GitHub release.
+# If the release doesn't exist yet, a draft is created for you to write the notes and publish.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup
+
+      - name: Build ROM
+        run: ./build.sh
+
+      - name: Run test suite
+        run: sh tools/run_quest_tests.sh
+
+      - name: Attach ROM to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cp rs07demake.gba osrs-gba-demake.gba
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" osrs-gba-demake.gba --clobber
+          else
+            gh release create "$TAG" osrs-gba-demake.gba --draft --title "$TAG" --notes "Release notes to come."
+          fi
