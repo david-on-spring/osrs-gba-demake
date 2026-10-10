@@ -2,7 +2,7 @@
 """Quest compiler: turns tools/quests.txt (quest definitions + dialogue scripts) into
 build/quest_data.c / quest_data.h for src/quests.c.
 
-Called from gen_assets.py (which owns the font metrics and the world): emit(outdir, font_w, world_gen).
+Called from gen_assets.py (which owns the font metrics and the world): emit(outdir, font_w, world), world being the snapshot from tools/world_cache.py.
 
 quests.txt is line based ('#' starts a comment):
 
