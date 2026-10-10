@@ -1,0 +1,13 @@
+# local toolchain, build output and test captures
+.toolchain
+build/
+shots/**/*.png
+shots/**/*.wav
+shots/**/*.txt
+*.gba
+*.sav
+*.elf
+*.resolved
+# private music overrides (see music/tracks.txt)
+music/local/
+.DS_Store

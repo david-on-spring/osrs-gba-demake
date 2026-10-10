@@ -1,0 +1,68 @@
+wait 60
+press A
+wait 40
+tp 50 164 1
+talk
+dlg
+choose 0
+dlg
+world
+expectq PIRATE 1
+item 8 COINS 100
+tp 58 159 1
+talk
+dlg
+choose 0
+dlg
+choose 0
+dlg
+world
+expectitem 9 RUM
+tp 50 164 1
+talk
+dlg
+world
+expectq PIRATE 2
+expectitem 9 CHEST_KEY
+tp 151 81 3
+press A
+dlg
+world
+expectq PIRATE 3
+expectitem 9 PIRATE_MSG
+# read the message, then dig in Falador Park
+press START
+wait 20
+press A
+wait 10
+press DOWN
+wait 4
+press RIGHT
+wait 4
+press RIGHT
+wait 4
+press A
+wait 6
+press A
+until8 @ui_wait 1 300
+wait 4
+shot shots/q/pirate_message.png
+dlg
+world
+item 10 SPADE
+tp 38 89 0
+press START
+wait 20
+press A
+wait 10
+press RIGHT
+wait 4
+press A
+wait 6
+press A
+dlg
+done
+shot shots/q/pirate_done.png
+press A
+world
+expectq PIRATE 4

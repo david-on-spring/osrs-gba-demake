@@ -1,0 +1,23 @@
+wait 60
+press A
+wait 100
+poke16 @perf_max 0
+tp 120 140 3
+wait 3
+dump @perf_max 1
+poke16 @perf_max 0
+hold RIGHT+B 300
+dump @perf_max 1
+poke16 @perf_max 0
+hold UP+B 300
+dump @perf_max 1
+poke16 @perf_max 0
+hold DOWN 200
+dump @perf_max 1
+tp 150 60 3
+wait 10
+poke16 @perf_max 0
+hold LEFT+B 300
+hold DOWN+B 300
+dump @perf_max 1
+dump @cache_misses 1

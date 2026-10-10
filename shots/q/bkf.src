@@ -1,0 +1,69 @@
+wait 60
+press A
+wait 40
+# too few quest points first
+tp 21 105 1
+talk
+dlg
+choose 0
+dlg
+world
+expectq BKF 0
+# (as if Romeo & Juliet, Goblin Diplomacy and Ernest the Chicken were done: 14 QP)
+stage RJ 8
+stage GOBLIN 4
+stage ERNEST 3
+talk
+dlg
+choose 0
+dlg
+choose 0
+dlg
+world
+expectq BKF 1
+# a cabbage from the field south of Falador
+tp 64 135 2
+press A
+wait 10
+expectitem 9 CABBAGE
+# the guard turns away the undisguised
+tp 40 21 3
+talk
+dlg
+world
+dump @pl 2
+equip BODY IRON_CHAINBODY
+equip HEAD BRONZE_HELM
+wait 4
+talk
+until8 @ui_wait 1 300
+wait 4
+shot shots/q/bkf_guard.png
+dlg
+world
+dump @pl 2
+tp 49 18 3
+press A
+dlg
+world
+expectq BKF 2
+tp 51 21 0
+press A
+dlg
+world
+expectq BKF 3
+shot shots/q/bkf_hole.png
+# leave past the guard
+tp 42 21 2
+talk
+dlg
+world
+dump @pl 2
+tp 21 105 1
+talk
+dlg
+done
+shot shots/q/bkf_done.png
+press A
+world
+expectq BKF 4

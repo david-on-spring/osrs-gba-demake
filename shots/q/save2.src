@@ -1,0 +1,43 @@
+wait 60
+shot shots/q/load_title.png
+press A
+wait 40
+expectq GHOST 2
+expecthas GHOSTSPEAK
+press START
+wait 20
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 10
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 15
+shot shots/q/load_journal.png
+press B
+press B
+press START
+wait 20
+equip NECK GHOSTSPEAK
+tp 156 178 3
+press A
+dlg
+world
+tp 156 178 0
+talk
+dlg
+choose 0
+dlg
+world
+expectq GHOST 3

@@ -1,0 +1,18 @@
+# Music manifest read by tools/midi2gba.py at build time.
+#   ID         | MIDI file | region names that select this track (comma-separated)
+# The ID becomes MUS_<ID> in build/music_data.h; order here = track number.
+# music_for_region(name) picks the track whose list contains `name` exactly, else the
+# longest listed name that `name` starts with; a name that matches nothing keeps the
+# current track playing.
+#
+# To use your own MIDI files without committing them, create music/local/tracks.txt in
+# the same format (paths relative to music/local/). It replaces this file when present
+# and music/local/ is ignored by git.
+TITLE      | title.mid      |
+LUMBRIDGE  | lumbridge.mid  | Lumbridge, Misthalin, Lumbridge Woods, Lumbridge Farms, Fred's Farm, Cow Field, Lumbridge Swamp
+VARROCK    | varrock.mid    | Varrock, Grand Exchange, Cooking Guild, Champions' Guild, Dark Wizards' Circle
+FALADOR    | falador.mid    | Falador, White Knights' Castle, Ice Mountain, Goblin Village, Rimmington
+DRAYNOR    | draynor.mid    | Draynor, Draynor Village, Draynor Manor, Port Sarim, Wizards' Tower
+ALKHARID   | alkharid.mid   | Al Kharid, Kharidian Desert, Duel Arena
+EDGEVILLE  | edgeville.mid  | Edgeville, Barbarian Village, Monastery, Black Knights' Fortress
+WILDERNESS | wilderness.mid | Wilderness

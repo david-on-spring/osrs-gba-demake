@@ -1,0 +1,117 @@
+wait 60
+press A
+wait 40
+poke16 @perf_max 0
+item 8 COINS 100
+tp 137 65 1
+talk
+dlg
+choose 0
+dlg
+world
+expectq DEMON 1
+tp 138 33 1
+talk
+dlg
+world
+expectq DEMON 2
+# Captain Rovin
+tp 146 33 1
+talk
+dlg
+world
+expecthas KEY_ROVIN
+# Wizard Traiborn: 25 bones
+tp 91 198 3
+talk
+dlg
+world
+clearinv
+item 0 KEY_ROVIN
+item 1 BONES 1
+item 2 BONES 1
+item 3 BONES 1
+item 4 BONES 1
+item 5 BONES 1
+item 6 BONES 1
+item 7 BONES 1
+item 8 BONES 1
+item 9 BONES 1
+item 10 BONES 1
+item 11 BONES 1
+item 12 BONES 1
+item 13 BONES 1
+item 14 BONES 1
+item 15 BONES 1
+item 16 BONES 1
+item 17 BONES 1
+item 18 BONES 1
+item 19 BONES 1
+item 20 BONES 1
+item 21 BONES 1
+item 22 BONES 1
+item 23 BONES 1
+item 24 BONES 1
+item 25 BONES 1
+item 26 BUCKET
+tp 91 198 3
+talk
+dlg
+world
+expecthas KEY_TRAIBORN
+# fill the bucket at the Varrock Square fountain, pour it down the drain east of the palace
+tp 140 61 3
+press A
+wait 10
+expecthas BUCKET_WATER
+tp 150 37 2
+press A
+dlg
+world
+expecthas KEY_DRAIN
+tp 138 33 1
+talk
+dlg
+world
+expectq DEMON 3
+expecthas SILVERLIGHT
+# wield Silverlight and fight Delrith at the stone circle
+clearinv
+equip WEAPON SILVERLIGHT
+xp ATTACK 300000
+xp STRENGTH 300000
+xp DEFENCE 300000
+xp HITPOINTS 300000
+hp 40
+tp 147 91 3
+wait 2
+press A
+wait 60
+shot shots/q/demon_delrith.png
+until8 @ui_wait 1 6000
+wait 6
+shot shots/q/demon_weakened.png
+dlg
+wait 4
+shot shots/q/demon_incantation.png
+choose 0
+dlg
+world
+dumpq
+expectq DEMON 3
+tp 147 91 3
+wait 2
+press A
+until8 @ui_wait 1 6000
+dlg
+choose 1
+dlg
+done
+shot shots/q/demon_done.png
+press A
+world
+wait 10
+shot shots/q/demon_after.png
+expectq DEMON 4
+
+dump @perf_max 1

@@ -1,0 +1,28 @@
+wait 60
+press A
+wait 40
+press START
+wait 30
+press DOWN
+dump @redraw_lines 1
+press DOWN
+press DOWN
+dump @redraw_lines 1
+press A
+wait 10
+dump @redraw_lines 1
+press DOWN
+dump @redraw_lines 1
+press A
+wait 14
+dump @redraw_lines 1
+press B
+press B
+press UP
+press UP
+press UP
+press A
+wait 10
+dump @redraw_lines 1
+press RIGHT
+dump @redraw_lines 1

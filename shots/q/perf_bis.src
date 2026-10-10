@@ -1,0 +1,299 @@
+wait 60
+press A
+wait 40
+tp 14 26 2
+#L4 tp 14 26 2
+dump @perf_max 1
+poke16 @perf_max 0
+talk
+#L5 talk
+dump @perf_max 1
+poke16 @perf_max 0
+until8 @ui_wait 1 300
+#L6 until8 @ui_wait 1 300
+dump @perf_max 1
+poke16 @perf_max 0
+wait 4
+#L7 wait 4
+dump @perf_max 1
+poke16 @perf_max 0
+shot shots/q/goblin_generals.png
+#L8 shot shots/q/goblin_generals.png
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L9 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+choose 0
+#L10 choose 0
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L11 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+choose 0
+#L12 choose 0
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L13 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+world
+#L14 world
+dump @perf_max 1
+poke16 @perf_max 0
+expectq GOBLIN 1
+#L15 expectq GOBLIN 1
+dump @perf_max 1
+poke16 @perf_max 0
+# Aggie's dyes
+#L16 # Aggie's dyes
+dump @perf_max 1
+poke16 @perf_max 0
+tp 77 145 1
+#L17 tp 77 145 1
+dump @perf_max 1
+poke16 @perf_max 0
+talk
+#L18 talk
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L19 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+choose 0
+#L20 choose 0
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L21 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+choose 0
+#L22 choose 0
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L23 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+world
+#L24 world
+dump @perf_max 1
+poke16 @perf_max 0
+expectitem 9 ORANGE_DYE
+#L25 expectitem 9 ORANGE_DYE
+dump @perf_max 1
+poke16 @perf_max 0
+talk
+#L26 talk
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L27 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+choose 0
+#L28 choose 0
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L29 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+choose 1
+#L30 choose 1
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L31 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+world
+#L32 world
+dump @perf_max 1
+poke16 @perf_max 0
+expectitem 10 BLUE_DYE
+#L33 expectitem 10 BLUE_DYE
+dump @perf_max 1
+poke16 @perf_max 0
+# goblin mail (goblins drop it); dye it from the Items menu
+#L34 # goblin mail (goblins drop it); dye it from the Items menu
+dump @perf_max 1
+poke16 @perf_max 0
+item 11 GOBLIN_MAIL
+#L35 item 11 GOBLIN_MAIL
+dump @perf_max 1
+poke16 @perf_max 0
+press START
+#L36 press START
+dump @perf_max 1
+poke16 @perf_max 0
+wait 20
+#L37 wait 20
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+#L38 press A
+dump @perf_max 1
+poke16 @perf_max 0
+wait 10
+#L39 wait 10
+dump @perf_max 1
+poke16 @perf_max 0
+press DOWN
+#L40 press DOWN
+dump @perf_max 1
+poke16 @perf_max 0
+press RIGHT
+#L41 press RIGHT
+dump @perf_max 1
+poke16 @perf_max 0
+press RIGHT
+#L42 press RIGHT
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+#L43 press A
+dump @perf_max 1
+poke16 @perf_max 0
+wait 6
+#L44 wait 6
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+#L45 press A
+dump @perf_max 1
+poke16 @perf_max 0
+world
+#L46 world
+dump @perf_max 1
+poke16 @perf_max 0
+expectitem 9 ORANGE_MAIL
+#L47 expectitem 9 ORANGE_MAIL
+dump @perf_max 1
+poke16 @perf_max 0
+tp 14 26 2
+#L48 tp 14 26 2
+dump @perf_max 1
+poke16 @perf_max 0
+talk
+#L49 talk
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L50 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+world
+#L51 world
+dump @perf_max 1
+poke16 @perf_max 0
+expectq GOBLIN 2
+#L52 expectq GOBLIN 2
+dump @perf_max 1
+poke16 @perf_max 0
+item 11 GOBLIN_MAIL
+#L53 item 11 GOBLIN_MAIL
+dump @perf_max 1
+poke16 @perf_max 0
+press START
+#L54 press START
+dump @perf_max 1
+poke16 @perf_max 0
+wait 20
+#L55 wait 20
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+#L56 press A
+dump @perf_max 1
+poke16 @perf_max 0
+wait 10
+#L57 wait 10
+dump @perf_max 1
+poke16 @perf_max 0
+press RIGHT
+#L58 press RIGHT
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+#L59 press A
+dump @perf_max 1
+poke16 @perf_max 0
+wait 6
+#L60 wait 6
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+#L61 press A
+dump @perf_max 1
+poke16 @perf_max 0
+world
+#L62 world
+dump @perf_max 1
+poke16 @perf_max 0
+expectitem 9 BLUE_MAIL
+#L63 expectitem 9 BLUE_MAIL
+dump @perf_max 1
+poke16 @perf_max 0
+tp 14 26 3
+#L64 tp 14 26 3
+dump @perf_max 1
+poke16 @perf_max 0
+talk
+#L65 talk
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L66 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+world
+#L67 world
+dump @perf_max 1
+poke16 @perf_max 0
+expectq GOBLIN 3
+#L68 expectq GOBLIN 3
+dump @perf_max 1
+poke16 @perf_max 0
+item 11 GOBLIN_MAIL
+#L69 item 11 GOBLIN_MAIL
+dump @perf_max 1
+poke16 @perf_max 0
+talk
+#L70 talk
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+#L71 dlg
+dump @perf_max 1
+poke16 @perf_max 0
+done
+#L72 done
+dump @perf_max 1
+poke16 @perf_max 0
+shot shots/q/goblin_done.png
+#L73 shot shots/q/goblin_done.png
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+#L74 press A
+dump @perf_max 1
+poke16 @perf_max 0
+ok level
+#L75 ok level
+dump @perf_max 1
+poke16 @perf_max 0
+world
+#L76 world
+dump @perf_max 1
+poke16 @perf_max 0
+expectq GOBLIN 4
+#L77 expectq GOBLIN 4
+dump @perf_max 1
+poke16 @perf_max 0

@@ -1,0 +1,1699 @@
+# Quest definitions and scripts for the RuneScape 2007 GBA demake.
+# Compiled by tools/gen_quests.py (see its docstring for the syntax). Journal order = file order
+# (alphabetical, like the OSRS quest list). Dialogue is wrapped and paged at build time.
+#
+# Skill substitutions (the demake has no Crafting, Magic, Smithing or Runecrafting):
+#   Crafting XP -> Firemaking XP, Magic XP -> Prayer XP.
+
+# ============================================================================================
+# Quest definitions
+# ============================================================================================
+quest BKF "Black Knights' Fortress"
+  qp 3
+  done 4
+  reqqp 12
+  icon IRON_CHAINBODY
+  start "I can start this quest by speaking to Sir Amik Varze in the White Knights' Castle in Falador."
+  step 1 "Sir Amik wants me to spy on the Black Knights' Fortress, north of Falador beyond Ice Mountain. Wearing an iron chainbody and a bronze med helm, I can pass the guard at the west gate and listen at the grill inside."
+  step 2 "I overheard the Black Knights' plan: their witch's invincibility potion only lacks a cabbage. If I drop a cabbage down the hole above her cauldron, the potion will be ruined."
+  step 3 "The potion is ruined! I should report back to Sir Amik Varze in Falador."
+  reward item COINS 2500
+end
+
+quest COOK "Cook's Assistant"
+  qp 1
+  done 2
+  icon POT_FLOUR
+  start "I can start this quest by speaking to the Cook in the kitchen of Lumbridge Castle."
+  step 1 "The Cook needs an egg, a bucket of milk and a pot of flour to bake the Duke's birthday cake. Chickens lay eggs in the coops north of Lumbridge, the dairy cow grazes in the cow field east of the farms, and wheat from the field by Mill Lane Mill can be milled into flour."
+  need 1 EGG 1 flag 0
+  need 1 BUCKET_MILK 1 flag 1
+  need 1 POT_FLOUR 1 flag 2
+  reward xp COOKING 300
+  reward text "Use of the Cook's range"
+end
+
+quest DEMON "Demon Slayer"
+  qp 3
+  done 4
+  icon SILVERLIGHT
+  start "I can start this quest by speaking to Gypsy Aris in Varrock Square."
+  step 1 "Gypsy Aris foresaw the demon Delrith returning to destroy Varrock. Sir Prysin in Varrock Palace keeps Silverlight, the sword that can stop him."
+  step 2 "Sir Prysin locked Silverlight away with three keys: Captain Rovin in the palace has one, Wizard Traiborn at the Wizards' Tower has another, and the third fell down the drain east of the palace."
+  step 3 "I have Silverlight! I must wield it, defeat Delrith at the stone circle south of Varrock, and say the incantation: Carlem Aber Camerinthum Purchai Gabindo."
+  reward text "Silverlight"
+end
+
+quest DORIC "Doric's Quest"
+  qp 1
+  done 2
+  icon IRON_ORE
+  start "I can start this quest by speaking to Doric, who lives north of Falador."
+  step 1 "Doric needs 6 clay, 4 copper ore and 2 iron ore for his anvils. Clay can be mined at Rimmington and at the mine south-west of Varrock."
+  need 1 CLAY 6
+  need 1 COPPER_ORE 4
+  need 1 IRON_ORE 2
+  reward xp MINING 1300
+  reward item COINS 180
+  reward text "Use of Doric's anvils"
+end
+
+quest ERNEST "Ernest the Chicken"
+  qp 4
+  done 3
+  icon OIL_CAN
+  start "I can start this quest by speaking to Veronica outside Draynor Manor, north of Draynor Village."
+  step 1 "Veronica's fiance Ernest went into Draynor Manor an hour ago and hasn't come back. I should look for him inside."
+  step 2 "Professor Oddenstein turned Ernest into a chicken! To change him back he needs a pressure gauge, a rubber tube and an oil can, all lost somewhere in and around the manor."
+  need 2 GAUGE 1 flag 0
+  need 2 TUBE 1 flag 1
+  need 2 OIL_CAN 1 flag 2
+  reward item COINS 300
+end
+
+quest GOBLIN "Goblin Diplomacy"
+  qp 5
+  done 4
+  icon GOBLIN_MAIL
+  start "I can start this quest by speaking to the goblin generals in Goblin Village, north of Falador."
+  step 1 "The generals can't agree on the colour of their new armour. They want to see orange goblin mail. Goblins drop goblin mail, and Aggie the witch in Draynor Village makes dyes."
+  step 2 "The generals didn't like the orange armour. Now they want to see blue goblin mail."
+  step 3 "They didn't like the blue armour either. Now they want to see plain brown goblin mail."
+  reward xp FIREMAKING 200
+  reward item GOLD_BAR 1
+end
+
+quest IMP "Imp Catcher"
+  qp 1
+  done 2
+  icon ACCURACY
+  start "I can start this quest by speaking to Wizard Mizgog in the Wizards' Tower, south of Draynor Village."
+  step 1 "Wizard Mizgog wants his four magic beads back. Imps all over the countryside stole them, so killing imps should turn them up."
+  need 1 RED_BEAD 1
+  need 1 YELLOW_BEAD 1
+  need 1 BLACK_BEAD 1
+  need 1 WHITE_BEAD 1
+  reward xp PRAYER 875
+  reward item ACCURACY 1
+end
+
+quest PIRATE "Pirate's Treasure"
+  qp 2
+  done 4
+  icon GOLD_RING
+  start "I can start this quest by speaking to Redbeard Frank on the docks of Port Sarim."
+  step 1 "Redbeard Frank wants a bottle of Karamja rum in exchange for a clue to his treasure. The bartender at the Rusty Anchor in Port Sarim might have some."
+  step 2 "Frank gave me the key to a chest in the Blue Moon Inn in Varrock. His treasure clue is inside."
+  step 3 "The pirate message says the treasure is buried just south of the fountain in Falador Park. I need a spade to dig it up."
+  reward item COINS 450
+  reward item GOLD_RING 1
+  reward item EMERALD 1
+end
+
+quest RJ "Romeo & Juliet"
+  qp 5
+  done 8
+  icon CADAVA_POTION
+  start "I can start this quest by speaking to Romeo in Varrock Square."
+  step 1 "Romeo wants me to find Juliet. She lives in the house just west of the Varrock city walls."
+  step 2 "Juliet gave me a message for Romeo. I should take it to him in Varrock Square."
+  step 3 "Romeo can't think of a way for them to be together. Father Lawrence at the church in north-east Varrock might help."
+  step 4 "Father Lawrence's plan needs a potion that makes the drinker appear dead. The Apothecary in south-west Varrock can make one."
+  step 5 "The Apothecary needs cadava berries for the potion. Cadava bushes grow south and south-east of Varrock."
+  step 6 "I have the cadava potion. I should take it to Juliet."
+  step 7 "Juliet has drunk the potion. I should tell Romeo the plan."
+end
+
+quest RUNE "Rune Mysteries"
+  qp 1
+  done 4
+  icon AIR_TALISMAN
+  start "I can start this quest by speaking to Duke Horacio in the throne room of Lumbridge Castle."
+  step 1 "The Duke gave me a strange talisman. I should take it to Sedridor, the head wizard of the Wizards' Tower south of Draynor Village."
+  step 2 "Sedridor gave me a research package for Aubury, who runs the rune shop in south-east Varrock."
+  step 3 "Aubury gave me his research notes. I should take them back to Sedridor at the Wizards' Tower."
+  reward item AIR_TALISMAN 1
+  reward text "The secret of rune essence"
+end
+
+quest SHEEP "Sheep Shearer"
+  qp 1
+  done 2
+  icon BALL_WOOL
+  start "I can start this quest by speaking to Fred the Farmer at his farm north-west of Lumbridge."
+  step 1 "Fred wants 20 balls of wool. I can shear the sheep in his field with shears and spin the wool on the spinning wheel in Lumbridge Castle."
+  need 1 BALL_WOOL 20 var
+  reward xp FIREMAKING 150
+  reward item COINS 60
+end
+
+quest GHOST "The Restless Ghost"
+  qp 1
+  done 5
+  icon SKULL
+  start "I can start this quest by speaking to Father Aereck in the church next to Lumbridge Castle."
+  step 1 "Father Aereck wants the ghost haunting his graveyard laid to rest. His friend Father Urhney, who lives in a shack in Lumbridge Swamp, knows about ghosts."
+  step 2 "Father Urhney gave me an Amulet of Ghostspeak. I should wear it, open the coffin in the Lumbridge graveyard and talk to the ghost."
+  step 3 "The ghost can't rest because a warlock stole his skull. He thinks it is on the altar in the Wizards' Tower, south of Draynor Village."
+  step 4 "I have the ghost's skull. I should put it back in his coffin in the Lumbridge graveyard."
+  reward xp PRAYER 1125
+end
+
+quest WITCH "Witch's Potion"
+  qp 1
+  done 3
+  icon EYE_NEWT
+  start "I can start this quest by speaking to Hetty in her house in Rimmington."
+  step 1 "Hetty needs an eye of newt, an onion, a rat's tail and a piece of burnt meat for her potion. General stores sell eyes of newt, onions grow in Fred's field north-west of Lumbridge, rats live north of Rimmington, and meat burns nicely on any fire."
+  need 1 EYE_NEWT 1
+  need 1 ONION 1
+  need 1 RAT_TAIL 1
+  need 1 BURNT_MEAT 1
+  step 2 "Hetty has put the ingredients in her cauldron. I should drink from it."
+  reward xp PRAYER 325
+end
+
+# NPCs that only appear during part of a quest
+show GHOST GHOST 2 4 flag 0
+show SKELETON GHOST 4 4
+show DELRITH DEMON 3 3
+
+# ============================================================================================
+# Shared world objects
+# ============================================================================================
+obj CROPS
+  if near WHEAT_FIELD 4 goto wheat
+  if near ONION_FIELD 4 goto onion
+  if near CABBAGE_FIELD 5 goto cabbage
+  chat "These crops aren't ready to be picked yet."
+  end
+:wheat
+  if not free 1 goto full
+  give GRAIN
+  sfx PICKUP
+  chat "You pick some wheat."
+  end
+:onion
+  if not free 1 goto full
+  give ONION
+  sfx PICKUP
+  chat "You pick an onion."
+  end
+:cabbage
+  if not free 1 goto full
+  give CABBAGE
+  sfx PICKUP
+  chat "You pick a cabbage."
+  end
+:full
+  chat "You don't have enough inventory space."
+
+obj WATER
+  if not has BUCKET goto none
+  take BUCKET
+  give BUCKET_WATER
+  sfx SPLASH
+  chat "You fill the bucket with water."
+:none
+
+obj FOUNTAIN
+  if near MANOR_FOUNTAIN 2 goto manor
+:fill
+  if not has BUCKET goto none
+  take BUCKET
+  give BUCKET_WATER
+  sfx SPLASH
+  chat "You fill the bucket from the fountain."
+  end
+:none
+  chat "The water looks clean and cool."
+  end
+:manor
+  if flag ERNEST 0 goto fill
+  if has GAUGE goto fill
+  if flag ERNEST 4 goto search
+  if has POISON_FOOD goto poison
+  narrate "There's a pressure gauge at the bottom of the fountain, but the water is full of very hungry-looking piranhas. I'm not putting my hand in there."
+  end
+:poison
+  take POISON_FOOD
+  flag ERNEST 4
+  narrate "You sprinkle the poisoned fish food into the fountain. The piranhas gobble it up... and soon float belly-up."
+:search
+  give GAUGE
+  sfx PICKUP
+  narrate "You search the fountain and find the pressure gauge."
+
+obj ALTAR
+  if near TOWER_ALTAR 1 goto tower
+  chat "You kneel and pray at the altar. You feel at peace."
+  end
+:tower
+  if stage GHOST == 3 goto take
+  if stage GHOST == 4 goto again
+  chat "An old altar. Something used to rest on it."
+  end
+:again
+  if has SKULL goto taken
+:take
+  give SKULL
+  stage GHOST 4
+  sfx DEATH
+  narrate "You take the skull from the altar. With a clatter of bones, a skeleton rises to guard it!"
+  end
+:taken
+  chat "There's nothing else on the altar."
+
+# ============================================================================================
+# Cook's Assistant
+# ============================================================================================
+talk COOK
+  if done COOK goto finished
+  if started COOK goto progress
+  npc "What am I to do?"
+  choice
+    option "What's wrong?" wrong
+    option "Can you make me a cake?" wrong
+    option "You don't look very happy." wrong
+    option "Nice hat!" hat
+:hat
+  player "Nice hat!"
+  npc "Er, thank you. It's a pretty ordinary cook's hat really."
+  player "Still, it suits you. The trousers don't, though."
+  npc "Hey! These are standard issue, I'll have you know. Anyway, I've got bigger problems than my trousers."
+:wrong
+  npc "Oh dear, oh dear, oh dear, I'm in a terrible, terrible mess! It's the Duke's birthday today, and I should be making him a lovely big birthday cake."
+  npc "But I've forgotten to buy the ingredients! I'll never get them in time now. He'll sack me! What will I do? I have four children and a goat to look after."
+  npc "Would you help me? Please?"
+  choice
+    option "I'm always happy to help a cook in distress." yes
+    option "I can't right now, maybe later." no
+:no
+  player "I can't right now, maybe later."
+  npc "Fine. I always knew you adventurer types were callous beasts. Go on your merry way!"
+  end
+:yes
+  player "Yes, I'll help you."
+  npc "Oh thank you, thank you! I need milk, an egg and flour. I'd be very grateful if you could get them for me."
+  stage COOK 1
+  player "So where do I find these ingredients then?"
+  npc "There's a mill north-west of here, Mill Lane Mill. Pick some wheat from the field beside it, put the grain in the hopper and collect the flour from the bin with an empty pot. There's a pot on my table."
+  npc "The dairy cow is in the cow field east of the farms; you'll need a bucket to milk her. And the chickens north of here lay their eggs in the coops."
+  npc "Hurry, please!"
+  end
+:progress
+  npc "How are you getting on with finding the ingredients?"
+  if flag COOK 0 goto c_milk
+  if not has EGG goto c_milk
+  take EGG
+  flag COOK 0
+  player "Here's a fresh egg."
+:c_milk
+  if flag COOK 1 goto c_flour
+  if not has BUCKET_MILK goto c_flour
+  take BUCKET_MILK
+  give BUCKET
+  flag COOK 1
+  player "Here's a bucket of milk."
+:c_flour
+  if flag COOK 2 goto check
+  if not has POT_FLOUR goto check
+  take POT_FLOUR
+  give POT
+  flag COOK 2
+  player "Here's a pot of flour."
+:check
+  if not flag COOK 0 goto notyet
+  if not flag COOK 1 goto notyet
+  if not flag COOK 2 goto notyet
+  npc "You've brought me everything I need! I am saved! Thank you!"
+  player "So do I get to go to the Duke's party?"
+  npc "I'm afraid not, only the big cheeses get to dine with the Duke."
+  player "Well, maybe one day I'll be important enough to sit at the Duke's table."
+  npc "Maybe, but I won't be holding my breath."
+  complete COOK
+  end
+:notyet
+  npc "I still need:"
+  if flag COOK 0 goto n_milk
+  npc "A fresh egg - try the chicken coops north of the castle."
+:n_milk
+  if flag COOK 1 goto n_flour
+  npc "A bucket of milk - the dairy cow is in the cow field east of the farms."
+:n_flour
+  if flag COOK 2 goto n_end
+  npc "A pot of flour - grind wheat at Mill Lane Mill and fill a pot from the flour bin."
+:n_end
+  end
+:finished
+  npc "Hello, friend! How is the adventuring going?"
+  choice
+    option "I'm getting strong and mighty." strong
+    option "I keep on dying." dying
+    option "Can I use your range?" range
+:strong
+  npc "Glad to hear it."
+  end
+:dying
+  npc "Ah well, at least you keep coming back to life!"
+  end
+:range
+  npc "Go ahead! It's a very good range. It's easier to use than most, so you'll burn less food on it."
+
+talk DAIRY_COW
+  if not has BUCKET goto none
+  take BUCKET
+  give BUCKET_MILK
+  sfx SPLASH
+  chat "You milk the cow."
+  end
+:none
+  chat "You'll need an empty bucket to collect the milk."
+
+obj HOPPER
+  if flag COOK 3 goto full
+  if not has GRAIN goto none
+  take GRAIN
+  flag COOK 3
+  sfx MINE
+  chat "You put the grain in the hopper and operate the controls."
+  chat "The grain slides down the chute into the flour bin."
+  end
+:full
+  chat "There is already grain in the hopper. Fetch the flour from the bin."
+  end
+:none
+  chat "The hopper is empty. It needs grain from the wheat field beside the mill."
+
+obj FLOURBIN
+  if not flag COOK 3 goto empty
+  if not has POT goto nopot
+  take POT
+  give POT_FLOUR
+  unflag COOK 3
+  sfx PICKUP
+  chat "You fill a pot with flour from the bin."
+  end
+:nopot
+  chat "There is flour in the bin. You need an empty pot to hold it."
+  end
+:empty
+  chat "The flour bin is empty."
+
+# ============================================================================================
+# Sheep Shearer
+# ============================================================================================
+talk FRED
+  if done SHEEP goto finished
+  if started SHEEP goto progress
+  npc "What are you doing on my land? You're not the one who keeps leaving all my gates open and letting out all my sheep, are you?"
+  choice
+    option "I'm looking for a quest." quest
+    option "I'm looking for something to kill." kill
+    option "I'm lost." lost
+:kill
+  npc "What, on my land? Leave my livestock alone, you scoundrel!"
+  end
+:lost
+  npc "How can you be lost? Just follow the road east and south. You'll end up in Lumbridge fairly quickly."
+  end
+:quest
+  player "I'm looking for a quest."
+  npc "You're after a quest, you say? Actually I could do with a bit of help."
+  npc "My sheep are getting mighty woolly. I'd be much obliged if you could shear them. And while you're at it, spin the wool for me too."
+  npc "Bring me twenty balls of wool and I'll pay you for your trouble."
+  choice
+    option "Yes okay. I can do that." yes
+    option "That doesn't sound a very exciting quest." boring
+:boring
+  npc "Well what do you expect if you ask a farmer for a quest?"
+  end
+:yes
+  player "Yes okay. I can do that."
+  stage SHEEP 1
+  npc "Good! Now one more thing, do you actually know how to shear a sheep?"
+  choice
+    option "Of course!" know
+    option "Err. No, I don't know actually." dontknow
+:dontknow
+  npc "Well, first things first, you need a pair of shears. There's a pair in my house, or the Lumbridge general store sells them."
+  npc "Walk up to a sheep and shear it. Then take the wool to the spinning wheel in Lumbridge Castle and spin it into balls."
+:know
+  npc "Off you go then! The sheep are in the field south-east of my house."
+  end
+:progress
+  npc "How are you doing getting those balls of wool?"
+  if not has BALL_WOOL goto none
+  player "I have some."
+  npc "Give 'em here then."
+:give
+  if var SHEEP >= 20 goto finish
+  if not has BALL_WOOL goto more
+  take BALL_WOOL
+  addvar SHEEP 1
+  goto give
+:more
+  npc "That's not all of them. I need twenty balls of wool in all - check your quest journal to see how many you've brought me."
+  end
+:none
+  player "I haven't got any at the moment."
+  npc "Ah well, at least you haven't been eaten. Shear the sheep, spin the wool, and bring me twenty balls."
+  end
+:finish
+  player "That's the last of them."
+  npc "I guess I'd better pay you then. Thanks for your help!"
+  complete SHEEP
+  end
+:finished
+  npc "Thanks for shearing my sheep. I couldn't have done it without you."
+
+talk SHEEP
+  if npcstate goto shorn
+  if not has SHEARS goto noshears
+  if not free 1 goto full
+  give WOOL
+  npcstate 60
+  sfx PICKUP
+  chat "You get some wool."
+  end
+:shorn
+  chat "This sheep has already been shorn."
+  end
+:noshears
+  chat "You need a set of shears to do this."
+  end
+:full
+  chat "You don't have enough inventory space."
+
+obj WHEEL
+  if not has WOOL goto nowool
+:spin
+  if not has WOOL goto spun
+  take WOOL
+  give BALL_WOOL
+  goto spin
+:spun
+  sfx PICKUP
+  chat "You spin the wool into balls of wool."
+  end
+:nowool
+  chat "You need some wool to spin."
+
+# ============================================================================================
+# The Restless Ghost
+# ============================================================================================
+talk AERECK
+  if done GHOST goto finished
+  if started GHOST goto progress
+  npc "Welcome to the church of holy Saradomin."
+  choice
+    option "Who's Saradomin?" who
+    option "Nice place you've got here." nice
+    option "I'm looking for a quest." quest
+:who
+  npc "Surely you have heard of the god Saradomin? He who creates the forces of goodness and purity in this world? I cannot believe your ignorance!"
+  end
+:nice
+  npc "It is, isn't it? It was built over two centuries ago."
+  end
+:quest
+  player "I'm looking for a quest."
+  npc "That's lucky, I need someone to do a quest for me."
+  choice
+    option "Ok, let me help then." yes
+    option "Sorry, I don't have time right now." no
+:no
+  npc "Oh well. If you do have some spare time on your hands, come back and talk to me."
+  end
+:yes
+  player "Ok, let me help then."
+  npc "Thank you. The problem is, there is a ghost in the church graveyard. I would like you to get rid of it."
+  npc "If you need any help, my friend Father Urhney is an expert on ghosts. He lives in a little shack in the south of Lumbridge Swamp."
+  stage GHOST 1
+  end
+:progress
+  npc "Have you got rid of the ghost yet?"
+  if stage GHOST >= 3 goto p3
+  if stage GHOST == 2 goto p2
+  player "I can't find Father Urhney at the moment."
+  npc "Well, you can get to the swamp he lives in by going south-west, past the graveyard."
+  end
+:p2
+  player "I had a talk with Father Urhney. He has given me this funny amulet to talk to the ghost with."
+  npc "I always wondered what that amulet was... Well, I hope it's useful. Tell me when you get rid of the ghost!"
+  end
+:p3
+  player "The ghost wants his skull back. He thinks a warlock left it in the Wizards' Tower."
+  npc "Then I hope you find it soon. Saradomin be with you."
+  end
+:finished
+  npc "Thank you for getting rid of that awful ghost for me! May Saradomin always smile upon you!"
+
+talk URHNEY
+  npc "Go away! I'm meditating!"
+  if stage GHOST == 1 goto help
+  if stage GHOST >= 2 goto lost
+  choice
+    option "Well, that's friendly." friendly
+    option "I've come to repossess your house." house
+:friendly
+  npc "I said go away!"
+  end
+:house
+  npc "Under what grounds? ...Actually, I don't care. Go away."
+  end
+:help
+  choice
+    option "Father Aereck sent me to talk to you." aereck
+    option "Well, that's friendly." friendly
+:aereck
+  player "Father Aereck sent me to talk to you."
+  npc "I suppose I'd better talk to you then. What problems has he got himself into this time?"
+  player "He's got a ghost haunting his graveyard."
+  npc "Oh, the silly fool. I leave town for just five months, and already he can't manage. Well, I can't go back and exorcise it. I vowed not to leave this place."
+  npc "Tell you what I can do though: take this amulet. It is an Amulet of Ghostspeak. Wear it and you'll be able to talk to the ghost and find out what's keeping it from resting."
+  give GHOSTSPEAK
+  stage GHOST 2
+  chatc GOLD "Father Urhney hands you an amulet. Wear it from the Equipment menu."
+  end
+:lost
+  if done GHOST goto bye
+  if has GHOSTSPEAK goto bye
+  player "I've lost the Amulet of Ghostspeak."
+  npc "How careless can you get? Those things aren't easy to come by, you know! It's a good job I've got a spare."
+  give GHOSTSPEAK
+  chat "Father Urhney hands you an amulet."
+  end
+:bye
+  npc "Now leave me in peace."
+
+obj COFFIN
+  if done GHOST goto rest
+  if stage GHOST == 4 goto skull
+  if not stage GHOST >= 2 goto shut
+  if flag GHOST 0 goto open
+  flag GHOST 0
+  sfx DEATH
+  narrate "You open the coffin. Inside lies a skeleton without a skull... and a ghost rises from it!"
+  end
+:open
+  chat "The coffin is open. The skeleton inside is missing its skull."
+  end
+:shut
+  chat "A coffin. It's best not to disturb the dead without a reason."
+  end
+:rest
+  chat "The skeleton in the coffin rests peacefully now."
+  end
+:skull
+  if not has SKULL goto noskull
+  take SKULL
+  narrate "You put the skull back in the coffin. The ghost sighs with relief and slowly fades away. At last he can rest."
+  complete GHOST
+  end
+:noskull
+  chat "The ghost's skull belongs in here."
+
+talk GHOST
+  if worn GHOSTSPEAK goto speak
+  npc "Wooo wooo wooooo!"
+  narrate "The ghost wails, but you can't understand a word. Perhaps wearing an Amulet of Ghostspeak would help."
+  end
+:speak
+  if stage GHOST >= 3 goto skullq
+  player "Hello ghost, how are you?"
+  npc "Not very good actually."
+  player "What's the problem then?"
+  npc "Did you just understand what I said???"
+  choice
+    option "Yep, now tell me what the problem is." problem
+    option "No, you sound like you're speaking nonsense." nonsense
+:nonsense
+  npc "Oh that's a pity. You got my hopes up there."
+  player "Yeah, it is a pity. Sorry about that."
+  npc "Hang on a second... you CAN understand me!"
+:problem
+  npc "WOW! This is INCREDIBLE! I didn't expect anyone to ever understand me again!"
+  player "Ok, ok, I can understand you! But have you any idea WHY you're doomed to be a ghost?"
+  npc "Well, to be honest... I think it's because a warlock stole my skull. I can't rest without it."
+  player "Do you know where it is?"
+  npc "I think he took it to the Wizards' Tower, south of Draynor, and left it on the altar there. Please, bring it back!"
+  player "Ok. I will get the skull back for you, then you can rest in peace."
+  stage GHOST 3
+  end
+:skullq
+  if has SKULL goto haveskull
+  npc "Have you found my skull yet? It should be on the altar in the Wizards' Tower."
+  end
+:haveskull
+  npc "My skull! Please, put it back in my coffin so I can rest."
+
+# ============================================================================================
+# Romeo & Juliet
+# ============================================================================================
+talk ROMEO
+  if done RJ goto finished
+  if stage RJ == 0 goto start
+  if stage RJ == 1 goto s1
+  if stage RJ == 2 goto s2
+  if stage RJ == 7 goto s7
+  npc "Have you spoken to Father Lawrence? He's at the church in the north-east of Varrock."
+  end
+:start
+  npc "Juliet, Juliet, wherefore art thou?"
+  choice
+    option "Can I help find her for you?" help
+    option "Erm, I'm not Juliet." notj
+:notj
+  npc "I can see that. If only you could find her for me..."
+  choice
+    option "Can I help find her for you?" help
+    option "Sorry, I'm busy." busy
+:busy
+  npc "Then leave me to my sorrow."
+  end
+:help
+  player "Can I help find her for you?"
+  npc "Oh would you? That would be wonderful! Please tell her I long to be with her."
+  player "Yes, I will tell her how you feel."
+  npc "You're the saviour of my heart! She lives in the house just west of the Varrock city walls."
+  stage RJ 1
+  end
+:s1
+  npc "Please find my Juliet. She lives in the house just west of Varrock."
+  end
+:s2
+  if not has MESSAGE goto nomsg
+  player "Romeo, I have a message from Juliet."
+  take MESSAGE
+  narrate "You pass Juliet's message to Romeo."
+  npc "Oh, my sweet Juliet! Her father keeps us apart... 'Find a way for us, my love,' she writes. But alas, I cannot think of anything!"
+  npc "Perhaps Father Lawrence will know what to do. He's at the church in the north-east of Varrock."
+  stage RJ 3
+  end
+:nomsg
+  npc "Did Juliet give you a message for me? You must have dropped it. Please, go back and ask her for another!"
+  end
+:s7
+  player "Romeo, Juliet has drunk a potion. She'll seem dead, but she will wake in the crypt, and you can be together at last!"
+  npc "Dead?! ...Oh, I see! How ingenious! I'll go and wait for her at the crypt. Thank you, my friend!"
+  complete RJ
+  end
+:finished
+  npc "I shall never forget your kindness. Juliet and I are to be married!"
+
+talk JULIET
+  if done RJ goto finished
+  if stage RJ == 1 goto s1
+  if stage RJ == 2 goto s2
+  if stage RJ == 6 goto s6
+  if stage RJ >= 7 goto s7
+  if stage RJ >= 3 goto s3
+  npc "Romeo, Romeo, wherefore art thou Romeo?"
+  player "I don't know. I'm not Romeo."
+  npc "If only I could see my love again..."
+  end
+:s1
+  player "Juliet, I come from Romeo. He begs me to tell you he cares for you still."
+  npc "Oh, how my heart soars to hear this news! Please take this message to him with great haste."
+  give MESSAGE
+  stage RJ 2
+  chat "Juliet gives you a message."
+  end
+:s2
+  if has MESSAGE goto hurry
+  npc "You lost my message? Here, I'll write another."
+  give MESSAGE
+  end
+:hurry
+  npc "Please take my message to Romeo in Varrock Square."
+  end
+:s3
+  npc "Have you found a way for Romeo and me to be together?"
+  end
+:s6
+  if not has CADAVA_POTION goto s3
+  player "I have a cadava potion for you, from Father Lawrence's plan. Drink it and you'll seem dead, but you will wake in the crypt."
+  npc "Ah, I see the plan! Very well, for Romeo I would do anything. Tell him to meet me at the crypt."
+  take CADAVA_POTION
+  narrate "Juliet drinks the potion and sinks into a deep, deathlike sleep."
+  stage RJ 7
+  end
+:s7
+  narrate "Juliet lies perfectly still. I should tell Romeo the plan."
+  end
+:finished
+  npc "Thank you for bringing Romeo and me together!"
+
+talk LAWRENCE
+  if done RJ goto done
+  if stage RJ == 3 goto s3
+  if stage RJ >= 4 goto s4
+  npc "Hello, adventurer. Do you seek a blessing?"
+  player "Not today, thank you."
+  end
+:s3
+  player "Romeo sent me. He says you may be able to help."
+  npc "Ah, Romeo. A fine lad, if a little confused. Both families are against the match, I hear."
+  npc "I have a plan! A potion that makes the drinker appear dead for a while. Juliet will be laid in the crypt, and Romeo can collect her there."
+  npc "The Apothecary in the south-west of Varrock can make such a potion. Go and see him."
+  stage RJ 4
+  end
+:s4
+  npc "Go and see the Apothecary in south-west Varrock about the potion."
+  end
+:done
+  npc "Bless you, my child. Romeo and Juliet are to be wed!"
+
+talk APOTHECARY
+  if stage RJ == 4 goto s4
+  if stage RJ == 5 goto s5
+  if stage RJ == 6 goto s6
+  npc "I am the Apothecary. I brew potions, though not for the likes of you today."
+  end
+:s4
+  player "Father Lawrence sent me. I need a cadava potion to help Romeo and Juliet."
+  npc "Cadava potion. It's pretty nasty, and hard to make. Wing of rat, tail of frog, ear of snake and horn of dog."
+  npc "I have all that, but I need some cadava berries. Cadava bushes grow south and south-east of Varrock."
+  stage RJ 5
+  end
+:s5
+  if not has CADAVA goto nob
+:brew
+  take CADAVA
+  narrate "You hand over the cadava berries. The Apothecary mixes a foul-smelling potion."
+  npc "Here is what you need. Whatever you do, don't drink it yourself!"
+  give CADAVA_POTION
+  stage RJ 6
+  end
+:nob
+  npc "Keep looking for those cadava berries. The bushes grow south and south-east of Varrock."
+  end
+:s6
+  if has CADAVA_POTION goto take
+  if has CADAVA goto brew
+  npc "You lost the potion? Bring me more cadava berries and I'll make another."
+  end
+:take
+  npc "Take that potion to Juliet, quickly."
+
+obj CADAVA
+  if not free 1 goto full
+  give CADAVA
+  sfx PICKUP
+  chat "You pick some cadava berries."
+  end
+:full
+  chat "You don't have enough inventory space."
+
+# ============================================================================================
+# Doric's Quest
+# ============================================================================================
+talk DORIC
+  if done DORIC goto finished
+  if started DORIC goto progress
+  npc "Hello traveller, what brings you to my humble smithy?"
+  choice
+    option "I wanted to use your anvils." anvil
+    option "Mind your own business, shortstuff!" rude
+    option "I was just checking out the landscape." land
+:rude
+  npc "How nice to meet someone with such pleasant manners. Do come again when you need to shout at someone smaller than you!"
+  end
+:land
+  npc "We have a fine town here, it suits us very well. Please enjoy your travels. And do visit my friends in their mine."
+  end
+:anvil
+  npc "My anvils get enough work with my own use. I make pickaxes, and it takes a lot of hard work."
+  npc "If you could get me some more materials, then I could let you use them."
+  choice
+    option "Yes, I will get you the materials." yes
+    option "No, hitting rocks is for boring people." no
+:no
+  npc "That is your choice. Nice to meet you anyway."
+  end
+:yes
+  npc "Clay is what I use more than anything, to make casts. Could you get me 6 clay, 4 copper ore and 2 iron ore, please?"
+  npc "I could pay a little, and let you use my anvils. Take this pickaxe with you just in case you need it."
+  give BRONZE_PICK
+  stage DORIC 1
+  chat "Doric hands you a bronze pickaxe."
+  end
+:progress
+  npc "Have you got my materials yet, traveller?"
+  if not has CLAY 6 goto notyet
+  if not has COPPER_ORE 4 goto notyet
+  if not has IRON_ORE 2 goto notyet
+  player "I have everything you need."
+  take CLAY 6
+  take COPPER_ORE 4
+  take IRON_ORE 2
+  npc "Many thanks. Pass them here, please. I can spare you some coins for your trouble, and please use my anvils any time you want."
+  complete DORIC
+  end
+:notyet
+  player "Sorry, I don't have them all yet."
+  npc "Not to worry, stick at it. Remember, I need 6 clay, 4 copper ore and 2 iron ore."
+  end
+:finished
+  npc "Hello traveller! My anvils are always at your service."
+
+# ============================================================================================
+# Rune Mysteries
+# ============================================================================================
+talk DUKE
+  if done RUNE goto plain
+  if started RUNE goto given
+  npc "Greetings. Welcome to my castle."
+  choice
+    option "Have you any quests for me?" quest
+    option "Where can I find money?" money
+:money
+  npc "I hear many of the local people earn money by learning a skill. Many people get by in life by becoming adept at cooking, mining or woodcutting."
+  end
+:quest
+  npc "Well, it's not really a quest, but I recently discovered this strange talisman."
+  npc "It seems to be mystical, and I have never seen anything like it before. Would you take it to the head wizard at the Wizards' Tower for me?"
+  choice
+    option "Sure, no problem." yes
+    option "Not right now." no
+:no
+  npc "As you wish. Come back if you change your mind."
+  end
+:yes
+  npc "Thank you very much. The tower stands on an island south of Draynor Village. Ask for Sedridor."
+  give AIR_TALISMAN
+  stage RUNE 1
+  chat "The Duke hands you an air talisman."
+  end
+:given
+  if stage RUNE >= 2 goto plain
+  if has AIR_TALISMAN goto plain
+  player "I've lost the talisman you gave me."
+  npc "Luckily another one turned up in the castle cellar. Please be more careful this time."
+  give AIR_TALISMAN
+  end
+:plain
+  npc "Greetings. Welcome to my castle."
+
+talk SEDRIDOR
+  if done RUNE goto finished
+  if stage RUNE == 1 goto s1
+  if stage RUNE == 2 goto s2
+  if stage RUNE == 3 goto s3
+  npc "Welcome, adventurer, to the world-renowned Wizards' Tower. How may I help you?"
+  choice
+    option "Nothing thanks, I'm just looking around." look
+    option "What are you doing here?" doing
+:look
+  npc "Well, take care. You stand on ancient ground."
+  end
+:doing
+  npc "We study the arcane arts here. Many great discoveries were made in this tower."
+  end
+:s1
+  if not has AIR_TALISMAN goto nos1
+  player "The Duke of Lumbridge sent me to find the head wizard. He found this talisman."
+  npc "The Duke? Let me see that... this is an air talisman! Incredible! It is the key to a secret our order has sought for centuries."
+  npc "Long ago, runes were made from rune essence at hidden altars. This talisman could lead us to them."
+  npc "I must check my findings with a colleague. Aubury, who runs the rune shop in south-east Varrock, has been researching this too. Please take him this research package."
+  take AIR_TALISMAN
+  give PACKAGE
+  stage RUNE 2
+  chat "Sedridor hands you a research package."
+  end
+:nos1
+  npc "The Duke sent you? Then where is the thing he sent? Come back when you have it."
+  end
+:s2
+  if has PACKAGE goto go
+  npc "You lost the package? Fortunately I made a copy. Please be careful with it!"
+  give PACKAGE
+  end
+:go
+  npc "Please take that package to Aubury in Varrock."
+  end
+:s3
+  if not has NOTES goto s3n
+  player "Aubury sent me back with his research notes."
+  take NOTES
+  npc "Let me see... yes, this confirms it! The talisman leads to the essence. You have done our order a great service."
+  npc "Keep the talisman as a token of our thanks. Perhaps one day you will learn to use it."
+  complete RUNE
+  end
+:s3n
+  npc "Did Aubury not give you anything for me? Go back and ask him."
+  end
+:finished
+  npc "Thank you again for your help with the talisman, adventurer."
+
+talk AUBURY
+  if stage RUNE == 2 goto s2
+  if stage RUNE == 3 goto s3
+  npc "Do you want to buy some runes?"
+  player "Maybe another time."
+  npc "Come back when you have learnt to use them."
+  end
+:s2
+  if not has PACKAGE goto none
+  player "I've been sent to give you this package from Sedridor."
+  take PACKAGE
+  npc "Ah, I've been waiting for this! Let me see... yes, it matches my own research perfectly."
+  npc "Please take these notes back to Sedridor. He'll know what they mean."
+  give NOTES
+  stage RUNE 3
+  chat "Aubury hands you his research notes."
+  end
+:none
+  npc "Sedridor said he'd send me something. Have you got it?"
+  end
+:s3
+  if has NOTES goto go
+  npc "You lost my notes? Luckily I keep copies of everything."
+  give NOTES
+  end
+:go
+  npc "Take those notes to Sedridor at the Wizards' Tower."
+
+# ============================================================================================
+# Imp Catcher
+# ============================================================================================
+talk MIZGOG
+  if done IMP goto finished
+  if started IMP goto progress
+  npc "Hello there, what brings you here?"
+  choice
+    option "Give me a quest!" quest
+    option "Your friends are pretty quiet, aren't they?" quiet
+:quiet
+  npc "Yes, they've mostly got their heads in the clouds, thinking about magic."
+  end
+:quest
+  npc "Give me a quest what?"
+  choice
+    option "Give me a quest please." please
+    option "Give me a quest or else!" orelse
+    option "Stop messing around and give me a quest!" stop
+:orelse
+  npc "Or else what? You'll attack me? Hahaha!"
+  end
+:stop
+  npc "Ah, now you're assuming I have one to give."
+  end
+:please
+  npc "Well, seeing as you asked nicely... I could do with some help."
+  npc "The wizard Grayzag next door decided he didn't like me, so he summoned hundreds of little imps. They stole all sorts of things, most importantly my magic beads."
+  npc "There was a red one, a yellow one, a black one and a white one. The imps have spread out all over the kingdom. Could you get my beads back for me?"
+  player "I'll try."
+  stage IMP 1
+  end
+:progress
+  npc "So how are you doing finding my beads?"
+  if not has RED_BEAD goto notyet
+  if not has YELLOW_BEAD goto notyet
+  if not has BLACK_BEAD goto notyet
+  if not has WHITE_BEAD goto notyet
+  player "I've got all four beads. It was hard work, I can tell you."
+  npc "Give them here and I'll check that they really are my beads, before I give you your reward. You'll like it - it's an amulet of accuracy."
+  take RED_BEAD
+  take YELLOW_BEAD
+  take BLACK_BEAD
+  take WHITE_BEAD
+  narrate "You give four coloured beads to Wizard Mizgog."
+  complete IMP
+  end
+:notyet
+  player "I've not found them all yet."
+  npc "Well, get on with it. I've lost a white bead, a red bead, a black bead and a yellow bead. Go kill some imps!"
+  end
+:finished
+  npc "Thanks for finding my beads. Grayzag won't get them again!"
+
+# ============================================================================================
+# Witch's Potion
+# ============================================================================================
+talk HETTY
+  if done WITCH goto finished
+  if stage WITCH == 2 goto drink
+  if started WITCH goto progress
+  npc "What could you want with an old woman like me?"
+  choice
+    option "I am in search of a quest." quest
+    option "I've heard that you are a witch." witch
+:witch
+  npc "Yes, it does seem to be getting fairly common knowledge. I fear I may get a visit from the witch hunters of Falador before long."
+  end
+:quest
+  npc "Hmmm... Maybe I can think of something for you. Would you like to become more proficient in the dark arts?"
+  choice
+    option "Yes, help me find my darker side." yes
+    option "No, I have my principles and honour." no
+:no
+  npc "Suit yourself, but you're missing out."
+  end
+:yes
+  npc "Ok, I'm going to make a potion to help bring out your darker self. You will need certain ingredients."
+  player "What do I need?"
+  npc "You need an eye of newt, a rat's tail, an onion... Oh, and a piece of burnt meat."
+  npc "The general stores sell eyes of newt. Rats scurry about north of the village, onions grow in Fred's field near Lumbridge, and you can burn meat on any fire."
+  stage WITCH 1
+  end
+:progress
+  npc "So have you found the things for the potion?"
+  if not has EYE_NEWT goto notyet
+  if not has ONION goto notyet
+  if not has RAT_TAIL goto notyet
+  if not has BURNT_MEAT goto notyet
+  player "Yes, I have everything!"
+  npc "Excellent, can I have them then?"
+  take EYE_NEWT
+  take ONION
+  take RAT_TAIL
+  take BURNT_MEAT
+  narrate "You pass the ingredients to Hetty and she puts them all into her cauldron. Hetty closes her eyes and begins to chant. The cauldron bubbles mysteriously."
+  player "Well, is it ready?"
+  npc "Ok, now drink from the cauldron."
+  stage WITCH 2
+  end
+:notyet
+  player "I'm afraid I don't have all of them yet."
+  npc "Well I can't make the potion without them! Remember: an eye of newt, a rat's tail, an onion and a piece of burnt meat."
+  end
+:drink
+  npc "Well, are you going to drink the potion or not?"
+  end
+:finished
+  npc "How's your dark side coming along?"
+  player "I'm practising and slowly getting better."
+  npc "Good, good."
+
+obj CAULDRON
+  if stage WITCH == 2 goto drink
+  chat "A bubbling cauldron. It smells foul."
+  end
+:drink
+  narrate "You drink from the cauldron. It tastes horrible! You feel yourself imbued with power."
+  complete WITCH
+
+# ============================================================================================
+# Goblin Diplomacy
+# ============================================================================================
+talk WARTFACE
+  if done GOBLIN goto finished
+  if stage GOBLIN == 1 goto s1
+  if stage GOBLIN == 2 goto s2
+  if stage GOBLIN == 3 goto s3
+  say WARTFACE "Green armour best."
+  say BENTNOZE "No no, red every time."
+  say WARTFACE "Go away human, we busy."
+  choice
+    option "Why are you arguing about armour colour?" why
+    option "Wouldn't you prefer peace?" peace
+:peace
+  say WARTFACE "Yeah, peace is good as long as it peace wearing green armour."
+  say BENTNOZE "But green too much like doopy cave goblins. Red armour better!"
+  end
+:why
+  say WARTFACE "We decide to celebrate goblin new century by changing colour of our armour. Light blue get boring after a bit, and we want change."
+  say BENTNOZE "Problem is, they want different change to us."
+  choice
+    option "Shall I pick an armour colour for you?" pick
+    option "Good luck with that." luck
+:luck
+  say WARTFACE "Bah, human no help."
+  end
+:pick
+  player "Shall I pick an armour colour for you?"
+  say WARTFACE "Different to either green or red?"
+  player "How about orange?"
+  say BENTNOZE "Orange? Me no know... Bring us orange armour and we try it."
+  say WARTFACE "Yes, bring orange armour, human. Goblins drop armour, and witch in Draynor make dyes."
+  stage GOBLIN 1
+  end
+:s1
+  if not has ORANGE_MAIL goto nm1
+  player "I have some orange armour here."
+  take ORANGE_MAIL
+  narrate "You give some orange goblin armour to the goblins. Wartface puts it on."
+  say WARTFACE "No, it doesn't look right..."
+  say BENTNOZE "It make you look like giant orange! Maybe blue armour better."
+  say WARTFACE "Yes. Bring us blue armour, human."
+  stage GOBLIN 2
+  end
+:nm1
+  say WARTFACE "Where orange armour? Goblins drop goblin mail, and witch in Draynor make dye."
+  end
+:s2
+  if not has BLUE_MAIL goto nm2
+  player "I have some blue armour here."
+  take BLUE_MAIL
+  narrate "You give some blue goblin armour to the goblins. Bentnoze puts it on."
+  say BENTNOZE "Ugh. It make you look like little piece of sky."
+  say WARTFACE "Me no like blue either. Maybe... plain brown, like real goblin armour?"
+  stage GOBLIN 3
+  end
+:nm2
+  say WARTFACE "Where blue armour, human?"
+  end
+:s3
+  if not has GOBLIN_MAIL goto nm3
+  player "Here is some plain brown goblin armour."
+  take GOBLIN_MAIL
+  narrate "You give some brown goblin armour to the goblins. Wartface puts it on."
+  say WARTFACE "Hmm... this is goblin colour! Me like brown!"
+  say BENTNOZE "Yes, brown armour best! Thank you, human. Take shiny thing as reward."
+  complete GOBLIN
+  end
+:nm3
+  say WARTFACE "Where brown armour, human? Just plain goblin mail."
+  end
+:finished
+  say WARTFACE "Now you've solved our argument, we gotta think of something else to do."
+  say BENTNOZE "Yep, we bored now."
+
+talk BENTNOZE = WARTFACE
+
+talk AGGIE
+  npc "What can I help you with?"
+  if not started GOBLIN goto plain
+  choice
+    option "Can you make dyes for me please?" dyes
+    option "Nothing, thanks." end
+:dyes
+  npc "I can make orange and blue dyes for 5 coins a bottle."
+  choice
+    option "Orange dye, please. (5 coins)" orange
+    option "Blue dye, please. (5 coins)" blue
+    option "No thanks." end
+:orange
+  if not has COINS 5 goto poor
+  take COINS 5
+  give ORANGE_DYE
+  narrate "Aggie stirs her cauldron and hands you a bottle of orange dye."
+  end
+:blue
+  if not has COINS 5 goto poor
+  take COINS 5
+  give BLUE_DYE
+  narrate "Aggie stirs her cauldron and hands you a bottle of blue dye."
+  end
+:poor
+  npc "You haven't got enough money. Come back with 5 coins."
+  end
+:plain
+  npc "I'm a witch, dearie. I make dyes, but I've no work for you today."
+
+item ORANGE_DYE
+  if not has GOBLIN_MAIL goto none
+  take ORANGE_DYE
+  take GOBLIN_MAIL
+  give ORANGE_MAIL
+  sfx PICKUP
+  chat "You dye the goblin mail orange."
+  end
+:none
+  chat "I need some goblin mail to use this dye on."
+
+item BLUE_DYE
+  if not has GOBLIN_MAIL goto none
+  take BLUE_DYE
+  take GOBLIN_MAIL
+  give BLUE_MAIL
+  sfx PICKUP
+  chat "You dye the goblin mail blue."
+  end
+:none
+  chat "I need some goblin mail to use this dye on."
+
+# ============================================================================================
+# Ernest the Chicken
+# ============================================================================================
+talk VERONICA
+  if done ERNEST goto finished
+  if started ERNEST goto waiting
+  npc "Can you please help me? I'm in a terrible spot of trouble."
+  choice
+    option "Aha, sounds like a quest. I'll help." yes
+    option "No, I'm looking for something to kill." no
+:no
+  npc "Oh. Fine. Some hero you are."
+  end
+:yes
+  player "Aha, sounds like a quest. I'll help."
+  npc "Oh, thank you! My fiance Ernest and I came upon this house. Seeing as we were a little lost, Ernest went in to ask for directions."
+  npc "That was an hour ago. That house looks spooky - can you go and see if you can find him for me?"
+  player "Ok, I'll see what I can do."
+  stage ERNEST 1
+  end
+:waiting
+  npc "Have you found my sweetheart yet?"
+  player "Not yet, I'm still looking."
+  end
+:finished
+  npc "Thank you so much for rescuing my Ernest! We're going straight home."
+
+talk ODDENSTEIN
+  if done ERNEST goto finished
+  if stage ERNEST >= 2 goto parts
+  if stage ERNEST == 1 goto ask
+  npc "Be careful in here, there's lots of dangerous equipment."
+  choice
+    option "What does this machine do?" machine
+    option "Is this your house?" house
+:machine
+  npc "Nothing at the moment, it's broken. It's meant to be a transmutation machine."
+  end
+:house
+  npc "No, I'm just one of the tenants. It belongs to the count who lives in the basement."
+  end
+:ask
+  player "I'm looking for a guy called Ernest."
+  npc "Ah, Ernest, top notch bloke. He's helping me with my experiments."
+  player "So you know where he is then?"
+  npc "That chicken over there is Ernest. Er... it's a long story. He offered to help me test my new pouletmorph machine, and it worked a little too well."
+  player "Change him back this instant!"
+  npc "Um, it's not so easy. My machine is broken, and the house gremlins ran off with some vital bits."
+  npc "I need a pressure gauge, a rubber tube and an oil can. I last saw the gauge near the fountain, and the tube in the locked west wing - the key's in the compost heap, I think."
+  stage ERNEST 2
+  end
+:parts
+  npc "Have you found anything yet?"
+  if flag ERNEST 0 goto p_tube
+  if not has GAUGE goto p_tube
+  take GAUGE
+  flag ERNEST 0
+  player "I have a pressure gauge."
+:p_tube
+  if flag ERNEST 1 goto p_oil
+  if not has TUBE goto p_oil
+  take TUBE
+  flag ERNEST 1
+  player "I have a rubber tube."
+:p_oil
+  if flag ERNEST 2 goto check
+  if not has OIL_CAN goto check
+  take OIL_CAN
+  flag ERNEST 2
+  player "I have an oil can."
+:check
+  if not flag ERNEST 0 goto notyet
+  if not flag ERNEST 1 goto notyet
+  if not flag ERNEST 2 goto notyet
+  npc "That's everything! Let me fit these to my machine..."
+  narrate "The professor bolts the parts on and pulls a lever. With a flash and a squawk, the chicken turns back into a young man!"
+  narrate "Ernest: Thank you so much! I thought I'd be a chicken forever. Here, take this reward, and tell Veronica I'm on my way."
+  complete ERNEST
+  end
+:notyet
+  npc "I still need the rest of the parts. Check your quest journal to see what's missing."
+  end
+:finished
+  npc "Ernest is back to normal, more or less. I may have left a few feathers."
+
+obj COMPOST
+  if has MANOR_KEY goto nothing
+  if flag ERNEST 1 goto nothing
+  if not has SPADE goto nospade
+  give MANOR_KEY
+  sfx PICKUP
+  chat "You dig through the compost heap... and find a key!"
+  end
+:nospade
+  chat "The compost heap smells awful. I'd need a spade to dig through it."
+  end
+:nothing
+  chat "You dig through the compost, but find nothing else of interest."
+
+obj LOCKDOOR
+  if facing DOWN goto leave
+  if not has MANOR_KEY goto locked
+  sfx OK
+  chat "You unlock the door and go through."
+  walkthrough
+  end
+:leave
+  walkthrough
+  end
+:locked
+  chat "The door is locked."
+
+item POISON
+  if not has FISH_FOOD goto none
+  take POISON
+  take FISH_FOOD
+  give POISON_FOOD
+  chat "You mix the poison into the fish food."
+  end
+:none
+  chat "I wonder what I could poison with this."
+
+item FISH_FOOD
+  if not has POISON goto none
+  take POISON
+  take FISH_FOOD
+  give POISON_FOOD
+  chat "You mix the poison into the fish food."
+  end
+:none
+  chat "You have no fish to feed. Perhaps there are some in the manor's fountain."
+
+# ============================================================================================
+# Pirate's Treasure
+# ============================================================================================
+talk FRANK
+  if done PIRATE goto finished
+  if stage PIRATE >= 2 goto later
+  if stage PIRATE == 1 goto s1
+  npc "Arr, matey!"
+  choice
+    option "I'm in search of treasure." treasure
+    option "Arr!" arr
+:arr
+  npc "Arr!"
+  end
+:treasure
+  npc "Arr, treasure you be after, eh? Well, I might be able to tell you where to find some... for a price."
+  player "What sort of price?"
+  npc "A bottle of rum. Not just any rum, mind - Karamja rum. There's no rum like Karamja rum!"
+  npc "Those blasted customs officers won't let a pirate near the stuff. But I hear the bartender at the Rusty Anchor here keeps a bottle hidden under his counter."
+  stage PIRATE 1
+  end
+:s1
+  if not has RUM goto norum
+  player "I've got some Karamja rum for you."
+  take RUM
+  npc "Arr! Now that's the stuff! Right, a deal's a deal. I buried my treasure long ago, and the clue to it is locked in a chest in the Blue Moon Inn in Varrock."
+  npc "Here's the key. Take what's inside; it'll show you the way."
+  give CHEST_KEY
+  stage PIRATE 2
+  chat "Frank gives you a key."
+  end
+:norum
+  npc "Have ye brought some rum for yer old mate Frank?"
+  player "Not yet."
+  npc "Try the bartender at the Rusty Anchor, matey."
+  end
+:later
+  if stage PIRATE == 3 goto s3
+  if has CHEST_KEY goto s2
+  player "I seem to have lost the chest key."
+  npc "Arr, silly you. Fortunately I took the precaution of having another one made."
+  give CHEST_KEY
+  end
+:s2
+  npc "Find the chest in the Blue Moon Inn in Varrock, matey."
+  end
+:s3
+  npc "Dig where the message says and the treasure be yours!"
+  end
+:finished
+  npc "Arr, spent all that treasure yet, matey?"
+
+talk BARTENDER
+  npc "Welcome to the Rusty Anchor. What'll it be?"
+  if not stage PIRATE == 1 goto plain
+  if has RUM goto plain
+  choice
+    option "Do you have any Karamja rum?" rum
+    option "Nothing, thanks." end
+:rum
+  npc "Karamja rum? Keep your voice down! The customs officers would have my head... I've a bottle under the counter. 30 coins."
+  choice
+    option "I'll take it. (30 coins)" buy
+    option "No thanks." end
+:buy
+  if not has COINS 30 goto poor
+  take COINS 30
+  give RUM
+  narrate "The bartender slips you a bottle of Karamja rum."
+  end
+:poor
+  npc "That's 30 coins, mate. No coins, no rum."
+  end
+:plain
+  npc "Sorry, we're all out of beer today."
+
+obj CHEST
+  if stage PIRATE == 2 goto open
+  chat "The chest is locked."
+  end
+:open
+  if not has CHEST_KEY goto locked
+  take CHEST_KEY
+  give PIRATE_MSG
+  stage PIRATE 3
+  narrate "You unlock the chest. All that's inside is a torn piece of paper - a pirate message."
+  end
+:locked
+  chat "The chest is locked. I need Frank's key."
+
+item PIRATE_MSG
+  narrate "The message reads: 'Visit the city of the White Knights. In the park, the treasure lies just south of the fountain. Dig there.'"
+
+item SPADE
+  if not stage PIRATE == 3 goto nothing
+  if not near PARK_DIG 1 goto nothing
+  sfx MINE
+  narrate "You dig into the soft earth... and unearth a small casket! Inside is Redbeard Frank's treasure."
+  take PIRATE_MSG
+  complete PIRATE
+  end
+:nothing
+  chat "You dig a hole, but find nothing."
+
+item MESSAGE
+  narrate "It's addressed to Romeo. I shouldn't read it."
+
+item NOTES
+  narrate "The notes are full of strange symbols and diagrams. I can't make any sense of them."
+
+# ============================================================================================
+# Black Knights' Fortress
+# ============================================================================================
+talk AMIK
+  if done BKF goto finished
+  if stage BKF == 3 goto s3
+  if started BKF goto progress
+  npc "I am the leader of the White Knights of Falador. Why do you seek my audience?"
+  choice
+    option "I seek a quest!" quest
+    option "I don't, I'm just looking around." no
+:no
+  npc "Ok. Don't break anything."
+  end
+:quest
+  if not qp >= 12 goto weak
+  npc "Well, I need some spy work doing, but it's quite dangerous. It will involve going into the Black Knights' Fortress."
+  choice
+    option "I laugh in the face of danger!" yes
+    option "I cower in a corner at the first sign of it!" cower
+:cower
+  npc "Err... well, spy work does involve a bit of hiding in corners, I suppose."
+:yes
+  npc "Good. Our spy has discovered the Black Knights are developing a secret weapon. I need you to find out what it is."
+  npc "The fortress lies north of here, beyond Ice Mountain. A guard watches the west gate; in an iron chainbody and a bronze med helm, you'll pass for one of their recruits."
+  npc "Inside there's a grill where you can overhear their councils. Find out what they're up to, and stop it if you can."
+  stage BKF 1
+  end
+:weak
+  npc "I fear you are not yet experienced enough for this task. Come back when you have at least 12 quest points."
+  end
+:progress
+  npc "How's the mission going?"
+  player "I haven't finished it yet."
+  npc "Remember: an iron chainbody and a bronze med helm will get you past the guard."
+  end
+:s3
+  player "I have ruined the Black Knights' invincibility potion. That should put a stop to their plans!"
+  npc "Yes, we have just received word from our spy. You have done the White Knights a great service. Here is your reward."
+  complete BKF
+  end
+:finished
+  npc "Thank you again for your help, adventurer. Falador is in your debt."
+
+talk BK_GUARD
+  if facing LEFT goto leave
+  if not worn IRON_CHAINBODY goto out
+  if not worn BRONZE_HELM goto out
+  npc "Ah, a new recruit. Get in there, quickly!"
+  walkthrough
+  end
+:out
+  npc "Hey! Get lost! This is a restricted area. Only Black Knight recruits may enter, and they wear proper uniform."
+  end
+:leave
+  npc "Off you go then."
+  walkthrough
+
+obj GRILL
+  if stage BKF == 1 goto listen
+  chat "You can't hear anything through the grill."
+  end
+:listen
+  narrate "You press your ear to the grill and overhear the Black Knights' council..."
+  narrate "Black Knight captain: So, how is the secret weapon coming along?"
+  narrate "Witch: The invincibility potion is almost ready. All it lacks is the final ingredient - a cabbage."
+  narrate "Black Knight captain: Then fetch one at once! Soon the White Knights will tremble before us!"
+  stage BKF 2
+
+obj HOLE
+  if not stage BKF == 2 goto nothing
+  if not has CABBAGE goto nocab
+  take CABBAGE
+  narrate "You drop the cabbage down the hole. From below comes a splash, then shouting: 'Where did that cabbage come from? The potion is ruined!'"
+  stage BKF 3
+  end
+:nocab
+  chat "A hole above the witch's cauldron. A cabbage dropped down here would spoil her potion..."
+  end
+:nothing
+  chat "It's a hole in the floor."
+
+# ============================================================================================
+# Demon Slayer
+# ============================================================================================
+talk ARIS
+  if done DEMON goto finished
+  if started DEMON goto again
+  npc "Hello, young one. Cross my palm with silver and the future will be revealed to you."
+  choice
+    option "Ok, here you go. (1 coin)" pay
+    option "Who are you calling young one?!" young
+    option "No, I don't believe in that stuff." no
+:young
+  npc "You have been on this world a relatively short time. At least compared to me."
+  end
+:no
+  npc "Ok suit yourself."
+  end
+:pay
+  if not has COINS 1 goto poor
+  take COINS 1
+  npc "Come closer and listen carefully to what the future holds, as I peer into the swirling mists of the crystal ball."
+  npc "I can see images forming. I can see you. You are holding a very impressive looking sword. You're fighting a big, scary demon!"
+  npc "Delrith! Delrith is coming! 150 years ago he was imprisoned by the great hero Wally, using the magic sword Silverlight. Now his followers are summoning him back."
+  player "How am I meant to fight a demon who can destroy cities?"
+  npc "If you face Delrith while he is still weak from being summoned, and use the correct weapon, you will not find the task too arduous."
+  npc "Wally weakened him with Silverlight, then spoke the incantation that banished him: Carlem... Aber... Camerinthum... Purchai... Gabindo. Remember it well!"
+  npc "Silverlight is kept by Sir Prysin, in Varrock Palace. Go to him."
+  stage DEMON 1
+  end
+:poor
+  npc "Not even a single coin? Then the mists stay closed to you."
+  end
+:again
+  npc "Remember the incantation: Carlem Aber Camerinthum Purchai Gabindo. Delrith will rise at the stone circle south of Varrock."
+  end
+:finished
+  npc "The mists are calm now. Varrock is safe, thanks to you."
+
+talk PRYSIN
+  if done DEMON goto finished
+  if stage DEMON == 3 goto s3
+  if stage DEMON == 2 goto s2
+  if stage DEMON == 1 goto s1
+  npc "Hello, who are you?"
+  player "I am a mighty adventurer."
+  npc "Well, mighty adventurer, the palace is not a tavern. Mind your manners here."
+  end
+:s1
+  player "Gypsy Aris said I should come and talk to you. I need Silverlight to fight the demon Delrith."
+  npc "Delrith? Then the prophecy comes true... Silverlight has been passed down my family since Wally's time. But I was so afraid someone would steal it that I locked it away."
+  npc "I locked it in a cupboard with three keys. One I gave to Captain Rovin, head of the palace guard. One I gave to my friend Wizard Traiborn, at the Wizards' Tower."
+  npc "And the third... I'm afraid I dropped it down the drain just east of the palace. Perhaps a bucket of water would wash it out."
+  stage DEMON 2
+  end
+:s2
+  if not has KEY_ROVIN goto missing
+  if not has KEY_TRAIBORN goto missing
+  if not has KEY_DRAIN goto missing
+  player "I've got all three keys!"
+  take KEY_ROVIN
+  take KEY_TRAIBORN
+  take KEY_DRAIN
+  narrate "Sir Prysin unlocks the cupboard with the three keys and hands you Silverlight."
+  give SILVERLIGHT
+  npc "Silverlight is yours. Wield it, strike down that demon, and don't forget the incantation!"
+  stage DEMON 3
+  end
+:missing
+  npc "You still need all three keys: Captain Rovin's, Wizard Traiborn's, and the one in the palace drain."
+  end
+:s3
+  if has SILVERLIGHT goto go
+  npc "You lost Silverlight?! ...Strange, it seems to have found its way back to the cupboard. Here, and be careful!"
+  give SILVERLIGHT
+  end
+:go
+  npc "Go and slay Delrith at the stone circle south of Varrock!"
+  end
+:finished
+  npc "You have saved Varrock! Wally himself would be proud."
+
+talk ROVIN
+  if not stage DEMON == 2 goto plain
+  if has KEY_ROVIN goto plain
+  npc "What are you doing up here? Only the palace guard is allowed here."
+  player "I need the key Sir Prysin gave you. The demon Delrith is returning, and I need Silverlight to stop him!"
+  npc "A demon? Hmm, Prysin did say something like this might happen one day. Very well, here's the key. Don't make me regret this."
+  give KEY_ROVIN
+  chat "Captain Rovin hands you a key."
+  end
+:plain
+  npc "Move along, citizen."
+
+talk TRAIBORN
+  if not stage DEMON == 2 goto plain
+  if has KEY_TRAIBORN goto plain
+  if flag DEMON 0 goto bones
+  npc "Ello young thingummywut."
+  player "I need the key Sir Prysin gave you."
+  npc "Sir Prysin? Who's that? What would I want his key for? ...Oh, THAT key! Hmm, I appear to have lost it."
+  npc "I could magic you another, but I'll need 25 sets of bones for the spell."
+  flag DEMON 0
+:bones
+  if not has BONES 25 goto need
+  take BONES 25
+  narrate "Traiborn waves his arms and chants: 'Wings of dark and colour too, spreading through the moon...' A key appears in his hands."
+  npc "There you go. A key, as promised."
+  give KEY_TRAIBORN
+  end
+:need
+  npc "Bring me 25 bones and I'll conjure up that key."
+  end
+:plain
+  npc "Ello young thingummywut. Mind the magic."
+
+obj DRAIN
+  if not stage DEMON == 2 goto plain
+  if has KEY_DRAIN goto plain
+  if not has BUCKET_WATER goto look
+  take BUCKET_WATER
+  give BUCKET
+  give KEY_DRAIN
+  sfx SPLASH
+  narrate "You pour the water down the drain. It washes the key out of the muck, and you grab it."
+  end
+:look
+  chat "There's a key stuck in the muck at the bottom of the drain. Water might wash it free."
+  end
+:plain
+  chat "A drain. It smells unpleasant."
+
+event DELRITH
+  narrate "Delrith is weakened! Now is your chance to banish him. Say the incantation!"
+  choice
+    option "Carlem Gabindo Purchai Zaree Camerinthum" wrong
+    option "Carlem Aber Camerinthum Purchai Gabindo" right
+    option "Purchai Zaree Gabindo Carlem Aber" wrong
+    option "Aber Gabindo Carlem Camerinthum Purchai" wrong
+:wrong
+  player "Carlem... er... Gabindo?"
+  narrate "That wasn't the right incantation! Delrith regains his strength!"
+  npcheal
+  end
+:right
+  player "Carlem... Aber... Camerinthum... Purchai... Gabindo!"
+  narrate "Delrith shrieks as he is dragged back into the dark dimension from which he came!"
+  npcoff
+  complete DEMON

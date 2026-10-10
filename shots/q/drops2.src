@@ -1,0 +1,15 @@
+wait 60
+press A
+wait 40
+tp 148 166 3
+wait 30
+dump @snd_stats+4 1
+press A
+wait 100
+dump @snd_stats+4 1
+press A
+wait 100
+dump @snd_stats+4 1
+press A
+wait 100
+dump @snd_stats+4 1

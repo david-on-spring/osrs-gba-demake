@@ -1,0 +1,43 @@
+wait 60
+press A
+wait 40
+tp 139 171 2
+wait 30
+poke16 @perf_max 0
+talk
+until8 @ui_wait 1 300
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+dump @perf_max 1
+poke16 @perf_max 0
+wait 10
+press DOWN
+wait 10
+dump @perf_max 1
+poke16 @perf_max 0
+choose 0
+until8 @ui_wait 1 300
+dump @perf_max 1
+poke16 @perf_max 0
+dlg
+choose 0
+dlg
+world
+dump @perf_max 1
+stage COOK 1
+item 9 EGG
+item 10 BUCKET_MILK
+item 11 POT_FLOUR
+wait 30
+poke16 @perf_max 0
+talk
+dlg
+dump @perf_max 1
+poke16 @perf_max 0
+done
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+wait 30
+dump @perf_max 1

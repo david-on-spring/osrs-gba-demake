@@ -1,0 +1,37 @@
+wait 60
+press A
+wait 40
+tp 141 165 3
+talk
+dlg
+choose 0
+dlg
+choose 0
+dlg
+world
+expectq RUNE 1
+expectitem 9 AIR_TALISMAN
+tp 89 196 2
+talk
+until8 @ui_wait 1 300
+wait 4
+shot shots/q/rune_sedridor.png
+dlg
+world
+expectq RUNE 2
+expectitem 9 PACKAGE
+tp 162 73 3
+talk
+dlg
+world
+expectq RUNE 3
+expectitem 9 NOTES
+tp 89 196 2
+talk
+dlg
+done
+shot shots/q/rune_done.png
+press A
+world
+expectq RUNE 4
+expectitem 9 AIR_TALISMAN

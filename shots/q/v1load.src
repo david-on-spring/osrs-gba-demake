@@ -1,0 +1,12 @@
+wait 60
+shot shots/q/v1_title.png
+press A
+wait 40
+dump @pl+0x34 1
+dump @pl+0xb8 7
+press START
+wait 20
+press DOWN
+press A
+wait 15
+shot shots/q/v1_equip.png

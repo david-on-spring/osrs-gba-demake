@@ -1,0 +1,84 @@
+wait 60
+press A
+wait 40
+poke16 @perf_max 0
+# --- talk to the Cook in the castle kitchen
+tp 139 171 2
+talk
+until8 @ui_wait 1 300
+wait 4
+shot shots/q/cook_talk.png
+dlg
+wait 4
+shot shots/q/cook_choice.png
+choose 0
+dlg
+choose 0
+dlg
+world
+expectq COOK 1
+# --- bucket and pot from the kitchen
+tp 137 171 1
+press A
+wait 10
+tp 140 171 1
+press A
+wait 10
+expectitem 9 BUCKET
+expectitem 10 POT
+# --- egg from the chicken coop north of the castle
+tp 151 128 1
+press A
+wait 10
+expectitem 11 EGG
+# --- wheat: pick from the field by the mill, mill it
+tp 118 129 2
+press A
+wait 10
+expectitem 12 GRAIN
+tp 118 123 1
+press A
+wait 10
+shot shots/q/cook_hopper.png
+tp 119 124 2
+press A
+wait 10
+expectitem 10 POT_FLOUR
+# --- milk the dairy cow
+tp 165 140 2
+press A
+wait 10
+shot shots/q/cook_milk.png
+expectitem 9 BUCKET_MILK
+# --- open the journal mid-quest
+press START
+wait 20
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 10
+press DOWN
+press A
+wait 15
+shot shots/q/cook_journal.png
+press B
+press B
+press START
+wait 20
+# --- hand everything in
+tp 139 171 2
+talk
+dlg
+done
+shot shots/q/cook_done.png
+press A
+until8 @ui_wait 4 60
+wait 10
+shot shots/q/cook_levelup.png
+press A
+world
+expectq COOK 2
+dumpq
+
+dump @perf_max 1

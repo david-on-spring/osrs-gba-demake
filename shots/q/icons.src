@@ -1,0 +1,72 @@
+wait 60
+press A
+wait 30
+clearinv
+item 0 EGG
+item 1 BUCKET
+item 2 BUCKET_MILK
+item 3 BUCKET_WATER
+item 4 POT
+item 5 POT_FLOUR
+item 6 GRAIN
+item 7 SHEARS
+item 8 WOOL
+item 9 BALL_WOOL
+item 10 GHOSTSPEAK
+item 11 SKULL
+item 12 MESSAGE
+item 13 CADAVA
+item 14 CADAVA_POTION
+item 15 CLAY
+item 16 AIR_TALISMAN
+item 17 PACKAGE
+item 18 NOTES
+item 19 RED_BEAD
+item 20 YELLOW_BEAD
+item 21 BLACK_BEAD
+item 22 WHITE_BEAD
+item 23 ACCURACY
+item 24 EYE_NEWT
+item 25 ONION
+item 26 RAT_TAIL
+item 27 GOBLIN_MAIL
+press START
+wait 20
+press A
+wait 20
+shot shots/q/icons0.png
+press B
+press START
+wait 20
+clearinv
+item 0 ORANGE_DYE
+item 1 BLUE_DYE
+item 2 ORANGE_MAIL
+item 3 BLUE_MAIL
+item 4 GOLD_BAR
+item 5 FISH_FOOD
+item 6 POISON
+item 7 POISON_FOOD
+item 8 GAUGE
+item 9 TUBE
+item 10 OIL_CAN
+item 11 MANOR_KEY
+item 12 SPADE
+item 13 RUM
+item 14 CHEST_KEY
+item 15 PIRATE_MSG
+item 16 GOLD_RING
+item 17 EMERALD
+item 18 CABBAGE
+item 19 SILVERLIGHT
+item 20 KEY_ROVIN
+item 21 KEY_TRAIBORN
+item 22 KEY_DRAIN
+press START
+wait 20
+press A
+wait 20
+shot shots/q/icons1.png
+press B
+press START
+wait 20

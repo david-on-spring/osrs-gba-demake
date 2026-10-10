@@ -1,0 +1,41 @@
+wait 60
+press A
+wait 40
+tp 19 170 1
+talk
+dlg
+choose 0
+dlg
+choose 0
+dlg
+world
+expectq WITCH 1
+# onion from Fred's field
+tp 141 130 2
+press A
+wait 10
+expectitem 9 ONION
+# burn some cooked meat on the castle range
+item 10 COOKED_MEAT
+tp 137 171 0
+press A
+wait 10
+expectitem 10 BURNT_MEAT
+# eye of newt from the Lumbridge general store
+item 11 EYE_NEWT
+# a rat north of Rimmington: fight it for its tail
+item 12 RAT_TAIL
+tp 19 170 1
+talk
+dlg
+world
+expectq WITCH 2
+tp 19 170 3
+press A
+dlg
+done
+shot shots/q/witch_done.png
+press A
+ok level
+world
+expectq WITCH 3

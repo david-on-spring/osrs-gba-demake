@@ -1,0 +1,96 @@
+wait 60
+press A
+world
+# shear a sheep right away (sheep wander), with shears from the general store
+item 9 SHEARS
+npcpos 160 139 146
+tp 139 145 0
+press A
+wait 10
+expectitem 10 WOOL
+press A
+wait 10
+shot shots/q/sheep_shorn.png
+item 9 NONE 0
+# Fred's house: start the quest
+tp 130 139 1
+talk
+dlg
+choose 0
+dlg
+choose 0
+dlg
+choose 1
+dlg
+world
+expectq SHEEP 1
+# shears from Fred's table
+tp 129 138 1
+press A
+wait 10
+expectitem 9 SHEARS
+# spin it at the castle wheel
+tp 138 166 2
+press A
+wait 10
+expectitem 10 BALL_WOOL
+shot shots/q/sheep_wheel.png
+# fill up with spun wool (as if the other 19 sheep were shorn) and hand in 10, then the rest
+item 11 BALL_WOOL
+item 12 BALL_WOOL
+item 13 BALL_WOOL
+item 14 BALL_WOOL
+item 15 BALL_WOOL
+item 16 BALL_WOOL
+item 17 BALL_WOOL
+item 18 BALL_WOOL
+item 19 BALL_WOOL
+tp 130 139 1
+talk
+dlg
+world
+dumpq
+press START
+wait 20
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 10
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 15
+shot shots/q/sheep_journal.png
+press B
+press B
+press START
+wait 20
+item 9 BALL_WOOL
+item 10 BALL_WOOL
+item 11 BALL_WOOL
+item 12 BALL_WOOL
+item 13 BALL_WOOL
+item 14 BALL_WOOL
+item 15 BALL_WOOL
+item 16 BALL_WOOL
+item 17 BALL_WOOL
+item 18 BALL_WOOL
+tp 130 139 1
+talk
+dlg
+done
+shot shots/q/sheep_done.png
+ok
+ok level
+world
+expectq SHEEP 2
+dumpq

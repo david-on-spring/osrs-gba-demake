@@ -1,0 +1,29 @@
+wait 60
+press A
+wait 40
+press START
+wait 30
+dump @frame 1
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+dump @frame 1
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 10
+dump @frame 1
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+dump @frame 1
+press A
+wait 14
+dump @frame 1

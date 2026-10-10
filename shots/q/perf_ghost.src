@@ -1,0 +1,79 @@
+wait 60
+press A
+wait 40
+poke16 @perf_max 0
+# Father Aereck in the Lumbridge church
+tp 156 171 3
+talk
+dlg
+choose 2
+dlg
+choose 0
+dlg
+world
+expectq GHOST 1
+# Father Urhney in his swamp shack
+tp 110 184 2
+talk
+dlg
+choose 0
+dlg
+world
+expectq GHOST 2
+expectitem 9 GHOSTSPEAK
+# talking to the ghost needs the amulet: open the coffin first without it
+tp 156 178 3
+press A
+dlg
+world
+tp 156 178 0
+talk
+dlg
+world
+expectq GHOST 2
+# wear the amulet from the Equipment page (neck slot)
+press START
+wait 20
+press DOWN
+press A
+wait 10
+press UP
+press A
+wait 10
+shot shots/q/ghost_equip_neck.png
+press A
+wait 10
+shot shots/q/ghost_equip_worn.png
+press B
+press START
+wait 20
+tp 156 178 0
+talk
+until8 @ui_wait 1 300
+wait 4
+shot shots/q/ghost_talk.png
+dlg
+choose 0
+dlg
+world
+expectq GHOST 3
+# the skull on the Wizards' Tower altar (a skeleton rises)
+tp 92 195 3
+press A
+dlg
+world
+wait 30
+shot shots/q/ghost_skeleton.png
+expectq GHOST 4
+# back to the coffin
+tp 156 178 3
+press A
+dlg
+done
+shot shots/q/ghost_done.png
+press A
+ok level
+world
+expectq GHOST 5
+
+dump @perf_max 1

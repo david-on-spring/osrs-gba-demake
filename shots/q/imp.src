@@ -1,0 +1,32 @@
+wait 60
+press A
+wait 4
+tp 154 144 0
+wait 6
+shot shots/q/imp_imp.png
+tp 90 194 1
+talk
+dlg
+choose 0
+dlg
+choose 0
+dlg
+world
+expectq IMP 1
+item 9 RED_BEAD
+item 10 YELLOW_BEAD
+item 11 BLACK_BEAD
+talk
+dlg
+world
+expectq IMP 1
+item 12 WHITE_BEAD
+talk
+dlg
+done
+shot shots/q/imp_done.png
+press A
+ok level
+world
+expectq IMP 2
+expectitem 9 ACCURACY

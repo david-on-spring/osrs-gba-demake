@@ -1,0 +1,24 @@
+wait 60
+press A
+wait 30
+tp 116 59 2
+talk
+until8 @ui_wait 1 300
+wait 4
+shot shots/q/npc_juliet.png
+dlg
+world
+tp 19 170 1
+talk
+until8 @ui_wait 1 300
+wait 4
+shot shots/q/npc_hetty.png
+dlg
+choose 1
+dlg
+world
+tp 156 171 3
+talk
+until8 @ui_wait 1 300
+wait 4
+shot shots/q/npc_aereck.png

@@ -1,0 +1,37 @@
+wait 60
+press A
+wait 40
+stage COOK 1
+item 9 EGG
+item 10 BUCKET_MILK
+tp 139 171 2
+wait 30
+talk
+until8 @ui_wait 1 300
+poke16 @perf_max 0
+press A
+until8 @ui_wait 1 300
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+until8 @ui_wait 1 300
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+until8 @ui_wait 1 300
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+until8 @ui_wait 1 300
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+until8 @ui_wait 1 300
+dump @perf_max 1
+poke16 @perf_max 0
+press A
+until8 @ui_wait 5 300
+dump @perf_max 1
+poke16 @perf_max 0
+wait 5
+dump @perf_max 1

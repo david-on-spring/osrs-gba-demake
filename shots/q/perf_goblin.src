@@ -1,0 +1,80 @@
+wait 60
+press A
+wait 40
+poke16 @perf_max 0
+tp 14 26 2
+talk
+until8 @ui_wait 1 300
+wait 4
+shot shots/q/goblin_generals.png
+dlg
+choose 0
+dlg
+choose 0
+dlg
+world
+expectq GOBLIN 1
+# Aggie's dyes
+tp 77 145 1
+talk
+dlg
+choose 0
+dlg
+choose 0
+dlg
+world
+expectitem 9 ORANGE_DYE
+talk
+dlg
+choose 0
+dlg
+choose 1
+dlg
+world
+expectitem 10 BLUE_DYE
+# goblin mail (goblins drop it); dye it from the Items menu
+item 11 GOBLIN_MAIL
+press START
+wait 20
+press A
+wait 10
+press DOWN
+press RIGHT
+press RIGHT
+press A
+wait 6
+press A
+world
+expectitem 9 ORANGE_MAIL
+tp 14 26 2
+talk
+dlg
+world
+expectq GOBLIN 2
+item 11 GOBLIN_MAIL
+press START
+wait 20
+press A
+wait 10
+press RIGHT
+press A
+wait 6
+press A
+world
+expectitem 9 BLUE_MAIL
+tp 14 26 3
+talk
+dlg
+world
+expectq GOBLIN 3
+item 11 GOBLIN_MAIL
+talk
+dlg
+done
+shot shots/q/goblin_done.png
+press A
+ok level
+world
+expectq GOBLIN 4
+
+dump @perf_max 1

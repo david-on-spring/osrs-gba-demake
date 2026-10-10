@@ -1,0 +1,29 @@
+wait 60
+press A
+wait 40
+tp 156 171 3
+wait 30
+dump @snd_stats+4 1
+talk
+until8 @ui_wait 1 300
+dump @snd_stats+4 1
+press A
+until8 @ui_wait 2 300
+dump @snd_stats+4 1
+press DOWN
+wait 5
+dump @snd_stats+4 1
+press A
+until8 @ui_wait 1 300
+dump @snd_stats+4 1
+press A
+until8 @ui_wait 5 300
+dump @snd_stats+4 1
+wait 10
+dump @snd_stats+4 1
+press START
+wait 20
+dump @snd_stats+4 1
+press START
+wait 20
+dump @snd_stats+4 1

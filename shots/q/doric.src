@@ -1,0 +1,40 @@
+wait 60
+press A
+wait 40
+tp 12 51 2
+talk
+dlg
+choose 0
+dlg
+choose 0
+dlg
+world
+expectq DORIC 1
+expectitem 9 BRONZE_PICK
+# mine some clay at Rimmington
+tp 26 154 3
+press A
+wait 400
+shot shots/q/doric_clay.png
+expectitem 10 CLAY
+# (the rest of the materials)
+item 11 CLAY
+item 12 CLAY
+item 13 CLAY
+item 14 CLAY
+item 15 CLAY
+item 16 COPPER_ORE
+item 17 COPPER_ORE
+item 18 COPPER_ORE
+item 19 COPPER_ORE
+item 20 IRON_ORE
+item 21 IRON_ORE
+tp 12 51 2
+talk
+dlg
+done
+shot shots/q/doric_done.png
+press A
+ok level
+world
+expectq DORIC 2

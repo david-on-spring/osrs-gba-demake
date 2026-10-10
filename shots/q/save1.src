@@ -1,0 +1,28 @@
+wait 60
+press A
+wait 40
+# start The Restless Ghost and get the amulet, then save mid-quest
+tp 156 171 3
+talk
+dlg
+choose 2
+dlg
+choose 0
+dlg
+world
+tp 110 184 2
+talk
+dlg
+choose 0
+dlg
+world
+expectq GHOST 2
+press START
+wait 20
+press UP
+wait 4
+press A
+wait 10
+press A
+wait 30
+shot shots/q/save_mid.png

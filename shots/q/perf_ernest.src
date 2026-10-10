@@ -1,0 +1,97 @@
+wait 60
+press A
+wait 40
+poke16 @perf_max 0
+tp 91 113 1
+talk
+dlg
+choose 0
+dlg
+world
+expectq ERNEST 1
+tp 95 93 3
+talk
+dlg
+world
+expectq ERNEST 2
+# fountain: piranhas, no gauge yet
+tp 86 104 2
+press A
+dlg
+world
+# spade in the hall, key from the compost heap
+tp 85 98 0
+press A
+wait 10
+expectitem 9 SPADE
+tp 96 104 3
+press A
+wait 10
+expectitem 10 MANOR_KEY
+# the locked west wing: the rubber tube
+tp 86 98 1
+press A
+wait 30
+shot shots/q/ernest_door.png
+tp 86 93 1
+press A
+wait 10
+expectitem 11 TUBE
+tp 86 96 0
+press A
+wait 30
+dump @pl 2
+# oil can, poison, fish food
+tp 90 92 1
+press A
+wait 10
+expectitem 12 OIL_CAN
+tp 91 99 1
+press A
+wait 10
+tp 97 92 1
+press A
+wait 10
+expectitem 13 POISON
+expectitem 14 FISH_FOOD
+# mix them in the Items menu (Use on the poison)
+press START
+wait 20
+press A
+wait 10
+press DOWN
+wait 4
+press RIGHT
+wait 4
+press RIGHT
+wait 4
+press RIGHT
+wait 4
+press RIGHT
+wait 4
+press RIGHT
+wait 4
+press RIGHT
+wait 4
+shot shots/q/ernest_items.png
+press A
+wait 6
+press A
+world
+dumpq
+# poison the piranhas, take the gauge
+tp 86 104 2
+press A
+dlg
+world
+shot shots/q/ernest_fountain.png
+tp 95 93 3
+talk
+dlg
+done
+shot shots/q/ernest_done.png
+press A
+world
+expectq ERNEST 3
+
+dump @perf_max 1

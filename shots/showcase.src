@@ -1,0 +1,53 @@
+wait 70
+shot docs/screenshots/title.png
+press A
+wait 40
+tp 147 167 0
+wait 260
+shot docs/screenshots/lumbridge.png
+press START
+wait 24
+shot docs/screenshots/menu.png
+press A
+wait 16
+shot docs/screenshots/items.png
+press B
+wait 10
+press START
+wait 20
+poke16 @pl+0xb8 46
+poke16 @pl+0xba 3f
+poke16 @pl+0xbc 4c
+poke16 @pl+0xbe 56
+poke16 @pl+0xc0 52
+poke16 @pl+0xc2 57
+tp 141 62 0
+press START
+wait 24
+shot docs/screenshots/menu_rune.png
+press DOWN
+press A
+wait 16
+shot docs/screenshots/equipment.png
+press B
+press DOWN
+press A
+wait 16
+shot docs/screenshots/skills.png
+press B
+wait 6
+press START
+wait 24
+shot docs/screenshots/varrock.png
+tp 86 150 0
+wait 30
+shot docs/screenshots/draynor.png
+tp 36 96 0
+wait 30
+shot docs/screenshots/falador.png
+tp 178 192 0
+wait 30
+shot docs/screenshots/alkharid.png
+tp 84 34 0
+wait 30
+shot docs/screenshots/edgeville.png

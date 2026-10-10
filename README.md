@@ -1,2 +1,279 @@
-# osrs-gba-demake
-A demake of Old School Runescape for the Game Boy Advance
+<div align="center">
+
+<img src="docs/screenshots/title.png" width="480" alt="Title screen">
+
+# OSRS GBA Demake
+
+**The 2007 free-to-play RuneScape mainland, rebuilt from scratch for the Game Boy Advance.**
+
+Lumbridge to Varrock, Falador to Al Kharid: skill, quest, fight and bank your way across Gielinor
+on a 16.78 MHz handheld, with an FF7 Remake–inspired menu that keeps the screen clear.
+
+![Platform](https://img.shields.io/badge/platform-Game%20Boy%20Advance-6b5bd6)
+![Language](https://img.shields.io/badge/language-C%20%2B%20ARM%20asm-00599c)
+![ROM](https://img.shields.io/badge/ROM-~560%20KB-2ea44f)
+![Quests](https://img.shields.io/badge/quests-13-e0b838)
+![No devkitPro](https://img.shields.io/badge/devkitPro-not%20required-lightgrey)
+
+[**Download the ROM**](../../releases/latest) · [Features](#features) · [Controls](#controls) · [Quests](#quests) · [Building](#building) · [How it works](#how-it-works)
+
+</div>
+
+---
+
+## Features
+
+### The F2P mainland, at 1:2 scale
+
+A 208×208-cell recreation of the original free-to-play world, laid out in real OSRS coordinates:
+Lumbridge, Draynor Village and Manor, the Wizards' Tower, Port Sarim, Rimmington, Falador, Ice
+Mountain, Barbarian Village, Edgeville and the Wilderness ditch, Varrock and the Grand Exchange,
+and Al Kharid with its desert. 39 named areas, 200 NPCs, 9 banks and 5 general stores. The map is
+streamed tile by tile, so you can walk from one end to the other without a single loading screen.
+
+<table>
+<tr>
+<td><img src="docs/screenshots/varrock.png" alt="Varrock Square"></td>
+<td><img src="docs/screenshots/lumbridge.png" alt="Lumbridge Castle"></td>
+</tr>
+<tr>
+<td align="center"><sub>Varrock Square</sub></td>
+<td align="center"><sub>Lumbridge Castle</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/draynor.png" alt="Draynor Village"></td>
+<td><img src="docs/screenshots/alkharid.png" alt="Al Kharid"></td>
+</tr>
+<tr>
+<td align="center"><sub>Draynor Village</sub></td>
+<td align="center"><sub>Al Kharid</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/falador.png" alt="Falador"></td>
+<td><img src="docs/screenshots/edgeville.png" alt="Edgeville"></td>
+</tr>
+<tr>
+<td align="center"><sub>Falador</sub></td>
+<td align="center"><sub>Edgeville</sub></td>
+</tr>
+</table>
+
+### A menu that stays out of the way
+
+The world screen shows only your HP, the area name, XP drops and messages. Everything else lives
+behind **START**: frosted, translucent panels with chamfered corners and thin cyan accents slide in
+over a dimmed, blurred world, styled after Final Fantasy VII Remake.
+
+<table>
+<tr>
+<td><img src="docs/screenshots/menu.png" alt="Main menu"></td>
+<td><img src="docs/screenshots/items.png" alt="Inventory"></td>
+</tr>
+<tr>
+<td align="center"><sub>Main menu with live character portrait</sub></td>
+<td align="center"><sub>28-slot inventory with Use / Eat / Wield / Drop</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/equipment.png" alt="Equipment"></td>
+<td><img src="docs/screenshots/skills.png" alt="Skills"></td>
+</tr>
+<tr>
+<td align="center"><sub>Equipment paper-doll with bonus comparison</sub></td>
+<td align="center"><sub>Skills with XP to next level</sub></td>
+</tr>
+</table>
+
+### What you wear is what you see
+
+The player sprite is composited from layers, so every helm, body, legs, boots, shield and weapon
+type has its own shape, coloured by metal tier from bronze to rune, in all four directions. You
+swing the right axe or pickaxe when skilling, scoop with a net, cast a rod, and stab, slash or crush
+depending on your weapon.
+
+<p align="center"><img src="docs/screenshots/menu_rune.png" width="480" alt="Rune armour in the menu portrait"></p>
+
+### Quests
+
+13 classic free-to-play quests, driven by a scripted dialogue system with branching choices, a
+journal that strikes off finished steps, and an OSRS-style quest-complete scroll.
+
+<table>
+<tr>
+<td><img src="docs/screenshots/smoke_quests.png" alt="Quest list"></td>
+<td><img src="docs/screenshots/cook_journal.png" alt="Quest journal"></td>
+</tr>
+<tr>
+<td align="center"><sub>Quest list and quest points</sub></td>
+<td align="center"><sub>Journal with a live item checklist</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/cook_choice.png" alt="Dialogue choices"></td>
+<td><img src="docs/screenshots/cook_done.png" alt="Quest complete"></td>
+</tr>
+<tr>
+<td align="center"><sub>Branching dialogue</sub></td>
+<td align="center"><sub>Quest complete!</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/demon_delrith.png" alt="Demon Slayer"></td>
+<td><img src="docs/screenshots/npc_juliet.png" alt="Romeo and Juliet"></td>
+</tr>
+<tr>
+<td align="center"><sub>Demon Slayer: Delrith at the stone circle</sub></td>
+<td align="center"><sub>Speaker portraits in dialogue</sub></td>
+</tr>
+</table>
+
+| Quest | QP | Highlights |
+|---|:-:|---|
+| Cook's Assistant | 1 | Eggs, the dairy cow, and the windmill hopper |
+| The Restless Ghost | 1 | Ghostspeak amulet, the coffin, and the skull at the Wizards' Tower |
+| Romeo & Juliet | 5 | Father Lawrence, the Apothecary and cadava berries |
+| Sheep Shearer | 1 | Shear sheep and spin wool for Fred |
+| Doric's Quest | 1 | Clay, copper and iron for the dwarf north of Falador |
+| Rune Mysteries | 1 | Duke Horacio, Sedridor and Aubury |
+| Imp Catcher | 1 | Four beads from imps across the map |
+| Goblin Diplomacy | 5 | Dye goblin mail for the generals |
+| Ernest the Chicken | 4 | Draynor Manor's fountain, compost heap and locked wing |
+| Witch's Potion | 1 | Hetty's cauldron in Rimmington |
+| Pirate's Treasure | 2 | Redbeard Frank, the Blue Moon Inn chest, and digging in Falador Park |
+| Black Knights' Fortress | 3 | Disguise, eavesdrop and sabotage (needs 12 QP) |
+| Demon Slayer | 3 | Three keys, Silverlight, and a boss fight against Delrith |
+
+The demake has 10 skills, so rewards that originally gave Crafting XP give Firemaking XP and
+Magic XP becomes Prayer XP.
+
+### And everything you'd expect
+
+- **10 skills** on the real 2007 XP curve to 99: Attack, Strength, Defence, Hitpoints, Prayer,
+  Woodcutting, Firemaking, Fishing, Cooking and Mining. XP drops, level-up popups and jingles.
+- **Combat** using the 2007 accuracy and max-hit formulas, attack styles, auto-retaliate,
+  hitsplats, HP bars, aggressive monsters and loot tables, including a rare mithril/adamant/rune drop.
+- **Skilling**: normal, oak, willow and yew trees that turn to stumps and regrow; copper, tin, clay
+  and iron rocks; net and fly-fishing spots; fires and ranges with burn chances that fall as you level.
+- **Gear** across bronze, iron, steel, mithril, adamant and rune, each item with its own icon.
+- **Banks** (96 slots) in every city and **general stores** to buy and sell.
+- **Music** from a 10-voice software wavetable synth playing a different track in each region,
+  plus PSG sound effects.
+- **Battery save** to cartridge SRAM.
+
+---
+
+## Controls
+
+| Button | In the world | In menus |
+|---|---|---|
+| **D-pad** | Walk (tap to turn on the spot) | Move the cursor |
+| **A** | Interact with whatever you face: chop, mine, fish, attack, talk, cook, bank, pick up | Select |
+| **B** | Hold to run; tap to stop what you're doing | Back |
+| **START** | Open the menu (the game pauses) | Close the menu |
+| **L / R** | | Switch tabs in the bank and shops |
+| **SELECT** | | Deposit your whole inventory at a bank |
+
+In mGBA's default keyboard layout, A is **X**, B is **Z**, START is **Enter**, SELECT is
+**Backspace** and L / R are **A / S**.
+
+---
+
+## Playing
+
+1. Download `osrs-gba-demake.gba` from the [latest release](../../releases/latest).
+2. Open it in any Game Boy Advance emulator. [mGBA](https://mgba.io) is recommended, and Delta
+   works well on iPhone.
+3. Saves use 32 KB of SRAM and are created next to the ROM.
+
+The ROM's header is patched with `gbafix`, so it is also ready for flash carts and real hardware
+(only tested in emulators so far).
+
+---
+
+## Building
+
+The game is plain C and ARM assembly for a bare-metal GBA. You only need the Arm GNU Toolchain
+(`arm-none-eabi-gcc`) and Python 3; devkitPro and libtonc are not used.
+
+```bash
+./build.sh
+```
+
+`build.sh` uses a toolchain in `.toolchain/` if one is there, otherwise `arm-none-eabi-gcc` on your
+`PATH`. All art, the map, the quests, the font and the music data are generated from source by
+Python scripts in `tools/` at build time.
+
+To fetch the toolchain locally (macOS, Apple silicon):
+
+```bash
+mkdir -p .toolchain && curl -L https://developer.arm.com/-/media/Files/downloads/gnu/15.2.rel1/binrel/arm-gnu-toolchain-15.2.rel1-darwin-arm64-arm-none-eabi.tar.xz | tar xJ -C .toolchain
+```
+
+For flash carts and real hardware, the build also runs devkitPro's `gbafix` when it is on your
+`PATH` or in `.toolchain/`:
+
+```bash
+curl -L https://raw.githubusercontent.com/devkitPro/gba-tools/master/src/gbafix.c -o .toolchain/gbafix.c
+cc -O2 .toolchain/gbafix.c -o .toolchain/gbafix
+```
+
+### Using your own music
+
+The repository ships original placeholder tunes. To build with your own MIDI files, put them in
+`music/local/` with a `music/local/tracks.txt` in the same format as
+[`music/tracks.txt`](music/tracks.txt). That folder is ignored by git, and the build picks it up
+automatically. See [`music/SOURCES.md`](music/SOURCES.md).
+
+### Automated testing
+
+`tools/harness.c` runs the ROM headlessly through libmgba, feeds it scripted input and writes PNG
+screenshots and WAV audio. Scenario scripts can teleport the player and edit game state using
+`@symbol` addresses from the linker map.
+
+```bash
+tools/build_harness.sh          # needs libmgba 0.10.5 built in .toolchain/mgba-0.10.5/build
+tools/run_quest_tests.sh        # plays all 13 quests end to end, plus save/reload
+```
+
+---
+
+## How it works
+
+| Piece | What it does |
+|---|---|
+| **World streaming** | The map stays in ROM. A reference-counted cache of 576 VRAM tiles is updated one row or column at a time as the camera moves, so the whole mainland fits in video memory with no seams. Stumps and depleted rocks live in a small override table. |
+| **UI canvases** | Two background layers give every screen cell its own tile. Panels and proportional text are drawn per pixel into RAM and streamed to VRAM. A per-scanline HBlank DMA paints the panel gradient, and hardware alpha blending plus mosaic produce the frosted-glass look. |
+| **Avatar compositing** | 137 layer graphics (bodies, armour, shields, weapons, tools) are stacked into a 32×32 sprite whenever your gear or pose changes, then recoloured by metal tier through the palette. |
+| **Quest scripts** | Quests are written in a small script language (`tools/quests.txt`) and compiled to bytecode at build time, with checks on dialogue fit, labels and reachability. A tiny VM runs them in game. |
+| **Music** | MIDI files are converted at build time. A 10-voice wavetable synth written in ARM assembly runs from IWRAM and mixes 13.4 kHz audio into DirectSound through DMA, using about 17% of each frame. |
+
+### Project layout
+
+| Path | Purpose |
+|---|---|
+| `src/crt0.s`, `src/gba.ld` | Cartridge header, startup and IRQ handler |
+| `src/gfx.c` | VRAM layout, palettes, fades, tile streaming and OAM |
+| `src/canvas.c` | UI drawing: font, panels, bars and highlights |
+| `src/world.c` | Map, movement, NPC AI, combat, skilling, ground items and fires |
+| `src/ui.c` | HUD, START menu, dialogue, bank, shops, level-ups and the title screen |
+| `src/quests.c` | Quest script VM, journal and rewards |
+| `src/avatar.c` | Composited player sprite |
+| `src/sound.c`, `src/mixer.s` | Music synth and sequencer, sound effects |
+| `src/data.c`, `src/save.c` | Item and NPC tables, SRAM save |
+| `tools/world_gen.py` | The world map in OSRS coordinates, terrain art, tiles and palettes |
+| `tools/gen_assets.py`, `tools/gen_avatar.py` | Sprites, icons, font and avatar layers |
+| `tools/quests.txt`, `tools/gen_quests.py` | Quest scripts and their compiler |
+| `tools/midi2gba.py`, `music/` | MIDI converter, instrument bank and tracks |
+
+---
+
+## Known limitations
+
+- Dragon Slayer and members' content are not included.
+- The Wilderness has scenery but no monsters yet, and Varrock's specialty shops are empty buildings.
+- The Al Kharid toll gate is free, there is no coal, and the Duel Arena is cut off by the map's east edge.
+- The synth plays up to 10 notes at once and ignores pitch bends.
+- Standing directly north of a tree hides your character behind its leaves.
+
+## Disclaimer
+
+This is a non-commercial fan project made for fun. It is not affiliated with, endorsed by or
+connected to Jagex Ltd. RuneScape and Old School RuneScape are trademarks of Jagex Ltd. All art in
+this repository is generated procedurally, and the bundled music consists of original compositions.

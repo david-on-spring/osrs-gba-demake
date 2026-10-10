@@ -1,0 +1,17 @@
+wait 60
+press A
+wait 30
+tp 133 155 3
+wait 10
+dump 600b598 2
+dump 600b5d8 2
+dump 600ad18 2
+press A
+wait 300
+dump @n_ovr 1
+dump @ovr 16
+dump 600b598 2
+dump 600b5d8 2
+dump 600ad18 2
+dump @pl+0x48 24
+shot shots/map/stump1.png

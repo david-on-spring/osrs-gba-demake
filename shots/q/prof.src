@@ -1,0 +1,10 @@
+wait 60
+press A
+wait 40
+tp 156 171 3
+wait 30
+talk
+until8 @ui_wait 1 300
+press A
+until8 @ui_wait 2 300
+dump @prof2 4

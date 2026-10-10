@@ -1,0 +1,12 @@
+wait 60
+press A
+wait 40
+press START
+wait 20
+shot shots/q/dbg_a.png
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 10
+shot shots/q/dbg_b.png

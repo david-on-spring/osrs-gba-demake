@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""Expand quest test scripts (.src) into harness scripts. usage: qtest.py in.src out.txt
+
+Adds to the harness commands:
+  tp X Y DIR             teleport (cells; DIR 0 down, 1 up, 2 left, 3 right)
+  item SLOT NAME [QTY]   put an item (I_NAME) in inventory slot SLOT
+  clearinv               empty the inventory
+  equip SLOT NAME        wear an item (SLOT = HEAD WEAPON BODY SHIELD LEGS FEET NECK)
+  stage QUEST N          set a quest stage (QUEST = id from tools/quests.txt)
+  xp SKILL TENTHS        set a skill's XP (tenths)
+  page [N]               let N dialogue pages type out and continue (default 1)
+  choose K               pick option K (0-based) in a choice box
+  talk                   press A and give the dialogue a moment to open
+  dumpq                  dump quest stages and vars
+  dlg                    continue pages until a choice box, a popup or the end of the dialogue
+  done | world           wait for the quest complete scroll / for the player to be free in the world
+  ok [level]             dismiss the quest complete scroll (or a level-up popup)
+  expectq QUEST N        PASS/FAIL check of a quest stage
+  expectitem SLOT NAME   PASS/FAIL check of an inventory slot
+  expecthas NAME         PASS/FAIL check that the item is anywhere in the inventory
+  hp N                   set current hitpoints
+  npcpos I X Y           move NPC I (see build/spawns.txt) to a cell (for wandering NPCs)
+Player field offsets come from src/game.h's layout (checked against the map symbols)."""
+import os
+import re
+import sys
+
+root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+hdr = open(os.path.join(root, 'src/game.h')).read()
+# item ids from the enum in game.h
+body = hdr[hdr.index('enum {\n    I_NONE'):hdr.index('I_COUNT')]
+names = re.findall(r'I_(\w+)', body)
+ITEM = {n: i for i, n in enumerate(names)}
+QUEST = {}
+for line in open(os.path.join(root, 'tools/quests.txt')):
+    m = re.match(r'quest (\w+) ', line)
+    if m:
+        QUEST[m.group(1)] = len(QUEST)
+SKILLS = ['ATTACK', 'STRENGTH', 'DEFENCE', 'HITPOINTS', 'PRAYER', 'WOODCUTTING', 'FIREMAKING', 'FISHING',
+          'COOKING', 'MINING']
+EQ = ['HEAD', 'WEAPON', 'BODY', 'SHIELD', 'LEGS', 'FEET', 'NECK']
+OFF_XP, OFF_INV, OFF_EQUIP, OFF_QSTAGE, OFF_QVAR = 0x20, 0x48, 0xB8, 0x24C, 0x25C
+
+out = []
+for line in open(sys.argv[1]):
+    p = line.split()
+    if not p:
+        continue
+    c = p[0]
+    if c == 'tp':
+        x, y, d = int(p[1]), int(p[2]), int(p[3])
+        out += ['press B', 'wait 2', 'poke16 @pl %x' % x, 'poke16 @pl+2 %x' % y, 'poke16 @pl+4 %x' % (x * 16),
+                'poke16 @pl+6 %x' % (y * 16), 'poke8 @pl+8 %x' % d, 'wait 4']
+    elif c == 'item':
+        slot, it = int(p[1]), ITEM[p[2]]
+        q = int(p[3]) if len(p) > 3 else 1
+        out += ['poke16 @pl+0x%x %x' % (OFF_INV + slot * 4, it), 'poke16 @pl+0x%x %x' % (OFF_INV + slot * 4 + 2, q)]
+    elif c == 'clearinv':
+        for s in range(28):
+            out += ['poke16 @pl+0x%x 0' % (OFF_INV + s * 4), 'poke16 @pl+0x%x 0' % (OFF_INV + s * 4 + 2)]
+    elif c == 'equip':
+        out.append('poke16 @pl+0x%x %x' % (OFF_EQUIP + EQ.index(p[1]) * 2, ITEM[p[2]]))
+    elif c == 'stage':
+        out.append('poke8 @pl+0x%x %x' % (OFF_QSTAGE + QUEST[p[1]], int(p[2])))
+    elif c == 'xp':
+        v = int(p[2])
+        k = SKILLS.index(p[1])
+        out += ['poke16 @pl+0x%x %x' % (OFF_XP + k * 4, v & 0xFFFF), 'poke16 @pl+0x%x %x' % (OFF_XP + k * 4 + 2, v >> 16)]
+    elif c == 'page':
+        for _ in range(int(p[1]) if len(p) > 1 else 1):
+            out += ['until8 @ui_wait 1 900', 'press A']
+    elif c == 'dlg':        # continue pages until a choice box, a popup or the end of the dialogue
+        out.append('dlgrun @ui_wait 4000')
+    elif c == 'choose':
+        out += ['until8 @ui_wait 2 900', 'wait 4']
+        out += ['press DOWN'] * int(p[1])
+        out += ['press A', 'wait 2']
+    elif c == 'done':       # the quest complete scroll is showing
+        out += ['until8 @ui_wait 3 900', 'wait 10']
+    elif c == 'world':      # back in the world, free to act
+        out += ['until8 @ui_wait 5 900', 'wait 4']
+    elif c == 'expectq':    # expectq QUEST STAGE
+        out.append('expect8 @pl+0x%x %x %s_stage_%s' % (OFF_QSTAGE + QUEST[p[1]], int(p[2]), p[1], p[2]))
+    elif c == 'expectitem':  # expectitem SLOT NAME
+        out.append('expect16 @pl+0x%x %x slot%s_%s' % (OFF_INV + int(p[1]) * 4, ITEM[p[2]], p[1], p[2]))
+    elif c == 'ok':         # dismiss a popup (quest complete / level up) once it is up
+        out += ['until8 @ui_wait %d 900' % (4 if len(p) > 1 and p[1] == 'level' else 3), 'wait 10', 'press A', 'wait 4']
+    elif c == 'expecthas':  # expecthas NAME: the item is somewhere in the inventory
+        out.append('expectinv @pl+0x%x %x has_%s' % (OFF_INV, ITEM[p[1]], p[1]))
+    elif c == 'npcpos':     # npcpos INDEX X Y: put an NPC (index from build/spawns.txt) on a cell
+        i, x, y = int(p[1]), int(p[2]), int(p[3])
+        base = i * 28
+        cell = y * 208 + x
+        out += ['poke8 @npcs+0x%x 0' % (base + 3), 'poke16 @npcs+0x%x %x' % (base + 4, x), 'poke16 @npcs+0x%x %x' % (base + 6, y),
+                'poke16 @npcs+0x%x %x' % (base + 8, x * 16), 'poke16 @npcs+0x%x %x' % (base + 10, y * 16),
+                'poke8 @occ_bits+0x%x %x' % ((cell >> 5) * 4 + ((cell & 31) >> 3), 1 << (cell & 7))]
+    elif c == 'hp':
+        out.append('poke8 @pl+0x16 %x' % int(p[1]))
+    elif c == 'talk':
+        out += ['press A', 'wait 4']
+    elif c == 'dumpq':
+        out += ['dump @pl+0x%x 8' % OFF_QSTAGE, 'dump @pl+0x%x 16' % OFF_QVAR]
+    else:
+        out.append(line.rstrip('\n'))
+open(sys.argv[2], 'w').write('\n'.join(out) + '\n')

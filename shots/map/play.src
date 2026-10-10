@@ -1,0 +1,53 @@
+wait 60
+press A
+wait 30
+tp 71 36 0
+poke16 @pl+0x34 c50c
+poke16 @pl+0x36 29
+wait 2
+press A
+wait 1500
+shot shots/map/play_yew.png
+dump @pl+0x48 40
+tp 183 116 0
+press A
+wait 400
+shot shots/map/play_mine.png
+tp 79 161 0
+press A
+wait 700
+shot shots/map/play_fish.png
+dump @pl+0x48 40
+tp 172 186 1
+press A
+wait 500
+shot shots/map/play_cook.png
+dump @pl+0x48 40
+tp 128 53 0
+press A
+wait 30
+shot shots/map/play_bank.png
+press B
+wait 20
+press B
+wait 20
+tp 13 83 1
+press A
+wait 40
+shot shots/map/play_shop.png
+press B
+wait 20
+press B
+wait 20
+dump @cache_misses 1
+poke16 @perf_max 0
+tp 120 140 3
+hold RIGHT+B 400
+shot shots/map/play_run.png
+hold UP+B 400
+dump @perf_max 1
+dump @cache_misses 1
+tp 149 167 1
+press A
+wait 30
+shot shots/map/play_guide.png

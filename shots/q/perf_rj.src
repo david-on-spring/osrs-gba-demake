@@ -1,0 +1,80 @@
+wait 60
+press A
+wait 40
+poke16 @perf_max 0
+# Romeo in Varrock Square
+tp 141 65 1
+talk
+dlg
+choose 0
+dlg
+world
+expectq RJ 1
+# Juliet in her house west of Varrock
+tp 116 59 2
+talk
+dlg
+world
+expectq RJ 2
+expectitem 9 MESSAGE
+# read the message from the menu (Read)
+press START
+wait 20
+press A
+wait 10
+press DOWN
+press RIGHT
+press RIGHT
+press A
+wait 10
+shot shots/q/rj_read_popup.png
+press A
+until8 @ui_wait 1 300
+wait 4
+shot shots/q/rj_read.png
+dlg
+world
+tp 141 65 1
+talk
+dlg
+world
+expectq RJ 3
+# Father Lawrence
+tp 164 34 1
+talk
+dlg
+world
+expectq RJ 4
+# Apothecary
+tp 133 74 1
+talk
+dlg
+world
+expectq RJ 5
+# cadava berries south-east of Varrock
+tp 169 91 3
+press A
+wait 10
+expectitem 9 CADAVA
+shot shots/q/rj_cadava.png
+tp 133 74 1
+talk
+dlg
+world
+expectq RJ 6
+expectitem 9 CADAVA_POTION
+tp 116 59 2
+talk
+dlg
+world
+expectq RJ 7
+tp 141 65 1
+talk
+dlg
+done
+shot shots/q/rj_done.png
+press A
+world
+expectq RJ 8
+
+dump @perf_max 1
