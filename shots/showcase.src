@@ -21,7 +21,7 @@ poke16 @pl+0xbc 4c
 poke16 @pl+0xbe 56
 poke16 @pl+0xc0 52
 poke16 @pl+0xc2 57
-tp 141 62 0
+tpz VARROCK 3210 3428 DOWN
 press START
 wait 24
 shot docs/screenshots/menu_rune.png
@@ -39,15 +39,15 @@ wait 6
 press START
 wait 24
 shot docs/screenshots/varrock.png
-tp 86 150 0
+tpz DRAYNOR 3100 3252 DOWN
 wait 30
 shot docs/screenshots/draynor.png
-tp 36 96 0
+tpz FALADOR 3000 3360 DOWN
 wait 30
 shot docs/screenshots/falador.png
-tp 178 192 0
+tpz ALKHARID 3284 3168 DOWN
 wait 30
 shot docs/screenshots/alkharid.png
-tp 84 34 0
+tpz EDGEVILLE 3096 3484 DOWN
 wait 30
 shot docs/screenshots/edgeville.png

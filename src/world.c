@@ -27,7 +27,7 @@ const s8 DY[4] = {1, -1, 0, 0};
 // Map state. The map lives entirely in ROM (map_meta/map_over/map_type); runtime changes
 // such as stumps and mined-out rocks are a small override table, with a bitmap so lookups
 // for unchanged cells cost one bit test.
-typedef struct { u16 cell, meta, over; u8 type, mask; } Override;
+typedef struct { u32 cell; u16 meta, over; u8 type, mask; } Override;
 static Override ovr[MAX_OVR];
 int n_ovr;
 static EWRAM_BSS u32 ovr_bits[(MAP_W * MAP_H + 31) / 32];
@@ -35,7 +35,7 @@ static EWRAM_BSS u32 ovr_bits[(MAP_W * MAP_H + 31) / 32];
 static const Override *ovr_find(int cell) {
     if (!(ovr_bits[cell >> 5] & (1u << (cell & 31)))) return 0;
     for (int i = 0; i < n_ovr; i++)
-        if (ovr[i].cell == cell) return &ovr[i];
+        if (ovr[i].cell == (u32)cell) return &ovr[i];
     return 0;
 }
 
@@ -87,8 +87,8 @@ int res_alt_meta(int cell) {
     int lo = 0, hi = RES_COUNT - 1;
     while (lo <= hi) {
         int mid = (lo + hi) >> 1;
-        if (res_cell[mid] == cell) return res_alt[mid];
-        if (res_cell[mid] < cell) lo = mid + 1;
+        if (res_cell[mid] == (u32)cell) return res_alt[mid];
+        if (res_cell[mid] < (u32)cell) lo = mid + 1;
         else hi = mid - 1;
     }
     return -1;
@@ -148,8 +148,8 @@ static const Portal *portal_at(int x, int y) {
     int c = idx(x, y), lo = 0, hi = PORTAL_COUNT - 1;
     while (lo <= hi) {
         int mid = (lo + hi) >> 1;
-        if (portals[mid].cell == c) return &portals[mid];
-        if (portals[mid].cell < c) lo = mid + 1;
+        if (portals[mid].cell == (u32)c) return &portals[mid];
+        if (portals[mid].cell < (u32)c) lo = mid + 1;
         else hi = mid - 1;
     }
     return 0;
@@ -334,10 +334,14 @@ int npc_portrait_tile(int kind) {
 }
 
 void world_after_load(void) {
-    // saves from before the 1:1 Lumbridge zone: the old 1:2 town is now only a view from outside
-    if (pl.x >= OW_LUM_X0 && pl.x <= OW_LUM_X1 && pl.y >= OW_LUM_Y0 && pl.y <= OW_LUM_Y1) {
-        pl.x = pl.x * 2 + LUM_ZONE_DX;
-        pl.y = pl.y * 2 + LUM_ZONE_DY;
+    // saves from before the 1:1 towns: an old 1:2 town is now only a view from outside
+    for (int i = 0; i < LEGACY_COUNT; i++) {
+        const Legacy *l = &legacy[i];
+        if (pl.x >= l->x0 && pl.x <= l->x1 && pl.y >= l->y0 && pl.y <= l->y1) {
+            pl.x = pl.x * 2 + l->dx;
+            pl.y = pl.y * 2 + l->dy;
+            break;
+        }
     }
     // saves from an older map layout may place the player inside a wall: go home
     if (!in_map(pl.x, pl.y) || world_type(pl.x, pl.y) > T_WALKABLE_MAX) {

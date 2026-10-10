@@ -33,8 +33,9 @@ Adds to the harness commands:
   expectat ZONE X Y      PASS/FAIL check that the player stands on OSRS tile (X, Y) of a zone (ZONE CELL: a cell)
   expectwarp ZONE X Y DIR  PASS/FAIL check that the player is where the portal next to (X, Y) in DIR leads
                          (one step on: the player arrives mid-stride)
-  face THING DIR         stand next to THING facing it (DIR is the way the player faces). THING is an NPC
-                         kind (its first spawn), obj:TYPE, item:NAME or a named place (build/spawns.txt)
+  face THING DIR         stand next to THING facing it (DIR is the way the player faces; another free side
+                         is used if that one is blocked). THING is an NPC kind (its first spawn), obj:TYPE
+                         or item:NAME (the 'stand' lines in build/spawns.txt)
 Player field offsets come from src/game.h's layout (checked against the map symbols)."""
 import os
 import re
@@ -117,10 +118,13 @@ for line in open(sys.argv[1]):
             if step:    # arrives mid-stride
                 x, y = x + DIRV[['DOWN', 'UP', 'LEFT', 'RIGHT'][w]][1], y + DIRV[['DOWN', 'UP', 'LEFT', 'RIGHT'][w]][2]
         out += ['expect16 @pl %x %s_x' % (x, c), 'expect16 @pl+2 %x %s_y' % (y, c)]
-    elif c == 'face':
-        x, y = thing_cell(p[1])
-        d, dx, dy = DIRV[p[2]]
-        out += tp_lines(x - dx, y - dy, d)
+    elif c == 'face':       # stand beside the thing facing it, from the side asked for if it is free
+        d = DIRV[p[2]][0]
+        st = [(int(q[2]), int(q[3]), int(q[4])) for q in spawn_lines() if q[0] == 'stand' and q[1] == p[1]]
+        if not st:
+            raise SystemExit('nowhere to stand facing ' + p[1])
+        sx, sy, sd = next((t for t in st if t[2] == d), st[0])
+        out += tp_lines(sx, sy, sd)
     elif c == 'item':
         slot, it = int(p[1]), ITEM[p[2]]
         q = int(p[3]) if len(p) > 3 else 1
@@ -172,7 +176,7 @@ for line in open(sys.argv[1]):
     elif c == 'npcpos':     # npcpos INDEX X Y: put an NPC (index from build/spawns.txt) on a cell
         x, y = int(p[2]), int(p[3])
         base = npc_index(p[1]) * 28
-        cell = y * 208 + x     # MAP_W
+        cell = y * next(int(q[1]) for q in spawn_lines() if q[0] == 'mapw') + x
         out += ['poke8 @npcs+0x%x 0' % (base + 3), 'poke16 @npcs+0x%x %x' % (base + 4, x), 'poke16 @npcs+0x%x %x' % (base + 6, y),
                 'poke16 @npcs+0x%x %x' % (base + 8, x * 16), 'poke16 @npcs+0x%x %x' % (base + 10, y * 16),
                 'poke8 @occ_bits+0x%x %x' % ((cell >> 5) * 4 + ((cell & 31) >> 3), 1 << (cell & 7))]

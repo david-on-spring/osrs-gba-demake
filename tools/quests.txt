@@ -1735,7 +1735,7 @@ talk BORDER_GUARD
   take COINS 10
   sfx COINS
   chat "You pay the guard and pass through the gate."
-  tp 170 161 RIGHT
+  warp TOLLGATE_E RIGHT
   end
 :poor
   player "I haven't got enough coins."

@@ -19,7 +19,7 @@ def read_png(path):
         body = data[pos + 8:pos + 8 + n]
         if typ == b'IHDR':
             w, h, depth, ctype = struct.unpack('>IIBB', body[:10])
-            assert depth == 8 and ctype in (2, 3, 6), (path, depth, ctype)
+            assert (depth == 8 and ctype in (2, 3, 6)) or (ctype == 3 and depth in (1, 2, 4)), (path, depth, ctype)
             bpp = {2: 3, 3: 1, 6: 4}[ctype]
         elif typ == b'PLTE':
             plte = body
@@ -27,7 +27,7 @@ def read_png(path):
             idat += body
         pos += 12 + n
     raw = zlib.decompress(idat)
-    stride = w * bpp
+    stride = w * bpp if depth == 8 else (w * depth + 7) // 8
     rows, prev = [], bytearray(stride)
     for y in range(h):
         f = raw[y * (stride + 1)]
@@ -48,6 +48,9 @@ def read_png(path):
                 line[i] = (line[i] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
         prev = line
         if bpp == 1:
+            if depth < 8:
+                per = 8 // depth
+                line = [(line[i // per] >> (8 - depth * (i % per + 1))) & ((1 << depth) - 1) for i in range(w)]
             rows.append(b''.join(plte[v * 3:v * 3 + 3] for v in line))
         else:
             rows.append(bytes(line) if bpp == 3 else bytes(v for i, v in enumerate(line) if i % 4 != 3))

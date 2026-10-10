@@ -2,20 +2,20 @@ wait 60
 newgame
 wait 40
 item 8 COINS 100
-tp 137 65 1
+face ARIS UP
 talk
 dlg
 choose 0
 dlg
 world
 expectq DEMON 1
-tp 138 33 1
+face PRYSIN UP
 talk
 dlg
 world
 expectq DEMON 2
 # Captain Rovin
-tp 146 33 1
+face ROVIN UP
 talk
 dlg
 world
@@ -59,16 +59,16 @@ dlg
 world
 expecthas KEY_TRAIBORN
 # fill the bucket at the Varrock Square fountain, pour it down the drain east of the palace
-tp 140 61 3
+tpz VARROCK 3209 3428 RIGHT
 press A
 wait 10
 expecthas BUCKET_WATER
-tp 150 37 2
+face obj:DRAIN LEFT
 press A
 dlg
 world
 expecthas KEY_DRAIN
-tp 138 33 1
+face PRYSIN UP
 talk
 dlg
 world

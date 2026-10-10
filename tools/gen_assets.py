@@ -1871,6 +1871,19 @@ with open(os.path.join(OUT, 'spawns.txt'), 'w') as f:
     for (x, y), (dx, dy, d) in sorted(world_gen.PORTALS.items()):   # last field: the arrival step is free
         sx, sy = dx + (0, 0, -1, 1)[d], dy + (1, -1, 0, 0)[d]
         f.write('portal %d %d %d %d %d %d\n' % (x, y, dx, dy, d, world_gen.walk_ok(sx, sy)))
+    # where the player can stand to face each NPC / object / item (DIR the player faces)
+    wk = lambda x, y: world_gen.inb(x, y) and world_gen.TY[y][x] in world_gen.WALKSET and (x, y) not in world_gen.PORTALS
+    done = set()
+    for name, x, y in ([(k, x, y) for (k, x, y) in world_gen.SPAWNS] + [('obj:' + t, x, y) for (t, x, y) in world_gen.QUEST_OBJS] +
+                       [('item:' + it, x, y) for (it, x, y) in world_gen.ITEM_SPAWNS]):
+        if name in done:
+            continue
+        done.add(name)
+        for d, (dx, dy) in enumerate(((0, 1), (0, -1), (-1, 0), (1, 0))):
+            sx, sy = x - dx, y - dy
+            if wk(sx, sy) and world_gen.TY[sy][sx] != 'DOOR':
+                f.write('stand %s %d %d %d\n' % (name, sx, sy, d))
+    f.write('mapw %d\n' % world_gen.MW)
     for n, z, ps, plane in world_gen.ZONES:     # OSRS (X, Y) -> cell: CX0 + (X - OX) // S, CY0 + (OY - Y) // S
         f.write('zone %s %d %d %d %d %d\n' % (n, z.OX, z.OY, z.S, z.CX0, z.CY0))
 import gen_quests  # noqa: E402

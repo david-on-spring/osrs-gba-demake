@@ -20,7 +20,7 @@ dlg
 world
 expectq RUNE 2
 expectitem 9 PACKAGE
-tp 162 73 3
+face AUBURY RIGHT
 talk
 dlg
 world

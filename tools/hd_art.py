@@ -33,6 +33,13 @@ P = {k: c5(v) for k, v in dict(
     w0='#3c70c4', w1='#5c94e0', w2='#b0d8fc', w3='#2a5498', w4='#d8f0ff', wb='#6b5134', wbd='#4e3a24',
     # castle stone
     c0='#8e8a7e', c1='#a8a496', c2='#6e6a60', c3='#4e4a42', c4='#c4c0b2', c5='#383430',
+    # Falador white stone, Al Kharid sandstone, city paving setts, desert sand
+    ww0='#d8d8d0', ww1='#ecece4', ww2='#b4b4ae', ww3='#8a8a86', ww4='#fafaf4', ww5='#5a5a58',
+    sd0='#c8a464', sd1='#dcbc80', sd2='#a8844c', sd3='#7a5c34', sd4='#ecd49c', sd5='#4e3a20',
+    cb0='#8c8880', cb1='#a29e94', cb2='#706c66', cb3='#56524e',
+    ds0='#dcc078', ds1='#ecd494', ds2='#c4a460', ds3='#a8884a',
+    bl0='#4a5a8a', bl1='#6474a6', bl2='#34426a', bl3='#8494c0',
+    br0='#7a5232', br1='#946640', br2='#5a3a22', br3='#b07e50',
     # floors: warm sandstone flags so rooms read apart from the grey walls
     fl0='#aa9c80', fl1='#c0b294', fl2='#8a7e66', fl3='#665c4a',
     f0='#8a8a92', f1='#a2a2aa', f2='#6c6c76', f3='#52525c', fs='#5e5e68',
@@ -108,10 +115,10 @@ def paste(dst, src, ox=0, oy=0):
 # ----------------------------------------------------------------------------------------
 # Terrain field
 # ----------------------------------------------------------------------------------------
-CLASS = {'GRASS': 'grass', 'FLOWERS': 'grass', 'PATH': 'path', 'BRIDGE': 'path', 'SWAMP': 'swamp',
-         'SAND': 'path', 'COBBLE': 'path', 'DITCH': 'path', 'WATER': 'water'}
-RANK = {'water': 0, 'swamp': 1, 'path': 2, 'grass': 3}
-INTERIOR = {'FLOOR', 'WOODFLOOR', 'CARPET', 'CHECKER'}
+CLASS = {'GRASS': 'grass', 'FLOWERS': 'grass', 'FERN': 'grass', 'PATH': 'path', 'BRIDGE': 'path', 'SWAMP': 'swamp',
+         'SAND': 'sand', 'DESERT': 'sand', 'COBBLE': 'cobble', 'DITCH': 'path', 'WATER': 'water'}
+RANK = {'water': 0, 'swamp': 1, 'sand': 2, 'path': 3, 'cobble': 4, 'grass': 5}
+INTERIOR = {'FLOOR', 'WOODFLOOR', 'CARPET', 'CHECKER', 'RUG'}
 # fixed dither, 16x16, values -0.5..0.5 (one table for every cell, so tiles repeat)
 DITHER = [[((hsh(91, x, y) & 255) / 255.0 - 0.5) for x in range(16)] for y in range(16)]
 
@@ -227,11 +234,40 @@ def swamp_px(px, py, tx, ty):
     return P['s0']
 
 
+def cobble_px(px, py, tx, ty):
+    """Square paving setts, offset every other row, each a slightly different stone."""
+    r = py // 4
+    sx = (px + (2 if r % 2 else 0)) % 4
+    sy = py % 4
+    v = hsh(29, tx, ty) % 4                 # four patterns, so tiles repeat
+    stone = hsh(29, ((px + (2 if r % 2 else 0)) // 4) & 3, r & 1, v) % 5
+    if sx == 3 or sy == 3:
+        return P['cb3']
+    if sx == 0 and sy == 0:
+        return P['cb1']
+    return (P['cb0'], P['cb0'], P['cb2'], P['cb1'], P['cb0'])[stone] if sy else P['cb1']
+
+
+def sand_px(px, py, tx, ty):
+    lx, ly = px & 7, py & 7
+    v = hsh(37, tx, ty) % 4
+    rip = (ly * 2 + (lx + v * 3) // 3) % 7
+    if rip == 0:
+        return P['ds2']
+    if rip == 1 and (lx + v) % 3 == 0:
+        return P['ds1']
+    if hsh(39, lx, ly, v) % 23 == 0:
+        return P['ds3']
+    return P['ds0']
+
+
 SHADE = {'grass': {P['g0']: P['gs2'], P['g1']: P['gs'], P['g2']: P['gs'], P['g3']: P['g1'], P['g4']: P['g1']},
          'path': {P['p0']: P['ps'], P['p1']: P['p2'], P['p2']: P['p3'], P['p3']: P['p3']},
-         'swamp': {P['s0']: P['ss'], P['s1']: P['s2'], P['s2']: P['ss'], P['s3']: P['s2']}}
-RIM = {'grass': P['g2'], 'path': P['p3'], 'swamp': P['s2']}
-GPX = {'grass': grass_px, 'path': path_px, 'swamp': swamp_px}
+         'swamp': {P['s0']: P['ss'], P['s1']: P['s2'], P['s2']: P['ss'], P['s3']: P['s2']},
+         'cobble': {P['cb0']: P['cb2'], P['cb1']: P['cb0'], P['cb2']: P['cb3'], P['cb3']: P['cb3']},
+         'sand': {P['ds0']: P['ds2'], P['ds1']: P['ds0'], P['ds2']: P['ds3'], P['ds3']: P['ds3']}}
+RIM = {'grass': P['g2'], 'path': P['p3'], 'swamp': P['s2'], 'cobble': P['cb3'], 'sand': P['ds3']}
+GPX = {'grass': grass_px, 'path': path_px, 'swamp': swamp_px, 'cobble': cobble_px, 'sand': sand_px}
 
 
 def water_px(px, py, tx, ty):
@@ -354,12 +390,28 @@ def carpet_px(px, py):
     return P['r0']
 
 
+def rug_px(px, py, edges=(1, 1, 1, 1)):
+    L, R, U, D = edges
+    if (L and px == 0) or (R and px == 15) or (U and py == 0) or (D and py == 15):
+        return P['h3']
+    if (L and px == 1) or (R and px == 14) or (U and py == 1) or (D and py == 14):
+        return P['gold']
+    if (px + py) % 4 == 0 and 3 < px < 12 and 3 < py < 12:
+        return P['gold']
+    return P['bl0'] if (px // 4 + py // 4) % 2 else P['r0']
+
+
 def interior(env, x, y):
     g = env.g(x, y)
     t = env.t(x, y)
-    f = {'FLOOR': floor_px, 'CHECKER': checker_px, 'WOODFLOOR': wood_px, 'CARPET': carpet_px}.get(
+    f = {'FLOOR': floor_px, 'CHECKER': checker_px, 'WOODFLOOR': wood_px, 'CARPET': carpet_px, 'RUG': rug_px}.get(
         t if t in INTERIOR else g, floor_px)
-    img = [[f(px, py) for px in range(16)] for py in range(16)]
+    if f is rug_px:
+        isr = lambda dx, dy: env.g(x + dx, y + dy) == 'RUG' or env.t(x + dx, y + dy) == 'RUG'
+        e = (not isr(-1, 0), not isr(1, 0), not isr(0, -1), not isr(0, 1))
+        img = [[rug_px(px, py, e) for px in range(16)] for py in range(16)]
+    else:
+        img = [[f(px, py) for px in range(16)] for py in range(16)]
     if (t if t in INTERIOR else g) == 'CARPET':
         isc = lambda dx, dy: (env.t(x + dx, y + dy) if env.t(x + dx, y + dy) in INTERIOR else env.g(x + dx, y + dy)) == 'CARPET' \
             and env.t(x + dx, y + dy) not in TALL
@@ -388,51 +440,59 @@ def interior(env, x, y):
 # Walls
 # ----------------------------------------------------------------------------------------
 WALLT = {'WALL', 'HWALL', 'WWALL', 'SWALL'}
+MAT = {'WALL': ('c0', 'c1', 'c2', 'c3', 'c4', 'c5'), 'WWALL': ('ww0', 'ww1', 'ww2', 'ww3', 'ww4', 'ww5'),
+       'SWALL': ('sd0', 'sd1', 'sd2', 'sd3', 'sd4', 'sd5')}
+
+
+def mat(t):
+    return tuple(P[k] for k in MAT.get(t, MAT['WALL']))
 
 
 def is_wall(env, x, y):
     return env.t(x, y) in WALLT or env.t(x, y) in ('BOOTH',) and False
 
 
-def stone_face(px, py, crenel):
+def stone_face(px, py, crenel, M=None):
+    M = M or mat('WALL')
     """Castle stone wall face: cap rows 0-3, blocks below."""
     if py < 4:
         if crenel and py < 2 and (px % 8) in (5, 6, 7):
             return None                                  # gap between merlons
         if py == 3:
-            return P['c3']
+            return M[3]
         if py == 0 or (crenel and py < 2 and (px % 8) == 4):
-            return P['c4']
-        return P['c1']
+            return M[4]
+        return M[1]
     if py == 15:
-        return P['c5']
+        return M[5]
     r = (py - 4) // 4
     bx = (px + (4 if r % 2 else 0)) % 8
     ly = (py - 4) % 4
     if ly == 3 or bx == 7:
-        return P['c3']
+        return M[3]
     if ly == 0:
-        return P['c1']
+        return M[1]
     if bx == 0:
-        return P['c1']
-    return P['c2'] if (hsh(41, (px + (4 if r % 2 else 0)) // 8, r) % 4 == 0) else P['c0']
+        return M[1]
+    return M[2] if (hsh(41, (px + (4 if r % 2 else 0)) // 8, r) % 4 == 0) else M[0]
 
 
-def stone_top(env, x, y, crenel):
+def stone_top(env, x, y, crenel, M=None):
+    M = M or mat('WALL')
     """A wall seen from above: dark stone, outlined, lit edge on the upper left. Free-standing
     walls (no roof) get merlons along their exposed sides."""
-    img = [[(P['c2'] if hsh(43, px // 4, py // 4, (px + py) // 8) % 4 else P['c3']) for px in range(16)] for py in range(16)]
+    img = [[(M[2] if hsh(43, px // 4, py // 4, (px + py) // 8) % 4 else M[3]) for px in range(16)] for py in range(16)]
     open_ = lambda dx, dy: not is_wall(env, x + dx, y + dy) and env.t(x + dx, y + dy) != 'VOID'
     L, R, U, D = open_(-1, 0), open_(1, 0), open_(0, -1), open_(0, 1)
     for i in range(16):
         if L:
-            img[i][0], img[i][1] = P['c5'], P['c1']
+            img[i][0], img[i][1] = M[5], M[1]
         if R:
-            img[i][15], img[i][14] = P['c5'], P['c3']
+            img[i][15], img[i][14] = M[5], M[3]
         if U:
-            img[0][i], img[1][i] = P['c5'], P['c1']
+            img[0][i], img[1][i] = M[5], M[1]
         if D:
-            img[15][i], img[14][i] = P['c5'], P['c3']
+            img[15][i], img[14][i] = M[5], M[3]
     if crenel:
         for i in range(16):
             m = (i % 8) < 4
@@ -440,11 +500,11 @@ def stone_top(env, x, y, crenel):
                 if not on:
                     continue
                 for k in (2, 3, 4):
-                    c = (P['c4'] if k == 2 else P['c1']) if m else (P['c5'] if k == 4 else P['c3'])
+                    c = (M[4] if k == 2 else M[1]) if m else (M[5] if k == 4 else M[3])
                     if side == 'L':
                         img[i][k] = c
                     elif side == 'R':
-                        img[i][15 - k] = c if m else P['c3']
+                        img[i][15 - k] = c if m else M[3]
                     else:
                         img[k][i] = c
     return img
@@ -493,16 +553,17 @@ def wall_image(env, x, y):
             img = [[timber_face(px, py, hsh(47, x, y) % 3 == 0 and env.roof(x, y) == 0 and False) for px in range(16)] for py in range(16)]
             return img
         return timber_top(env, x, y)
+    M = mat(t)
     if face:
-        img = stone_top(env, x, y, crenel) if False else [[stone_face(px, py, crenel) for px in range(16)] for py in range(16)]
+        img = [[stone_face(px, py, crenel, M) for px in range(16)] for py in range(16)]
         # sides of the face follow the wall's outline
         for py in range(16):
             if not is_wall(env, x - 1, y):
-                img[py][0] = P['c3'] if img[py][0] is not None else None
+                img[py][0] = M[3] if img[py][0] is not None else None
             if not is_wall(env, x + 1, y):
-                img[py][15] = P['c5'] if img[py][15] is not None else None
+                img[py][15] = M[5] if img[py][15] is not None else None
         return img
-    return stone_top(env, x, y, crenel)
+    return stone_top(env, x, y, crenel, M)
 
 
 def facade_image(env, x, y):
@@ -512,18 +573,20 @@ def facade_image(env, x, y):
         win = hsh(53, x, y) % 2 == 0 and is_wall(env, x - 1, y) and is_wall(env, x + 1, y)
         img = [[timber_face(px, py, win) for px in range(16)] for py in range(16)]
     else:
-        img = [[stone_face(px, py, False) for px in range(16)] for py in range(16)]
+        M = mat(t)
+        img = [[stone_face(px, py, False, M) for px in range(16)] for py in range(16)]
         if hsh(53, x, y) % 3 == 0 and is_wall(env, x - 1, y) and is_wall(env, x + 1, y):
             for py in range(5, 12):
                 for px in range(6, 10):
-                    img[py][px] = P['c5'] if py > 5 or px in (7, 8) else P['c3']
+                    img[py][px] = (P['gl0'] if t == 'WWALL' else M[5]) if py > 5 or px in (7, 8) else M[3]
             for px in range(5, 11):
-                img[12][px] = P['c4']
+                img[12][px] = M[4]
     for py in range(3):                          # the roof's eave shadow
         for px in range(16):
             c = img[py][px]
             img[py][px] = {P['pl0']: P['pl1'], P['pl2']: P['pl1'], P['c1']: P['c2'], P['c4']: P['c0'],
-                           P['bm0']: P['bm1']}.get(c, c)
+                           P['bm0']: P['bm1'], P['ww1']: P['ww2'], P['ww4']: P['ww0'], P['sd1']: P['sd2'],
+                           P['sd4']: P['sd0']}.get(c, c)
     return img
 
 
@@ -572,6 +635,7 @@ def door_image(env, x, y):
 # Roofs (overlay layer)
 # ----------------------------------------------------------------------------------------
 ROOF_COLS = {'slate': ('sl0', 'sl1', 'sl2', 'sl3', 'sl4'), 'red': ('rd0', 'rd1', 'rd2', 'rd3', 'rd4'),
+             'blue': ('bl0', 'bl1', 'bl2', 'bl3', 'c5'), 'brown': ('br0', 'br1', 'br2', 'br3', 'c5'),
              'thatch': ('th0', 'th1', 'th2', 'th3', 'th4'), 'tower': ('sl0', 'sl1', 'sl2', 'sl3', 'sl4')}
 
 
@@ -579,7 +643,8 @@ def roof_images(wg, g):
     """{cell: 16x16 image} for roof group g: a hipped roof over the footprint minus its facade."""
     env = Env(wg)
     style, cells = wg.ROOFS[g]
-    covered = set(c for c in cells if (c[0], c[1] + 1) in cells)       # facade row stays open
+    # the facade row (south wall facing the open) stays uncovered
+    covered = set(c for c in cells if (c[0], c[1] + 1) in cells or wg.ROOF[c[1] + 1][c[0]] != 0)
     if not covered:
         return {}
     xs, ys = [c[0] for c in covered], [c[1] for c in covered]
@@ -612,8 +677,10 @@ def roof_images(wg, g):
                 side[yy][xx] = side[py][px]
                 q.append((xx, yy))
     out = {}
-    if style == 'keep':
-        cols = [P['sl0'], P['sl1'], P['sl2'], P['c5']]
+    if style in ('keep', 'flat', 'flatwhite'):
+        cols = {'keep': [P['sl0'], P['sl1'], P['sl2'], P['c5']], 'flat': [P['sd0'], P['sd1'], P['sd2'], P['sd5']],
+                'flatwhite': [P['ww2'], P['ww0'], P['ww3'], P['ww5']]}[style]
+        PM = mat({'flat': 'SWALL', 'flatwhite': 'WWALL'}.get(style, 'WALL'))
         for (cx_, cy_) in covered:
             img = blank()
             for py in range(16):
@@ -626,11 +693,11 @@ def roof_images(wg, g):
                         along = gx if s in 'NS' else gy
                         merlon = (along % 8) < 5
                         if d == 0:
-                            c = P['c3']
+                            c = PM[3]
                         elif d < 3:
-                            c = (P['c4'] if s in 'NW' else P['c1']) if merlon or d == 1 else P['c2']
+                            c = (PM[4] if s in 'NW' else PM[1]) if merlon or d == 1 else PM[2]
                         else:
-                            c = P['c3'] if s in 'NW' else P['c2']
+                            c = PM[3] if s in 'NW' else PM[2]
                     elif d < 7 and s in 'NW':
                         c = cols[2] if d < 6 else cols[3]            # the parapet's shadow
                     else:
@@ -658,9 +725,9 @@ def roof_images(wg, g):
                     c = c2 if s in 'SE' else c0                      # shingle row line
                 else:
                     c = base
-                    if style == 'thatch' and (gx * 3 + gy * 5) % 7 == 0:
+                    if style == 'thatch' and ((gx & 7) * 3 + (gy & 7) * 5) % 7 == 0:
                         c = c3 if s in 'NW' else c2
-                    elif style != 'thatch' and band == 1 and ((gx if s in 'NS' else gy) + (d // 4) * 3) % 6 == 0:
+                    elif style != 'thatch' and band == 1 and ((gx if s in 'NS' else gy) + (d // 4) * 4) % 8 == 0:
                         c = c2                                       # gaps between tiles
                 # ridge: where two facets meet, a light line
                 for (dx, dy) in ((1, 0), (0, 1)):
@@ -994,6 +1061,281 @@ def obj_bush(base):
     return img
 
 
+def obj_crops(base):
+    img = [r[:] for r in base]
+    for py in range(16):
+        for px in range(16):
+            row = py % 8
+            if row >= 6:
+                img[py][px] = P['h2'] if row == 6 else P['h3']           # furrow
+            else:
+                stalk = (px + (py // 8) * 2) % 4
+                if stalk == 0:
+                    img[py][px] = P['th2'] if row > 2 else P['th1']
+                elif stalk == 1:
+                    img[py][px] = P['th1'] if row < 2 else P['th0'] if row < 5 else P['g2']
+                else:
+                    img[py][px] = P['th0'] if row < 3 and stalk == 2 else P['g1'] if row > 3 else P['th2']
+    return img
+
+
+def obj_chair(base):
+    img = [r[:] for r in base]
+    for py in range(3, 9):                         # back rest
+        for px in range(4, 12):
+            img[py][px] = P['h3'] if px in (4, 11) or py == 3 else P['h2'] if py % 2 else P['h1']
+    for py in range(9, 13):                        # seat
+        for px in range(3, 13):
+            img[py][px] = P['h1'] if py == 9 else P['h0']
+    for py in range(13, 15):
+        img[py][4] = img[py][11] = P['h3']
+    return img
+
+
+def obj_tall(base, body, shelf_cols, kind):
+    img = [r[:] for r in base]
+    for py in range(0, 15):
+        for px in range(1, 15):
+            edge = px in (1, 14) or py in (0, 14)
+            img[py][px] = P['c5'] if edge else body[0] if py < 2 else body[1]
+    if kind == 'books':
+        for row in (2, 7):
+            for px in range(2, 14):
+                for py in range(row, row + 4):
+                    img[py][px] = shelf_cols[(px * 7 + row) % len(shelf_cols)] if py > row else P['h3']
+            for px in range(2, 14):
+                img[row + 4][px] = body[0]
+    elif kind == 'drawers':
+        for row in (4, 8, 11):
+            for px in range(2, 14):
+                img[row][px] = P['h3']
+            img[row + 1][7] = img[row + 1][8] = P['gold']
+    elif kind == 'wardrobe':
+        for py in range(2, 14):
+            img[py][7] = P['h3']
+        img[8][6] = img[8][9] = P['gold']
+    elif kind == 'shelf':
+        for row in (3, 8):
+            for px in range(2, 14):
+                img[row + 3][px] = P['h3']
+            for (jx, col) in ((3, P['gl1']), (6, P['fr']), (9, P['fy']), (12, P['gl0'])):
+                for py in range(row, row + 3):
+                    img[py][jx] = img[py][jx - 1] = col
+    return img
+
+
+def obj_fireplace(base):
+    img = [r[:] for r in base]
+    for py in range(0, 16):
+        for px in range(0, 16):
+            if py < 3:
+                img[py][px] = P['c1'] if py < 2 else P['c3']
+            elif px < 3 or px > 12:
+                img[py][px] = P['c0'] if (py // 3 + px // 3) % 2 else P['c2']
+            elif py < 14:
+                img[py][px] = P['c5']
+            else:
+                img[py][px] = P['c3']
+    for py in range(7, 14):
+        w = (py - 6) // 2
+        for px in range(8 - w - 1, 8 + w):
+            img[py][px] = P['fi1'] if abs(px - 7) < w - 1 and py > 9 else P['fi0']
+    for px in range(4, 12):
+        img[13][px] = P['h2']
+    return img
+
+
+def obj_barrel(base, gshade):
+    img = [r[:] for r in base]
+    shadow_ellipse(img, 9, 14, 6, 2, gshade)
+    for py in range(2, 15):
+        w = 5 if 4 < py < 12 else 4
+        for px in range(8 - w, 8 + w):
+            c = P['h1'] if px < 6 else P['h2'] if px > 10 else P['h0']
+            if py in (4, 11):
+                c = P['c3']
+            if py == 2:
+                c = P['h3']
+            img[py][px] = c
+    for px in range(5, 11):
+        img[3][px] = P['h2']
+    return img
+
+
+def obj_potplant(base):
+    img = [r[:] for r in base]
+    for py in range(10, 15):
+        for px in range(5, 11):
+            img[py][px] = P['rd0'] if px < 9 else P['rd2']
+    for px in range(4, 12):
+        img[10][px] = P['rd1']
+    leaf = [[None] * 16 for _ in range(16)]
+    for (cx_, cy_, rr) in ((8, 6, 3.6), (5, 8, 2.6), (11, 8, 2.6)):
+        for y in range(16):
+            for x in range(16):
+                if (x + 0.5 - cx_) ** 2 + (y + 0.5 - cy_) ** 2 <= rr * rr:
+                    leaf[y][x] = P['t3'] if (x + y) % 5 == 0 else P['t2'] if y < cy_ else P['t1']
+    paste(img, outline(leaf, P['t4']))
+    return img
+
+
+def obj_bigstall(env, x, y, base, awning):
+    """2x2 market stall: striped awning across the top cells, counter with wares below."""
+    left = env.t(x - 1, y) != 'BIGSTALL'
+    top = env.t(x, y - 1) != 'BIGSTALL'
+    img = [r[:] for r in base]
+    a0, a1 = awning
+    for py in range(16):
+        for px in range(16):
+            gx, gy = (0 if left else 16) + px, (0 if top else 16) + py
+            if gy < 12:
+                stripe = (gx // 4) % 2
+                c = a0 if stripe else a1
+                if gy == 11 or gy == 0:
+                    c = P['c5'] if gy == 0 else (P['rd2'] if stripe else P['c3'])
+                if gy > 8 and gx % 4 == 0:
+                    c = P['c5']                                  # scalloped edge
+                img[py][px] = c
+            elif gy < 22:
+                if gx in (1, 30):
+                    img[py][px] = P['h3']                        # posts
+                else:
+                    img[py][px] = None if gy < 14 else img[py][px]
+            elif gy < 30:
+                c = P['h1'] if gy == 22 else P['h0'] if gy < 27 else P['h3']
+                img[py][px] = c
+    if not top:
+        # wares on the counter
+        for (wx, wy, c) in ((4, 6, P['fr']), (8, 6, P['fy']), (12, 7, P['t2']), (20, 6, P['gl1']), (24, 7, P['fr']),
+                            (28, 6, P['fy'])):
+            lx = wx - (0 if left else 16)
+            if 0 <= lx < 15:
+                img[wy][lx] = img[wy][lx + 1] = c
+                img[wy - 1][lx] = c
+    return img
+
+
+def obj_anvil(base):
+    img = [r[:] for r in base]
+    for py in range(11, 15):
+        for px in range(5, 11):
+            img[py][px] = P['h2'] if px < 9 else P['h3']
+    for py in range(5, 11):
+        for px in range(2, 15):
+            if py < 8 or 5 <= px <= 10:
+                img[py][px] = P['ir1'] if py == 5 else P['c3'] if py < 8 else P['c5']
+    img[5][2] = img[6][2] = None if img[5][2] == P['ir1'] else img[5][2]
+    return img
+
+
+def obj_furnace(base):
+    img = [r[:] for r in base]
+    for py in range(0, 16):
+        for px in range(0, 16):
+            img[py][px] = P['c5'] if px in (0, 15) or py in (0, 15) else P['c2'] if (px // 4 + py // 3) % 2 else P['c0']
+    for py in range(6, 13):
+        for px in range(4, 12):
+            img[py][px] = P['fi1'] if 6 <= px <= 9 and py > 8 else P['fi0'] if py > 7 else P['c5']
+    for px in range(3, 13):
+        img[5][px] = P['c1']
+    return img
+
+
+def obj_throne(base):
+    img = [r[:] for r in base]
+    for py in range(0, 15):
+        for px in range(2, 14):
+            back = py < 8 and 4 <= px <= 11
+            arm = py >= 6 and (px < 4 or px > 11)
+            seat = 8 <= py <= 12 and 4 <= px <= 11
+            if back:
+                img[py][px] = P['gold'] if px in (4, 11) or py == 0 else P['r0']
+            elif arm:
+                img[py][px] = P['gold'] if py == 6 else P['gold2']
+            elif seat:
+                img[py][px] = P['r1'] if py == 8 else P['r0']
+    for px in range(4, 12):
+        img[13][px] = P['gold2']
+    return img
+
+
+def obj_well(base, gshade):
+    img = [r[:] for r in base]
+    shadow_ellipse(img, 9, 14, 7, 2, gshade)
+    for py in range(16):
+        for px in range(16):
+            d = math.hypot(px + 0.5 - 8, (py + 0.5 - 9) * 1.3)
+            if d < 7:
+                img[py][px] = P['w3'] if d < 3.5 else P['c1'] if py < 9 else P['c0'] if d < 6 else P['c3']
+    for py in range(0, 7):
+        img[py][2] = img[py][13] = P['h3']
+    for px in range(1, 15):
+        img[1][px] = P['rd0'] if px % 2 else P['rd2']
+        img[0][px] = P['rd1']
+    return img
+
+
+def obj_sacks(base, gshade):
+    img = [r[:] for r in base]
+    shadow_ellipse(img, 9, 14, 7, 2, gshade)
+    for (cx_, cy_) in ((5, 10), (11, 10), (8, 6)):
+        for py in range(16):
+            for px in range(16):
+                if (px + 0.5 - cx_) ** 2 / 9 + (py + 0.5 - cy_) ** 2 / 12 <= 1:
+                    img[py][px] = P['th1'] if px < cx_ else P['th0'] if py < cy_ + 2 else P['th2']
+        img[cy_ - 3][cx_] = P['h3']
+    return img
+
+
+def obj_flowerbed(env, x, y, base):
+    img = [r[:] for r in base]
+    isb = lambda dx, dy: env.t(x + dx, y + dy) == 'FLOWERBED'
+    cols = (P['fr'], P['fy'], P['fw'], P['fp'], P['bl3'])
+    for py in range(16):
+        for px in range(16):
+            edge = (px < 1 and not isb(-1, 0)) or (px > 14 and not isb(1, 0)) or (py < 1 and not isb(0, -1)) or \
+                   (py > 14 and not isb(0, 1))
+            if edge:
+                img[py][px] = P['c1'] if py < 8 else P['c3']
+            else:
+                img[py][px] = P['h2'] if (px + py) % 3 else P['h3']
+    v = hsh(87, x, y)
+    for i, (fx, fy) in enumerate(((3, 3), (8, 2), (12, 4), (5, 7), (10, 8), (2, 11), (7, 12), (12, 12))):
+        c = cols[(v >> (i * 3)) % 5]
+        img[fy][fx] = img[fy][fx + 1] = c
+        img[fy - 1][fx] = P['fw'] if c != P['fw'] else P['fy']
+        img[fy + 1][fx] = P['t1']
+        img[fy + 1][fx + 1] = P['t2']
+    return img
+
+
+def obj_fern(img, x, y):
+    v = hsh(89, x, y) % 3
+    bx, by = ((3, 4), (8, 7), (5, 9))[v]
+    for (dx, dy) in ((0, 0), (-1, 1), (1, 1), (-2, 2), (2, 2), (0, 1), (0, 2), (-1, 3), (1, 3), (0, 3)):
+        c = P['g3'] if dy < 2 else P['g2']
+        if 0 <= bx + dx < 16 and 0 <= by + dy < 16:
+            img[by + dy][bx + dx] = c
+
+
+def palm_image():
+    img = [[None] * 16 for _ in range(32)]
+    for y in range(12, 31):
+        x = 7 + (1 if y < 18 else 0)
+        img[y][x] = P['h0'] if y % 3 else P['h3']
+        img[y][x + 1] = P['h2']
+    for (dx, dy, n) in ((-1, 0, 7), (1, 0, 7), (-1, 1, 6), (1, 1, 6), (-1, -1, 4), (1, -1, 4), (0, 1, 4)):
+        x, y = 8.0, 11.0
+        for i in range(n):
+            x += dx * 1.0
+            y += dy * 0.6 + i * 0.12
+            for (ox, oy) in ((0, 0), (0, 1)):
+                xx, yy = int(x) + ox, int(y) + oy
+                if 0 <= xx < 16 and 0 <= yy < 32:
+                    img[yy][xx] = P['t2'] if oy == 0 else P['t0']
+    return outline(img, P['t4'])
+
+
 def bridge_image(env, x, y):
     ns = env.t(x - 1, y) == 'WATER' and env.t(x + 1, y) == 'WATER'
     img = blank()
@@ -1026,7 +1368,7 @@ def render(wg, x, y, quest_art=None):
     if t == 'BRIDGE':
         return bridge_image(env, x, y), None
     if t in WALLT:
-        if env.roof(x, y) and (x, y + 1) not in wg.ROOFS[env.roof(x, y)][1]:
+        if env.roof(x, y) and env.roof(x, y + 1) == 0 and env.t(x, y + 1) not in WALLT:
             return facade_image(env, x, y), None
         return wall_image(env, x, y), None
     if t == 'DOOR':
@@ -1089,6 +1431,48 @@ def render(wg, x, y, quest_art=None):
     elif t == 'BUSH':
         shadow_ellipse(base, 9, 14, 7, 2, gshade)
         base = obj_bush(base)
+    elif t == 'CROPS':
+        base = obj_crops(base)
+    elif t == 'CHAIR':
+        base = obj_chair(base)
+    elif t in ('BOOKCASE', 'DRAWERS', 'WARDROBE', 'SHELF'):
+        base = obj_tall(base, (P['h1'], P['h2']), (P['fr'], P['bl1'], P['t1'], P['fy'], P['rd2']),
+                        {'BOOKCASE': 'books', 'DRAWERS': 'drawers', 'WARDROBE': 'wardrobe', 'SHELF': 'shelf'}[t])
+    elif t == 'FIREPLACE':
+        base = obj_fireplace(base)
+    elif t == 'BARREL':
+        base = obj_barrel(base, gshade)
+    elif t == 'POTPLANT':
+        base = obj_potplant(base)
+    elif t == 'BIGSTALL':
+        base = obj_bigstall(env, x, y, base, (P['fr'], P['fw']) if hsh(97, x // 2, y // 2) % 2 else (P['bl1'], P['fw']))
+    elif t == 'ANVIL':
+        base = obj_anvil(base)
+    elif t == 'FURNACE':
+        base = obj_furnace(base)
+    elif t == 'THRONE':
+        base = obj_throne(base)
+    elif t == 'WELL':
+        base = obj_well(base, gshade)
+    elif t == 'SACKS':
+        base = obj_sacks(base, gshade)
+    elif t == 'FLOWERBED':
+        base = obj_flowerbed(env, x, y, base)
+    elif t == 'FERN':
+        obj_fern(base, x, y)
+    elif t == 'PALM':
+        ti = palm_image()
+        shadow_ellipse(base, 9, 14.5, 6, 2, gshade)
+        paste(base, ti[16:])
+        return base, ti[:16]
+    elif t in ('STUMP',):
+        stump = [[None] * 16 for _ in range(16)]
+        for py in range(8, 15):
+            for px in range(5, 11):
+                stump[py][px] = P['h0'] if px < 7 else P['h2']
+        for px in range(5, 11):
+            stump[8][px] = P['th1'] if 6 <= px <= 9 else P['h1']
+        paste(base, outline(stump, P['c5']))
     elif quest_art and t in quest_art:
         paste(base, quest_art[t])
     return base, over

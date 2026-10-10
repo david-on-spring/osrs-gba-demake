@@ -1,0 +1,40 @@
+wait 60
+newgame
+wait 900
+tpz VARROCK 3212 3424 DOWN
+wait 20
+shot shots/remaster/var_square.png
+tpz VARROCK 3212 3466 DOWN
+wait 20
+shot shots/remaster/var_palace_gate.png
+tpz VARROCK 3214 3485 DOWN
+wait 20
+shot shots/remaster/var_palace.png
+tpz VARROCK 3188 3440 DOWN
+wait 20
+shot shots/remaster/var_west_bank.png
+tpz VARROCK 3253 3426 DOWN
+wait 20
+shot shots/remaster/var_east_bank.png
+tpz VARROCK 3254 3478 DOWN
+wait 20
+shot shots/remaster/var_church.png
+tpz VARROCK 3225 3398 DOWN
+wait 20
+shot shots/remaster/var_blue_moon.png
+tpz VARROCK 3216 3408 DOWN
+wait 20
+shot shots/remaster/var_general.png
+tpz VARROCK 3212 3383 DOWN
+wait 20
+shot shots/remaster/var_south_gate.png
+tpz VARROCK 3240 3430 DOWN
+wait 20
+shot shots/remaster/var_east_road.png
+tpz VARROCK 3188 3424 DOWN
+wait 20
+shot shots/remaster/var_anvils.png
+tpz VARROCK 3258 3446 DOWN
+wait 20
+shot shots/remaster/var_museum.png
+dump @perf_max 1

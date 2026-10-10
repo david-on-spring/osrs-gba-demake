@@ -84,7 +84,7 @@ typedef struct {
 } NpcDef;
 extern const NpcDef npc_defs[NPC_KIND_COUNT];
 
-#define MAX_NPCS 224
+#define MAX_NPCS 256
 typedef struct {
     u8 active, kind, dir, moving;
     s16 x, y;            // tile

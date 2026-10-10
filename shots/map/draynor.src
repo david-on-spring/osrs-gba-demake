@@ -1,0 +1,28 @@
+wait 60
+newgame
+wait 900
+tpz DRAYNOR 3092 3248 DOWN
+wait 20
+shot shots/remaster/dray_bank_ext.png
+tpz DRAYNOR 3092 3244 DOWN
+wait 20
+shot shots/remaster/dray_bank_int.png
+tpz DRAYNOR 3079 3250 DOWN
+wait 20
+shot shots/remaster/dray_market.png
+tpz DRAYNOR 3084 3232 DOWN
+wait 20
+shot shots/remaster/dray_shore.png
+tpz DRAYNOR 3103 3258 DOWN
+wait 20
+shot shots/remaster/dray_road.png
+tpz DRAYNOR 3086 3266 DOWN
+wait 20
+shot shots/remaster/dray_aggie.png
+tpz DRAYNOR 3118 3272 DOWN
+wait 20
+shot shots/remaster/dray_crops.png
+tpz DRAYNOR 3125 3247 DOWN
+wait 20
+shot shots/remaster/dray_jail.png
+dump @perf_max 1
