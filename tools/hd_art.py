@@ -193,16 +193,16 @@ class Env:
         return CLASS.get(g)
 
 
-def field_class(env, x, y, px, py):
+def _field_class(env, x, y, px, py):
     """Terrain class at pixel (px, py) of cell (x, y); px/py may be -1 or 16 (neighbour cells)."""
     if px < 0:
-        return field_class(env, x - 1, y, px + 16, py)
+        return _field_class(env, x - 1, y, px + 16, py)
     if px > 15:
-        return field_class(env, x + 1, y, px - 16, py)
+        return _field_class(env, x + 1, y, px - 16, py)
     if py < 0:
-        return field_class(env, x, y - 1, px, py + 16)
+        return _field_class(env, x, y - 1, px, py + 16)
     if py > 15:
-        return field_class(env, x, y + 1, px, py - 16)
+        return _field_class(env, x, y + 1, px, py - 16)
     me = env.cls(x, y)
     if me is None:
         return None
@@ -357,9 +357,34 @@ def water_px(px, py, tx, ty):
     return P['w0']
 
 
+class _ClsMemo:
+    """env.cls() for one cell's neighbourhood, each cell looked up once (terrain() asks for the
+    same few cells hundreds of times)."""
+
+    def __init__(self, env):
+        self.env = env
+        self.memo = {}
+
+    def cls(self, x, y):
+        k = (x, y)
+        c = self.memo.get(k, self)
+        if c is self:
+            c = self.memo[k] = self.env.cls(x, y)
+        return c
+
+
 def terrain(env, x, y, x0=0, y0=0):
     """Blended ground for the cell. Pixels whose class is None are left None."""
     img = blank()
+    cenv = _ClsMemo(env)
+    fc = {}
+
+    def field_class(_env, _x, _y, px, py):      # the pixel field around this cell, memoized
+        k = (px, py)
+        c = fc.get(k, fc)
+        if c is fc:
+            c = fc[k] = _field_class(cenv, x, y, px, py)
+        return c
     for py in range(16):
         for px in range(16):
             c = field_class(env, x, y, px, py)
