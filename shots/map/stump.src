@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 30
-tp 133 155 3
+tpz OVERWORLD 3194 3242 RIGHT
 wait 10
 dump 600b598 2
 dump 600b5d8 2

@@ -22,7 +22,7 @@ dlg
 world
 expecthas KEY_ROVIN
 # Wizard Traiborn: 25 bones
-tp 91 198 3
+tpz OVERWORLD 3110 3156 RIGHT
 talk
 dlg
 world
@@ -54,7 +54,7 @@ item 23 BONES 1
 item 24 BONES 1
 item 25 BONES 1
 item 26 BUCKET
-tp 91 198 3
+tpz OVERWORLD 3110 3156 RIGHT
 talk
 dlg
 world
@@ -83,7 +83,7 @@ xp STRENGTH 300000
 xp DEFENCE 300000
 xp HITPOINTS 300000
 hp 40
-tp 147 91 3
+tpz OVERWORLD 3222 3370 RIGHT
 wait 2
 press A
 wait 60
@@ -99,7 +99,7 @@ dlg
 world
 dumpq
 expectq DEMON 3
-tp 147 91 3
+tpz OVERWORLD 3222 3370 RIGHT
 wait 2
 press A
 until8 @ui_wait 1 6000

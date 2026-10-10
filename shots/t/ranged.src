@@ -7,8 +7,8 @@ clearinv
 xp RANGED 400000
 equip WEAPON SHORTBOW
 equip AMMO BRONZE_ARROW 100
-tp 179 123 3
-npcpos COW 184 123
+tpz OVERWORLD 3286 3306 RIGHT
+npcpos COW OVERWORLD 3296 3306
 wait 4
 press L
 wait 4
@@ -26,9 +26,9 @@ world
 expectxp RANGED 400040
 expectxp HITPOINTS 1
 expecttarget NONE
-expectat CELL 179 123
+expectat OVERWORLD 3286 3306
 # --- B clears the target
-npcpos COW:2 182 123
+npcpos COW:2 OVERWORLD 3292 3306
 wait 4
 press L
 wait 4

@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 40
-tp 14 26 2
+tpz OVERWORLD 2956 3500 LEFT
 #L4 tp 14 26 2
 dump @perf_max 1
 poke16 @perf_max 0
@@ -177,7 +177,7 @@ expectitem 9 ORANGE_MAIL
 #L47 expectitem 9 ORANGE_MAIL
 dump @perf_max 1
 poke16 @perf_max 0
-tp 14 26 2
+tpz OVERWORLD 2956 3500 LEFT
 #L48 tp 14 26 2
 dump @perf_max 1
 poke16 @perf_max 0
@@ -241,7 +241,7 @@ expectitem 9 BLUE_MAIL
 #L63 expectitem 9 BLUE_MAIL
 dump @perf_max 1
 poke16 @perf_max 0
-tp 14 26 3
+tpz OVERWORLD 2956 3500 RIGHT
 #L64 tp 14 26 3
 dump @perf_max 1
 poke16 @perf_max 0

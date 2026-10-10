@@ -10,7 +10,7 @@ dlg
 choose 0
 dlg
 world
-tp 110 184 2
+tpz OVERWORLD 3148 3184 LEFT
 talk
 dlg
 choose 0

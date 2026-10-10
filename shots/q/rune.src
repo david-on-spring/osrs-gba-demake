@@ -11,7 +11,7 @@ dlg
 world
 expectq RUNE 1
 expectitem 9 AIR_TALISMAN
-tp 89 196 2
+tpz OVERWORLD 3106 3160 LEFT
 talk
 until8 @ui_wait 1 300
 wait 4
@@ -26,7 +26,7 @@ dlg
 world
 expectq RUNE 3
 expectitem 9 NOTES
-tp 89 196 2
+tpz OVERWORLD 3106 3160 LEFT
 talk
 dlg
 done

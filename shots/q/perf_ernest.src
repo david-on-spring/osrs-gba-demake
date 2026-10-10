@@ -2,54 +2,54 @@ wait 60
 newgame
 wait 40
 poke16 @perf_max 0
-tp 91 113 1
+tpz OVERWORLD 3110 3326 UP
 talk
 dlg
 choose 0
 dlg
 world
 expectq ERNEST 1
-tp 95 93 3
+tpz OVERWORLD 3118 3366 RIGHT
 talk
 dlg
 world
 expectq ERNEST 2
 # fountain: piranhas, no gauge yet
-tp 86 104 2
+tpz OVERWORLD 3100 3344 LEFT
 press A
 dlg
 world
 # spade in the hall, key from the compost heap
-tp 85 98 0
+tpz OVERWORLD 3098 3356 DOWN
 press A
 wait 10
 expectitem 9 SPADE
-tp 96 104 3
+tpz OVERWORLD 3120 3344 RIGHT
 press A
 wait 10
 expectitem 10 MANOR_KEY
 # the locked west wing: the rubber tube
-tp 86 98 1
+tpz OVERWORLD 3100 3356 UP
 press A
 wait 30
 shot shots/q/ernest_door.png
-tp 86 93 1
+tpz OVERWORLD 3100 3366 UP
 press A
 wait 10
 expectitem 11 TUBE
-tp 86 96 0
+tpz OVERWORLD 3100 3360 DOWN
 press A
 wait 30
 dump @pl 2
 # oil can, poison, fish food
-tp 90 92 1
+tpz OVERWORLD 3108 3368 UP
 press A
 wait 10
 expectitem 12 OIL_CAN
-tp 91 99 1
+tpz OVERWORLD 3110 3354 UP
 press A
 wait 10
-tp 97 92 1
+tpz OVERWORLD 3122 3368 UP
 press A
 wait 10
 expectitem 13 POISON
@@ -80,12 +80,12 @@ press A
 world
 dumpq
 # poison the piranhas, take the gauge
-tp 86 104 2
+tpz OVERWORLD 3100 3344 LEFT
 press A
 dlg
 world
 shot shots/q/ernest_fountain.png
-tp 95 93 3
+tpz OVERWORLD 3118 3366 RIGHT
 talk
 dlg
 done

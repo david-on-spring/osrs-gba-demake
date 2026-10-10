@@ -2,7 +2,7 @@ wait 60
 newgame
 wait 100
 poke16 @perf_max 0
-tp 120 140 3
+tpz OVERWORLD 3168 3272 RIGHT
 wait 3
 dump @perf_max 1
 poke16 @perf_max 0

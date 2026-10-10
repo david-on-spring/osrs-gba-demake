@@ -1,14 +1,14 @@
 wait 60
 newgame
 wait 30
-tp 116 59 2
+tpz OVERWORLD 3160 3434 LEFT
 talk
 until8 @ui_wait 1 300
 wait 4
 shot shots/q/npc_juliet.png
 dlg
 world
-tp 19 170 1
+tpz OVERWORLD 2966 3212 UP
 talk
 until8 @ui_wait 1 300
 wait 4
