@@ -15,12 +15,12 @@ press B
 wait 10
 press START
 wait 20
-poke16 @pl+0xb8 46
-poke16 @pl+0xba 3f
-poke16 @pl+0xbc 4c
-poke16 @pl+0xbe 56
-poke16 @pl+0xc0 52
-poke16 @pl+0xc2 57
+poke16 @pl+0xc0 46
+poke16 @pl+0xc2 3f
+poke16 @pl+0xc4 4c
+poke16 @pl+0xc6 56
+poke16 @pl+0xc8 52
+poke16 @pl+0xca 57
 tpz VARROCK 3210 3428 DOWN
 press START
 wait 24

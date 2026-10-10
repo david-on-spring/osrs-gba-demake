@@ -256,6 +256,11 @@ int main(int argc, char **argv) {
             sscanf(line, "%*s %x %x %199s", &addr, &val, arg);
             unsigned got = cmd[6] == '8' ? core->busRead8(core, addr) : core->busRead16(core, addr);
             printf("%s %s (got %x, want %x)\n", got == val ? "PASS" : "FAIL", arg, got, val);
+        } else if (!strcmp(cmd, "expectlt8")) {
+            unsigned addr = 0, val = 0;
+            sscanf(line, "%*s %x %x %199s", &addr, &val, arg);
+            unsigned got = core->busRead8(core, addr);
+            printf("%s %s (got %x, want < %x)\n", got < val ? "PASS" : "FAIL", arg, got, val);
         } else if (!strcmp(cmd, "expectge32")) {
             unsigned addr = 0, val = 0;
             sscanf(line, "%*s %x %x %199s", &addr, &val, arg);

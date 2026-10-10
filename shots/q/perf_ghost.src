@@ -38,6 +38,7 @@ press DOWN
 press A
 wait 10
 press UP
+press UP
 press A
 wait 10
 shot shots/q/ghost_equip_neck.png

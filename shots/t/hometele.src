@@ -1,0 +1,54 @@
+# Lumbridge Home Teleport: a 24-tick cast that walking interrupts, then a 30-minute cooldown.
+wait 60
+newgame
+world
+tp 179 123 0
+homecd 0
+# --- start it from the Spellbook (first spell), then press a direction: interrupted, still here
+press START
+wait 24
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 16
+press A
+wait 4
+press A
+wait 60
+press RIGHT
+wait 750
+expectstate WORLD
+expectat CELL 179 123
+expect16 @pl+0x28a 0 no_cooldown_after_interrupt
+# --- cast it again and wait it out
+tp 179 123 0
+press START
+wait 24
+press A
+wait 16
+press A
+wait 4
+press A
+wait 100
+shot shots/t/home_draw.png
+wait 200
+shot shots/t/home_read.png
+wait 200
+shot shots/t/home_light.png
+wait 200
+shot shots/t/home_vanish.png
+wait 60
+expectplace START
+expecthomecd 2900
+# --- on cooldown: the book says how long, nothing happens
+press START
+wait 24
+press A
+wait 16
+shot shots/t/home_cooldown.png
+press A
+wait 4
+press A
+wait 10
+expectstate MENU

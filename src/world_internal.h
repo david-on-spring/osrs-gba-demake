@@ -43,6 +43,7 @@ int fire_at(int x, int y);              // fires[] index, -1 if none
 int walkable(int x, int y);             // terrain only (fires don't block)
 int free_tile(int x, int y);            // walkable, no NPC, not the player
 int adjacent(int ax, int ay, int bx, int by);
+int clear_shot(int ax, int ay, int bx, int by);   // no wall or tree between two cells (projectiles)
 int pickup_at(int x, int y);            // pick up the top ground item; 1 if one was there (even if the inventory is full)
 void splat_spawn(int wx, int wy, int dmg);
 
@@ -52,8 +53,17 @@ int foe_free(int i);                    // npc i may fight the player (single-wa
 void foe_engage(int i);
 void foe_release(int i);
 int weapon_speed(void);                 // ticks between attacks
-void player_attack(int i);
+int player_attack(int i);               // 0 if no attack could be made (out of ammo or runes)
+int npc_in_reach(int i);                // the player can attack npc i from where they stand
 void npc_attack(int i);
+#define MAX_PROJ 4
+typedef struct { u8 active, npc, dmg, cb, spell, icon, t, dur, hit; u16 drop; s16 sx, sy; } Proj;
+extern Proj projs[MAX_PROJ];            // arrows and spells in flight
+void proj_update(void);                 // every frame: move, land hits on arrival
+void proj_clear(void);
+extern u8 cast_once;
+void home_update(void);                 // spells.c: the home teleport's cast, every frame
+void home_cancel(void);                    // spell to cast once at the target (spellbook), 0 = none
 
 // skilling.c
 typedef struct { u8 id, power, level; } Tool;
@@ -63,3 +73,5 @@ void deplete(int x, int y, int type, int respawn_ticks);
 void restore(Depleted *d);
 void skill_tick(void);
 void interact(void);                    // the A button in the world
+void npc_talk(int n);                   // talk to an NPC standing next to the player
+void npc_fight(int n);                  // attack an NPC (and target it)

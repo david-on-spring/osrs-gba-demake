@@ -11,6 +11,9 @@ service(orect(3250, 3416, 3257, 3424), 'S', 'BOOTH', 'BANKER')
 zshop('VARROCK', building_at(B, 3216, 3415), 'SHOPKEEPER')
 zshop('SWORDSHOP', building_at(B, 3205, 3399), 'SWORD_KEEPER')
 zshop('HORVIK', building_at(B, 3229, 3437), 'HORVIK')
+zshop('LOWE', building_at(B, 3232, 3421), 'LOWE')
+zshop('ZAFF', building_at(B, 3202, 3433), 'ZAFF')
+zshop('AUBURY', building_at(B, 3253, 3402), 'AUBURY')     # his quest script opens the shop
 # Varrock Square fountain: four pools around the statues
 for X in range(3210, 3214):
     for Y in range(3427, 3431):
@@ -44,3 +47,5 @@ furnish(museum, ['BOOKCASE', 'BOOKCASE', 'STATUE', 'STATUE', 'SHELF', 'SHELF', '
 for b in B:
     if not b['special']:
         furnish(b)
+# where the Varrock Teleport spell lands
+QPOS['TELE_VARROCK'] = nearest_walk(cx(3212), cy(3424), walk_ok, 4)

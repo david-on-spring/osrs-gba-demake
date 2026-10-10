@@ -5,7 +5,17 @@ Adds to the harness commands:
   tp X Y DIR             teleport (cells; DIR 0 down, 1 up, 2 left, 3 right)
   item SLOT NAME [QTY]   put an item (I_NAME) in inventory slot SLOT
   clearinv               empty the inventory
-  equip SLOT NAME        wear an item (SLOT = HEAD WEAPON BODY SHIELD LEGS FEET NECK)
+  equip SLOT NAME [QTY]  wear an item (SLOT = HEAD WEAPON BODY SHIELD LEGS FEET NECK AMMO; QTY for AMMO)
+  spell NAME             set the autocast spell (a src/spells.c name in capitals, e.g. WIND_STRIKE; NONE)
+  expectammo NAME N      PASS/FAIL check of the ammo slot and its quantity
+  expectspell NAME       PASS/FAIL check of the autocast spell
+  expectnpcat I|KIND X Y PASS/FAIL check of an NPC's cell
+  expecthpbelow N        PASS/FAIL check that current hitpoints are below N
+  homecd TICKS           set the home teleport cooldown
+  expecthomecd MIN       PASS/FAIL check that the home teleport cooldown is at least MIN ticks
+  expecttarget I|KIND|NONE  PASS/FAIL check of the L target (lock_target)
+  expectcurse I|KIND BITS   PASS/FAIL check of an NPC's curse bits (CU_* in src/game.h)
+  expectplace NAME       PASS/FAIL check that the player stands on a named cell from build/assets.h (e.g. TELE_VARROCK)
   stage QUEST N          set a quest stage (QUEST = id from tools/quests.txt)
   xp SKILL TENTHS        set a skill's XP (tenths)
   page [N]               let N dialogue pages type out and continue (default 1)
@@ -27,7 +37,7 @@ Adds to the harness commands:
   expecthp N             PASS/FAIL check of current hitpoints
   expectstate STATE      PASS/FAIL check of game_state (TITLE WORLD MENU DIALOG BANK SHOP LEVELUP QUESTDONE)
   hp N                   set current hitpoints
-  npcpos I|KIND X Y      move NPC I (see build/spawns.txt), or the first of a kind, to a cell
+  npcpos I|KIND X Y      move NPC I (see build/spawns.txt), the first of a kind (or KIND:N, the Nth), to a cell
   untildead I|KIND [N]   run until that NPC is inactive (killed), at most N frames (default 3000)
   tpz ZONE X Y DIR       teleport to OSRS tile (X, Y) in a zone (OVERWORLD, LUMBRIDGE, CASTLE_1, CASTLE_2)
   expectat ZONE X Y      PASS/FAIL check that the player stands on OSRS tile (X, Y) of a zone (ZONE CELL: a cell)
@@ -53,10 +63,16 @@ for line in open(os.path.join(root, 'tools/quests.txt')):
     if m:
         QUEST[m.group(1)] = len(QUEST)
 SKILLS = ['ATTACK', 'STRENGTH', 'DEFENCE', 'HITPOINTS', 'PRAYER', 'WOODCUTTING', 'FIREMAKING', 'FISHING',
-          'COOKING', 'MINING']
-EQ = ['HEAD', 'WEAPON', 'BODY', 'SHIELD', 'LEGS', 'FEET', 'NECK']
-OFF_XP, OFF_INV, OFF_EQUIP, OFF_BANK, OFF_QSTAGE, OFF_QVAR = 0x20, 0x48, 0xB8, 0xC6, 0x24C, 0x25C
-STATES = ['TITLE', 'WORLD', 'MENU', 'DIALOG', 'BANK', 'SHOP', 'LEVELUP', 'QUESTDONE']   # GS_* in src/game.h
+          'COOKING', 'MINING', 'RANGED', 'MAGIC']
+EQ = ['HEAD', 'WEAPON', 'BODY', 'SHIELD', 'LEGS', 'FEET', 'NECK', 'AMMO']
+# (src/save.c asserts these against the struct)
+OFF_XP, OFF_INV, OFF_EQUIP, OFF_AMMO, OFF_BANK, OFF_QSTAGE, OFF_QVAR, OFF_SPELL, OFF_HOMECD = \
+    0x20, 0x50, 0xC0, 0xD0, 0xD2, 0x258, 0x268, 0x288, 0x28A
+STATES = ['TITLE', 'WORLD', 'MENU', 'DIALOG', 'BANK', 'SHOP', 'LEVELUP', 'QUESTDONE', 'TARGET']   # GS_* in src/game.h
+NPC_SIZE = 30      # sizeof(Npc), asserted in src/world.c
+# spell names in book order from src/spells.c ("Wind Strike" -> WIND_STRIKE)
+SPELLS = [re.sub(r'\W+', '_', n).strip('_').upper()
+          for n in re.findall(r'^\s+(?:\{|CB\(|CU\(|NA\()"([^"]+)"', open(os.path.join(root, 'src/spells.c')).read(), re.M)]
 
 KB = ['ABCDEFGHIJKLM', 'NOPQRSTUVWXYZ', 'abcdefghijklm', 'nopqrstuvwxyz', '0123456789 -_']   # src/title.c kb_keys
 SPAWNS_TXT = os.path.join(root, 'build/spawns.txt')
@@ -90,10 +106,13 @@ def tp_lines(x, y, d):
 DIRV = {'DOWN': (0, 0, 1), 'UP': (1, 0, -1), 'LEFT': (2, -1, 0), 'RIGHT': (3, 1, 0)}
 
 
-def npc_index(k):          # an index, or the first spawn of a kind (indices shift as NPCs are added)
+def npc_index(k):          # an index, a kind's first spawn, or KIND:N, its Nth (indices shift as NPCs are added)
     if k.isdigit():
         return int(k)
-    return next(int(ln.split()[0]) for ln in open(os.path.join(root, 'build/spawns.txt')) if ln.split()[1] == k)
+    kind, _, nth = k.partition(':')
+    hits = [int(ln.split()[0]) for ln in open(os.path.join(root, 'build/spawns.txt'))
+            if ln.split()[0].isdigit() and ln.split()[1] == kind]
+    return hits[int(nth) - 1 if nth else 0]
 
 
 out = []
@@ -134,6 +153,35 @@ for line in open(sys.argv[1]):
             out += ['poke16 @pl+0x%x 0' % (OFF_INV + s * 4), 'poke16 @pl+0x%x 0' % (OFF_INV + s * 4 + 2)]
     elif c == 'equip':
         out.append('poke16 @pl+0x%x %x' % (OFF_EQUIP + EQ.index(p[1]) * 2, ITEM[p[2]]))
+        if p[1] == 'AMMO':
+            out.append('poke16 @pl+0x%x %x' % (OFF_AMMO, int(p[3]) if len(p) > 3 else 1))
+    elif c == 'spell':
+        out.append('poke8 @pl+0x%x %x' % (OFF_SPELL, SPELLS.index(p[1])))
+    elif c == 'expectammo':
+        out += ['expect16 @pl+0x%x %x ammo_%s' % (OFF_EQUIP + EQ.index('AMMO') * 2, ITEM[p[1]], p[1]),
+                'expect16 @pl+0x%x %x ammo_qty_%s' % (OFF_AMMO, int(p[2]), p[2])]
+    elif c == 'expecttarget':
+        v = 0xFFFF if p[1] == 'NONE' else npc_index(p[1])
+        out.append('expect16 @lock_target %x target_%s' % (v, p[1]))
+    elif c == 'expectcurse':
+        out.append('expect8 @npcs+0x%x %x curse_%s' % (npc_index(p[1]) * NPC_SIZE + 28, int(p[2]), p[1]))
+    elif c == 'expectplace':
+        hdr_a = open(os.path.join(root, 'build/assets.h')).read()
+        x = int(re.search(r'#define %s_X (\d+)' % p[1], hdr_a).group(1))
+        y = int(re.search(r'#define %s_Y (\d+)' % p[1], hdr_a).group(1))
+        out += ['expect16 @pl %x %s_x' % (x, p[1]), 'expect16 @pl+2 %x %s_y' % (y, p[1])]
+    elif c == 'expectnpcat':
+        base = npc_index(p[1]) * NPC_SIZE
+        out += ['expect16 @npcs+0x%x %x %s_x' % (base + 4, int(p[2]), p[1]),
+                'expect16 @npcs+0x%x %x %s_y' % (base + 6, int(p[3]), p[1])]
+    elif c == 'expecthpbelow':
+        out.append('expectlt8 @pl+0x16 %x hp_below_%s' % (int(p[1]), p[1]))
+    elif c == 'homecd':
+        out.append('poke16 @pl+0x%x %x' % (OFF_HOMECD, int(p[1])))
+    elif c == 'expecthomecd':
+        out.append('expectge32 @pl+0x%x %x homecd_ge_%s' % (OFF_HOMECD, int(p[1]), p[1]))
+    elif c == 'expectspell':
+        out.append('expect8 @pl+0x%x %x spell_%s' % (OFF_SPELL, SPELLS.index(p[1]), p[1]))
     elif c == 'stage':
         out.append('poke8 @pl+0x%x %x' % (OFF_QSTAGE + QUEST[p[1]], int(p[2])))
     elif c == 'xp':
@@ -175,13 +223,13 @@ for line in open(sys.argv[1]):
         out.append('expect8 @game_state %x state_%s' % (STATES.index(p[1]), p[1]))
     elif c == 'npcpos':     # npcpos INDEX X Y: put an NPC (index from build/spawns.txt) on a cell
         x, y = int(p[2]), int(p[3])
-        base = npc_index(p[1]) * 28
+        base = npc_index(p[1]) * NPC_SIZE
         cell = y * next(int(q[1]) for q in spawn_lines() if q[0] == 'mapw') + x
         out += ['poke8 @npcs+0x%x 0' % (base + 3), 'poke16 @npcs+0x%x %x' % (base + 4, x), 'poke16 @npcs+0x%x %x' % (base + 6, y),
                 'poke16 @npcs+0x%x %x' % (base + 8, x * 16), 'poke16 @npcs+0x%x %x' % (base + 10, y * 16),
                 'poke8 @occ_bits+0x%x %x' % ((cell >> 5) * 4 + ((cell & 31) >> 3), 1 << (cell & 7))]
     elif c == 'untildead':
-        out.append('until8 @npcs+0x%x 0 %d' % (npc_index(p[1]) * 28, int(p[2]) if len(p) > 2 else 3000))
+        out.append('until8 @npcs+0x%x 0 %d' % (npc_index(p[1]) * NPC_SIZE, int(p[2]) if len(p) > 2 else 3000))
     elif c == 'hp':
         out.append('poke8 @pl+0x16 %x' % int(p[1]))
     elif c == 'newgame':    # login screen: New User, name "A" (or the given name), first empty slot

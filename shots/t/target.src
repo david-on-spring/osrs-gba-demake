@@ -1,0 +1,58 @@
+# Target menu on a shopkeeper: L, A, Talk-to walks up to Lowe and opens his archery shop; buy
+# bronze arrows and wield them into the ammo slot. Then Aubury's rune shop through his dialogue.
+wait 60
+newgame
+world
+clearinv
+item 0 COINS 1000
+tp 69 391 0
+wait 4
+press L
+wait 4
+expecttarget LOWE
+press A
+wait 4
+expectstate TARGET
+shot shots/t/target_menu.png
+press A
+until8 @game_state 3 300
+page
+wait 20
+expectstate SHOP
+shot shots/t/target_lowe_shop.png
+# buy one bronze arrow (stock slot 0)
+press A
+wait 4
+press A
+wait 6
+expectitem 1 BRONZE_ARROW
+expectqty 1 1
+press B
+wait 10
+# wield it from the inventory: START, Inventory, slot 1, Wield
+press START
+wait 24
+press A
+wait 16
+press RIGHT
+press A
+wait 4
+press A
+wait 10
+expectammo BRONZE_ARROW 1
+expectitem 1 NONE
+press B
+wait 6
+press START
+wait 20
+# --- Aubury: "Do you want to buy some runes?" Yes please!
+face AUBURY UP
+talk
+dlg
+choose 0
+wait 20
+expectstate SHOP
+shot shots/t/target_aubury_shop.png
+press B
+wait 10
+expectstate WORLD

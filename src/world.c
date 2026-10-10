@@ -4,6 +4,7 @@
 #include "world_internal.h"
 
 EWRAM_BSS Npc npcs[MAX_NPCS];
+_Static_assert(sizeof(Npc) == 30, "tools/qtest.py NPC_SIZE");
 Player pl;
 s16 cam_x, cam_y;
 
@@ -232,6 +233,7 @@ void world_init(void) {
         n->respawn = 0;
         n->attack_cd = 0;
         n->hpbar_timer = 0;
+        n->curse = n->bound = 0;
         occ_set(n->x, n->y);
     }
     for (int i = 0; i < MAX_FIRES; i++) fires[i].active = 0;
@@ -266,6 +268,7 @@ void npc_set_active(int i, int on) {
         n->py = n->y * 16;
         n->hp = npc_defs[n->kind].hp;
         n->moving = n->in_combat = n->hpbar_timer = n->state = 0;
+        n->curse = n->bound = 0;
         n->respawn = 0;
         occ_set(n->x, n->y);
     } else {
@@ -334,6 +337,9 @@ int npc_portrait_tile(int kind) {
 }
 
 void world_after_load(void) {
+    home_cancel();
+    target_set(-1);
+    proj_clear();
     // saves from before the 1:1 towns: an old 1:2 town is now only a view from outside
     for (int i = 0; i < LEGACY_COUNT; i++) {
         const Legacy *l = &legacy[i];
@@ -365,6 +371,9 @@ void world_new_game(void) {
     for (int i = 0; i < 28; i++) p->inv[i].id = p->inv[i].qty = 0;
     for (int i = 0; i < 96; i++) p->bank[i].id = p->bank[i].qty = 0;
     for (int i = 0; i < EQ_COUNT; i++) p->equip[i] = 0;
+    p->ammo_qty = 0;
+    p->spell = 0;
+    p->home_cd = 0;
     for (int i = 0; i < SK_COUNT; i++) p->xp[i] = 0;
     p->xp[SK_HITPOINTS] = xp_table[10] * 10;
     p->hp = 10;
@@ -525,6 +534,30 @@ static int dist(int ax, int ay, int bx, int by) {
     return dx > dy ? dx : dy;
 }
 
+// projectiles fly over water, fences and furniture; walls, trees and cliffs stop them
+static int blocks_shot(int x, int y) {
+    int t = world_type(x, y);
+    return (t >= T_WALL && t <= T_SWALL) || (t >= T_TREE && t <= T_DEADTREE) || t == T_CLIFF || t == T_HEDGE ||
+           t == T_VOID || t == T_LOCKDOOR || t == T_PORTAL;
+}
+
+// Bresenham walk between the two cells (ends excluded)
+int clear_shot(int ax, int ay, int bx, int by) {
+    if (world_zone(ax, ay) != world_zone(bx, by)) return 0;
+    int dx = bx - ax, dy = by - ay;
+    int sx = dx < 0 ? -1 : 1, sy = dy < 0 ? -1 : 1;
+    dx = dx < 0 ? -dx : dx;
+    dy = dy < 0 ? -dy : dy;
+    int err = dx - dy, x = ax, y = ay;
+    for (;;) {
+        int e2 = 2 * err;
+        if (e2 > -dy) err -= dy, x += sx;
+        if (e2 < dx) err += dx, y += sy;
+        if (x == bx && y == by) return 1;
+        if (blocks_shot(x, y)) return 0;
+    }
+}
+
 // path one step toward a target, trying the secondary axis if blocked
 static void step_toward(int tx, int ty) {
     for (int alt = 0; alt < 2; alt++) {
@@ -551,34 +584,67 @@ static void npc_step_toward(Npc *n, int tx, int ty) {
 void player_stop(void) {
     if (pl.action == ACT_COMBAT) ui_set_target(-1);
     pl.action = ACT_NONE;
+    cast_once = 0;
     pl.lunge = 0;
+}
+
+// from the target menu: go and fight or talk to an NPC (game_tick walks there)
+void player_walk_to(int npc, int act) {
+    if (act == ACT_COMBAT) {
+        npc_fight(npc);
+        return;
+    }
+    if (pl.action == ACT_COMBAT) ui_set_target(-1);
+    pl.action = act;
+    pl.target = npc;
 }
 
 // ---------------------------------------------------------------------------------------
 static void game_tick(void) {
     // combat timers tick whatever the player is doing
     if (pl.attack_cd) pl.attack_cd--;
+    if (pl.home_cd) pl.home_cd--;
     if (foe_timer) foe_timer--;
     // player combat
     if (pl.action == ACT_COMBAT) {
+        // melee waits for the target to stop; arrows and spells hit moving targets
         Npc *n = &npcs[pl.target];
+        int still = !pl.moving && (!n->moving || attack_range() > 1);
         if (!n->active) {
             player_stop();
         } else if (!foe_free(pl.target)) {
             msg("I'm already under attack.");
             player_stop();
-        } else if (!adjacent(pl.x, pl.y, n->x, n->y)) {
-            if (!pl.moving && !n->moving) {
-                if (dist(pl.x, pl.y, n->x, n->y) > 10) player_stop();
+        } else if (!npc_in_reach(pl.target)) {
+            if (still) {
+                if (dist(pl.x, pl.y, n->x, n->y) > 12) player_stop();
                 else step_toward(n->x, n->y);
             }
-        } else if (!pl.moving && !n->moving) {
-            pl.dir = dir_toward(pl.x, pl.y, n->x, n->y, 0);
+        } else if (still) {
+            int d = dir_toward(pl.x, pl.y, n->x, n->y, 0);
+            if (d >= 0) pl.dir = d;
             foe_engage(pl.target);
             if (!pl.attack_cd) {
-                player_attack(pl.target);
-                pl.attack_cd = weapon_speed();
+                // a spell cast from the spellbook goes off once, then the player stands still
+                int speed = weapon_speed(), manual = cast_once;
+                if (player_attack(pl.target)) {
+                    pl.attack_cd = speed;
+                    if (manual) player_stop();
+                } else {
+                    player_stop();
+                }
             }
+        }
+    } else if (pl.action == ACT_TALK) {
+        Npc *n = &npcs[pl.target];
+        if (!n->active || dist(pl.x, pl.y, n->x, n->y) > 12) {
+            player_stop();
+        } else if (!adjacent(pl.x, pl.y, n->x, n->y)) {
+            if (!pl.moving) step_toward(n->x, n->y);
+        } else if (!pl.moving && !n->moving) {
+            pl.dir = dir_toward(pl.x, pl.y, n->x, n->y, 0);
+            pl.action = ACT_NONE;
+            npc_talk(pl.target);
         }
     } else if (pl.action != ACT_NONE && !pl.moving) {
         if (pl.action != ACT_LIGHT) {
@@ -608,6 +674,7 @@ static void game_tick(void) {
                     n->hp = d->hp;
                     n->moving = 0;
                     n->hpbar_timer = 0;
+                    n->curse = n->bound = 0;
                 } else {
                     n->respawn = 1;
                 }
@@ -615,6 +682,7 @@ static void game_tick(void) {
             continue;
         }
         if (n->state && n->kind == NPC_SHEEP) n->state--;   // sheared wool grows back
+        if (n->bound) n->bound--;                            // Bind / Snare / Entangle wear off
         if (n->moving) continue;
         if (!n->in_combat && (d->flags & NF_AGGRO) && pl.action != ACT_COMBAT && foe_free(i) &&
             my_cb <= d->level * 2 && dist(n->x, n->y, pl.x, pl.y) <= 3) {
@@ -628,8 +696,11 @@ static void game_tick(void) {
                 foe_release(i);
                 continue;
             }
-            if (!adjacent(n->x, n->y, pl.x, pl.y)) {
-                if (!pl.moving || pl.action == ACT_COMBAT) npc_step_toward(n, pl.x, pl.y);
+            // casters (dark wizards) fight from up to 7 cells away; everyone else walks up
+            int reach = adjacent(n->x, n->y, pl.x, pl.y) ||
+                        (d->magic_max && dist(n->x, n->y, pl.x, pl.y) <= 7 && clear_shot(n->x, n->y, pl.x, pl.y));
+            if (!reach) {
+                if (!n->bound && (!pl.moving || pl.action == ACT_COMBAT)) npc_step_toward(n, pl.x, pl.y);
                 continue;
             }
             int dd = dir_toward(n->x, n->y, pl.x, pl.y, 0);
@@ -637,11 +708,11 @@ static void game_tick(void) {
             if (n->attack_cd) n->attack_cd--;
             if (!n->attack_cd && !pl.moving) {
                 npc_attack(i);
-                n->attack_cd = 4;
+                n->attack_cd = d->speed ? d->speed : 4;
             }
             continue;
         }
-        if (d->wander && rnd_range(10) == 0) {
+        if (d->wander && !n->bound && rnd_range(10) == 0) {
             int dir = rnd_range(4);
             int nx = n->x + DX[dir], ny = n->y + DY[dir];
             if (dist(nx, ny, n->hx, n->hy) <= d->wander) npc_step(n, dir);
@@ -696,7 +767,10 @@ void world_update(void) {
     } else if (pl.moving) {
         move_entity(&pl.px, &pl.py, pl.x, pl.y, &pl.moving, (keys & KEY_B) ? 4 : 2, &pl.anim);
     }
-    if (!pl.moving && !warp.phase) {
+    home_update();   // before input: a key press this frame interrupts the cast
+    if (home_cast && !warp.phase) {
+        // casting: the player stands still and ignores input
+    } else if (!pl.moving && !warp.phase) {
         int dir = -1;
         if (keys & KEY_UP) dir = DIR_UP;
         else if (keys & KEY_DOWN) dir = DIR_DOWN;
@@ -717,11 +791,30 @@ void world_update(void) {
             pl.turn_delay = 0;
             pl.anim = 0;
         }
-        if (keys_pressed & KEY_A) interact();
+        if (keys_pressed & KEY_A) {
+            // A on the target (or with nobody in front) opens its menu; a different NPC in
+            // front is dealt with directly
+            int fx = pl.x + DX[pl.dir], fy = pl.y + DY[pl.dir];
+            int f = in_map(fx, fy) ? npc_at(fx, fy) : -1;
+            if (lock_target >= 0 && (f < 0 || f == lock_target)) target_menu_open();
+            else interact();
+        }
         if ((keys_pressed & KEY_B) && pl.action != ACT_NONE) {
             player_stop();
         }
     }
+    if (keys_pressed & KEY_L) target_cycle();
+    if ((keys_pressed & KEY_B) && lock_target >= 0) {
+        target_set(-1);
+        if (pl.action == ACT_COMBAT || pl.action == ACT_TALK) player_stop();
+    }
+    // the target is forgotten once it is gone or far away
+    if (lock_target >= 0) {
+        Npc *n = &npcs[lock_target];
+        if (!n->active || dist(pl.x, pl.y, n->x, n->y) > 15 || world_zone(n->x, n->y) != world_zone(pl.x, pl.y))
+            target_set(-1);
+    }
+    if (game_state == GS_TARGET) return;   // the target menu pauses the world
     if (pl.lunge) pl.lunge--;
     if (pl.hpbar_timer) pl.hpbar_timer--;
 
@@ -735,6 +828,7 @@ void world_update(void) {
     }
     for (int i = 0; i < MAX_SPLATS; i++)
         if (splats[i].timer) splats[i].timer--;
+    proj_update();
 
     if (++tick_frames >= TICK_FRAMES) {
         tick_frames = 0;

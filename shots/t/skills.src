@@ -10,7 +10,7 @@ xp FIREMAKING 0
 # --- Woodcutting: tree west of Lumbridge castle
 tpz LUMBRIDGE 3198 3222 LEFT
 press A
-until8 @pl+0x50 2 3000
+until8 @pl+0x58 2 3000
 world
 expectitem 2 LOGS
 expectxp WOODCUTTING 250
@@ -26,7 +26,7 @@ press RIGHT
 press A
 wait 4
 press A
-until8 @pl+0x50 0 1000
+until8 @pl+0x58 0 1000
 wait 20
 expectitem 2 NONE
 expectxp FIREMAKING 400
@@ -36,7 +36,7 @@ xp COOKING 400000
 item 3 RAW_SHRIMP
 tpz LUMBRIDGE 3206 3215 UP
 press A
-until8 @pl+0x54 f 1000
+until8 @pl+0x5c f 1000
 world
 expectitem 3 SHRIMP
 expectxp COOKING 400300

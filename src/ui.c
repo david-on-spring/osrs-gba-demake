@@ -214,9 +214,9 @@ void draw_item_detail(int id, int qty, int x, int y, int w, int price_mode, int 
         yy += 10;
     }
     if (d->flags & IF_EQUIP) {
-        static const char *const lab[3] = {"Attack", "Strength", "Defence"};
-        int v[3] = {d->atk, d->str, d->def};
-        for (int i = 0; i < 3; i++) {
+        static const char *const lab[6] = {"Attack", "Strength", "Defence", "Ranged", "Rng str", "Magic"};
+        int v[6] = {d->atk, d->str, d->def, d->ratk, d->rstr, d->matk};
+        for (int i = 0; i < 6; i++) {
             if (!v[i]) continue;
             text_draw(x + 6, yy, lab[i], TC_GREY);
             char *p = sbuf;
@@ -226,9 +226,10 @@ void draw_item_detail(int id, int qty, int x, int y, int w, int price_mode, int 
             yy += 10;
         }
         if (d->req > 1) {
-            text_draw(x + 6, yy, d->slot == EQ_WEAPON ? "Req Att" : "Req Def", TC_GREY);
+            int sk = (d->flags & IF_RANGED) ? SK_RANGED : d->slot == EQ_WEAPON ? SK_ATTACK : SK_DEFENCE;
+            text_draw(x + 6, yy, sk == SK_RANGED ? "Req Rng" : sk == SK_ATTACK ? "Req Att" : "Req Def", TC_GREY);
             fmt_int(sbuf, d->req);
-            int have = skill_level(d->slot == EQ_WEAPON ? SK_ATTACK : SK_DEFENCE);
+            int have = skill_level(sk);
             text_right(x + w - 6, yy, sbuf, have >= d->req ? TC_WHITE : TC_RED);
             yy += 10;
         }
@@ -260,12 +261,12 @@ void ui_init(void) {
 }
 
 // what the UI is waiting for (read by test scripts): 1 dialogue page shown, 2 choice box,
-// 3 quest complete scroll, 4 level-up popup, 5 free in the world
+// 3 quest complete scroll, 4 level-up popup, 5 free in the world, 6 target menu
 u8 ui_wait;
 
 void ui_draw_sprites(void) {
     ui_wait = game_state == GS_DIALOG ? dialog_wait_state()
-            : game_state == GS_QUESTDONE ? 3 : game_state == GS_LEVELUP ? 4 : game_state == GS_WORLD ? 5 : 0;
+            : game_state == GS_QUESTDONE ? 3 : game_state == GS_LEVELUP ? 4 : game_state == GS_WORLD ? 5 : game_state == GS_TARGET ? 6 : 0;
     // (no pointer sprite: like OSRS, the hovered row itself shows the selection)
     if (game_state == GS_WORLD) hud_draw_sprites();
     for (int i = 0; i < ui_icon_n; i++) {

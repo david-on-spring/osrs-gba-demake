@@ -492,6 +492,32 @@ WEAPONS = {
              ".M.....",
              "g......",
              ], False),
+    # bow held upright by the middle of the stave, the string on the far side
+    'BOW': ([".m.",
+             "m.o",
+             "m.o",
+             "g.o",
+             "m.o",
+             "m.o",
+             ".m."],
+            None, False),
+    # the spellbook read during the home teleport
+    'BOOK': (["MMM",
+              "Mmm",
+              "Mmm",
+              "MgM"],
+             None, True),
+    'STAFF': ([".M.",
+               "MmM",
+               ".M.",
+               ".a.",
+               ".a.",
+               ".a.",
+               ".a.",
+               ".a.",
+               ".g.",
+               ".a."],
+              None, True),
 }
 
 
@@ -549,7 +575,7 @@ def tip_of(pix, gx, gy):
     return best[0] - gx, best[1] - gy
 
 
-WEAPON_ORDER = ['SWORD', 'LONG', 'SCIM', 'DAGGER', 'MACE', 'AXE', 'PICK', 'NET', 'ROD']
+WEAPON_ORDER = ['SWORD', 'LONG', 'SCIM', 'DAGGER', 'MACE', 'AXE', 'PICK', 'NET', 'ROD', 'BOW', 'STAFF', 'BOOK']
 wpn_tab = []     # [type][angle] -> layer
 tip_tab = []
 for wname in WEAPON_ORDER:

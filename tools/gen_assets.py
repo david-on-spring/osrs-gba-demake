@@ -1426,6 +1426,201 @@ def icon_mail(m):
     return c.done()
 
 
+
+# ---- ranged and magic --------------------------------------------------------------------
+BOWWOOD = {
+    'normal': (C('#c89058'), C('#9a6430'), C('#603a18')),
+    'oak': (C('#d8b070'), C('#a88040'), C('#6a4c20')),
+    'willow': (C('#b8b070'), C('#8a8440'), C('#565220')),
+    'maple': (C('#e0a050'), C('#b06c28'), C('#703c10')),
+}
+STRING = C('#f0e8d0')
+
+
+def icon_bow(w, long):
+    """Diagonal bow, bulging up-left, with its string."""
+    c = Canvas()
+    a, b = ((14, 1), (1, 14)) if long else ((13, 3), (3, 13))
+    c.line(a[0], a[1], b[0], b[1], STRING)
+    n, bulge = 30, 4.2 if long else 3.4
+    for i in range(n + 1):
+        t = i / n
+        k = math.sin(t * math.pi) * bulge
+        x = a[0] + (b[0] - a[0]) * t - k * 0.7
+        y = a[1] + (b[1] - a[1]) * t - k * 0.7
+        c.set(x, y, w[1])
+        c.set(x - 0.7, y - 0.7, w[0] if 0.15 < t < 0.85 else w[1])
+    m = 0.5
+    k = bulge
+    gx, gy = a[0] + (b[0] - a[0]) * m - k * 0.7, a[1] + (b[1] - a[1]) * m - k * 0.7
+    c.set(gx, gy, w[2])
+    c.set(gx + 0.7, gy + 0.7, w[2])
+    return c.done()
+
+
+def arrow_onto(c, x0, y0, x1, y1, head, shaft=(C('#c89058'), C('#8a5a2e'))):
+    """One arrow from (x0, y0) (fletching) to (x1, y1) (point)."""
+    c.line(x0, y0, x1, y1, shaft[0])
+    dx, dy = x1 - x0, y1 - y0
+    L = math.hypot(dx, dy)
+    ux, uy = dx / L, dy / L
+    px, py = -uy, ux
+    c.poly([(x1 + ux * 1.5, y1 + uy * 1.5), (x1 - ux * 2 + px * 1.8, y1 - uy * 2 + py * 1.8),
+            (x1 - ux * 2 - px * 1.8, y1 - uy * 2 - py * 1.8)], head[1])
+    c.set(x1, y1, head[0])
+    for k in (0, 1):
+        fx, fy = x0 + ux * k, y0 + uy * k
+        c.set(fx + px * 1.2, fy + py * 1.2, C('#f8f8f0'))
+        c.set(fx - px * 1.2, fy - py * 1.2, C('#d84040'))
+
+
+def icon_arrows(m):
+    c = Canvas()
+    arrow_onto(c, 2, 12, 11, 3, m)
+    arrow_onto(c, 4, 14, 13, 5, m)
+    return c.done()
+
+
+def icon_arrow_proj(d):
+    c = Canvas()
+    head = METAL['steel']
+    if d == 'h':
+        arrow_onto(c, 2, 8, 12, 8, head)
+    elif d == 'v':
+        arrow_onto(c, 8, 13, 8, 3, head)
+    else:
+        arrow_onto(c, 3, 12, 11, 4, head)
+    return c.done()
+
+
+RUNE_STONE = (C('#c8c8c0'), C('#9a9a92'), C('#62625c'))
+DARK_STONE = (C('#6a6a70'), C('#44444a'), C('#26262a'))
+
+
+def icon_rune(sym, shape, stone=RUNE_STONE):
+    """A rune stone with its symbol (shape picks the glyph so similar colours stay apart)."""
+    c = Canvas()
+    c.poly([(3, 2), (13, 2), (14, 4), (14, 13), (12, 14), (3, 14), (2, 12), (2, 4)], stone[1])
+    c.line(3, 2, 13, 2, stone[0])
+    c.line(2, 4, 2, 12, stone[0])
+    c.line(14, 5, 14, 13, stone[2])
+    c.line(4, 14, 12, 14, stone[2])
+    if shape == 'swirl':
+        c.ell(8, 8, 3.5, 3.5, sym)
+        c.ell(8.5, 7.5, 1.6, 1.6, stone[1])
+        c.set(10, 11, sym)
+    elif shape == 'drop':
+        c.poly([(8, 3.5), (11, 9), (8, 12), (5, 9)], sym)
+    elif shape == 'leaf':
+        c.ell(8, 8, 2.5, 4, sym)
+        c.line(8, 5, 8, 12, stone[2])
+    elif shape == 'flame':
+        c.poly([(8, 3), (11, 9), (10, 12), (6, 12), (5, 9)], sym)
+        c.ell(8, 10, 1.4, 1.6, C('#f8e060'))
+    elif shape == 'ring':
+        c.ell(8, 8, 4, 4, sym)
+        c.ell(8, 8, 2, 2, stone[1])
+    elif shape == 'cross':
+        c.line(5, 5, 11, 11, sym, 2)
+        c.line(11, 5, 5, 11, sym, 2)
+    elif shape == 'star':
+        c.line(8, 3, 8, 13, sym)
+        c.line(3, 8, 13, 8, sym)
+        c.ell(8, 8, 2, 2, sym)
+    elif shape == 'skull':
+        c.ell(8, 7, 3.5, 3, sym)
+        c.rect(6, 9, 10, 11, sym)
+        c.set(7, 7, stone[2])
+        c.set(9, 7, stone[2])
+    elif shape == 'scales':
+        c.line(4, 6, 12, 6, sym)
+        c.line(8, 4, 8, 12, sym)
+        c.line(4, 6, 4, 9, sym)
+        c.line(12, 6, 12, 9, sym)
+        c.line(6, 12, 10, 12, sym)
+    else:   # diamond
+        c.poly([(8, 3.5), (12.5, 8), (8, 12.5), (3.5, 8)], sym)
+    return c.done()
+
+
+def icon_staff(orb=None, knob=None):
+    c = Canvas()
+    w = WOOD
+    c.line(3, 14, 11, 4, w[1], 2)
+    c.line(3, 13, 10, 4, w[0])
+    if orb:
+        c.ell(12, 3, 2.6, 2.6, None, shade=orb)
+    else:
+        c.ell(11.5, 3.5, 1.6, 1.6, knob or w[2])
+    return c.done()
+
+
+def icon_wizard_hat():
+    c = Canvas()
+    blue = (C('#6080e0'), C('#3050b0'), C('#1a2a70'))
+    c.poly([(9, 1), (13, 12), (4, 12)], blue[1])
+    c.line(9, 1, 13, 12, blue[2])
+    c.line(9, 1, 5, 11, blue[0])
+    c.rect(2, 12, 14, 13, blue[2])
+    c.set(8, 6, C('#f8e060'))
+    c.set(10, 9, C('#f8e060'))
+    c.set(7, 10, C('#f8e060'))
+    return c.done()
+
+
+def icon_orb(cols, core):
+    c = Canvas()
+    c.ell(8, 8, 4, 4, None, shade=cols)
+    c.ell(7, 7, 1.5, 1.5, core)
+    return c.done()
+
+
+def icon_home_ring():
+    """Top-left quarter of the home teleport's rune circle (an ellipse on the ground, centred on
+    the icon's bottom-right corner); the other quarters are mirrored copies."""
+    c = Canvas()
+    for i in range(80):
+        a = math.pi + (math.pi / 2) * i / 79
+        x, y = 16 + 15 * math.cos(a), 16 + 7 * math.sin(a)
+        c.set(x, y, C('#a0e0ff'))
+        c.set(x + 0.8, y + 0.6, C('#3070d0'))
+    for a in (1.15, 1.3, 1.45):     # runes around the ring
+        x, y = 16 + 12 * math.cos(math.pi * a), 16 + 5 * math.sin(math.pi * a)
+        c.set(x, y, C('#f0f8ff'))
+    return c.p
+
+
+def icon_spark():
+    c = Canvas()
+    c.line(4, 2, 4, 6, C('#a0e0ff'))
+    c.line(2, 4, 6, 4, C('#a0e0ff'))
+    c.set(4, 4, C('#ffffff'))
+    return c.p
+
+
+def icon_target():
+    c = Canvas()
+    c.poly([(3, 6), (13, 6), (8, 12)], C('#f8e040'))
+    c.line(3, 6, 13, 6, C('#fff8a0'))
+    return c.done()
+
+
+def icon_teleport():
+    c = Canvas()
+    c.ell(8, 8, 6, 6, None, shade=(C('#a0d0ff'), C('#4080e0'), C('#1a3a90')))
+    c.ell(8, 8, 3.5, 3.5, C('#d8f0ff'))
+    c.ell(8, 8, 1.6, 1.6, C('#4080e0'))
+    return c.done()
+
+
+def icon_alch():
+    c = Canvas()
+    gold = GOLD3
+    c.ell(8, 11, 5, 3, None, shade=gold)
+    c.poly([(8, 1), (11, 6), (10, 9), (6, 9), (5, 6)], C('#50d040'))
+    c.ell(8, 7, 1.4, 1.6, C('#d8ffb0'))
+    return c.done()
+
 RAW_SHRIMP = (C('#f8a8a0'), C('#e07870'), C('#a04840'))
 COOKED_SHRIMP = (C('#f8b868'), C('#e08030'), C('#a05018'))
 BURNT = (C('#5a4a40'), C('#3a2e28'), C('#1e1814'))
@@ -1581,6 +1776,58 @@ ICON_DEF = [
     ('HAMMER', icon_hammer()),
     ('NEWCOMER_MAP', icon_map()),
     ('SECURITY_BOOK', icon_book((C('#c04040'), C('#902828'), C('#581818')))),
+    # ranged
+    ('SHORTBOW', icon_bow(BOWWOOD['normal'], False)),
+    ('LONGBOW', icon_bow(BOWWOOD['normal'], True)),
+    ('OAK_SHORTBOW', icon_bow(BOWWOOD['oak'], False)),
+    ('OAK_LONGBOW', icon_bow(BOWWOOD['oak'], True)),
+    ('WILLOW_SHORTBOW', icon_bow(BOWWOOD['willow'], False)),
+    ('WILLOW_LONGBOW', icon_bow(BOWWOOD['willow'], True)),
+    ('MAPLE_SHORTBOW', icon_bow(BOWWOOD['maple'], False)),
+    ('MAPLE_LONGBOW', icon_bow(BOWWOOD['maple'], True)),
+    ('BRONZE_ARROW', icon_arrows(METAL['bronze'])),
+    ('IRON_ARROW', icon_arrows(METAL['iron'])),
+    ('STEEL_ARROW', icon_arrows(METAL['steel'])),
+    ('MITHRIL_ARROW', icon_arrows(METAL['mithril'])),
+    ('ADAMANT_ARROW', icon_arrows(METAL['adamant'])),
+    # magic
+    ('AIR_RUNE', icon_rune(C('#f8f8f8'), 'swirl')),
+    ('WATER_RUNE', icon_rune(C('#3070e0'), 'drop')),
+    ('EARTH_RUNE', icon_rune(C('#8a5a2a'), 'leaf')),
+    ('FIRE_RUNE', icon_rune(C('#e04010'), 'flame')),
+    ('MIND_RUNE', icon_rune(C('#f09020'), 'ring')),
+    ('BODY_RUNE', icon_rune(C('#6070d0'), 'ring')),
+    ('CHAOS_RUNE', icon_rune(C('#f0c020'), 'cross')),
+    ('DEATH_RUNE', icon_rune(C('#f8f8f0'), 'skull', DARK_STONE)),
+    ('STAFF', icon_staff()),
+    ('MAGIC_STAFF', icon_staff((C('#d090f0'), C('#9040c0'), C('#501a78')))),
+    ('STAFF_AIR', icon_staff(WHITE3)),
+    ('STAFF_WATER', icon_staff((C('#80b0ff'), C('#3070e0'), C('#183c90')))),
+    ('STAFF_EARTH', icon_staff((C('#90c060'), C('#5a8a30'), C('#30501a')))),
+    ('STAFF_FIRE', icon_staff((C('#f8a060'), C('#e04010'), C('#801808')))),
+    ('COSMIC_RUNE', icon_rune(C('#f0f040'), 'star')),
+    ('LAW_RUNE', icon_rune(C('#2848b0'), 'scales')),
+    ('NATURE_RUNE', icon_rune(C('#30a030'), 'leaf')),
+    ('BLOOD_RUNE', icon_rune(C('#c01010'), 'drop')),
+    ('SOUL_RUNE', icon_rune(C('#b090d0'), 'diamond')),
+    ('WRATH_RUNE', icon_rune(C('#e02030'), 'diamond', DARK_STONE)),
+    ('SK_BOW', icon_bow(BOWWOOD['maple'], True)),
+    ('SK_MAGIC', icon_wizard_hat()),
+    # projectiles, the target marker and spellbook pictures
+    ('PROJ_ARROW_H', icon_arrow_proj('h')),
+    ('PROJ_ARROW_V', icon_arrow_proj('v')),
+    ('PROJ_ARROW_D', icon_arrow_proj('d')),
+    ('PROJ_WIND', icon_orb(WHITE3, C('#ffffff'))),
+    ('PROJ_WATER', icon_orb((C('#80b0ff'), C('#3070e0'), C('#183c90')), C('#d0e8ff'))),
+    ('PROJ_EARTH', icon_orb((C('#a0c060'), C('#6a8a30'), C('#3a501a')), C('#d8f0a0'))),
+    ('PROJ_FIRE', icon_orb((C('#f8c040'), C('#f06010'), C('#a02008')), C('#fff0a0'))),
+    ('PROJ_CURSE', icon_orb((C('#d090f0'), C('#9040c0'), C('#501a78')), C('#f0d0ff'))),
+    ('PROJ_BIND', icon_orb((C('#70e070'), C('#30a030'), C('#186018')), C('#c8ffc8'))),
+    ('TARGET_MARK', icon_target()),
+    ('SPELL_TELE', icon_teleport()),
+    ('SPELL_ALCH', icon_alch()),
+    ('HT_RING', icon_home_ring()),
+    ('HT_SPARK', icon_spark()),
 ]
 
 # Icons are 8bpp sprites whose colours live in OBJ palette entries 128..255 (banks 8-15).
@@ -1805,7 +2052,7 @@ KINDS = ['COW', 'CHICKEN', 'GOBLIN', 'MAN', 'WOMAN', 'GUARD', 'BANKER', 'SHOPKEE
          'ARIS', 'PRYSIN', 'ROVIN', 'DELRITH', 'BORDER_GUARD',
          # shopkeepers
          'BOB', 'GERRANT', 'BETTY', 'SWORD_KEEPER', 'HORVIK', 'PEKSA', 'CASSIE', 'WAYNE', 'ZEKE', 'LOUIE',
-         'NURMOF']
+         'NURMOF', 'LOWE', 'ZAFF']
 for i, k in enumerate(KINDS):
     h.append('#define NPC_%s %d' % (k, i))
 h.append('#define NPC_KIND_COUNT %d' % len(KINDS))

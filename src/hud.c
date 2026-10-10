@@ -7,7 +7,7 @@ static Msg msgs[2];
 typedef struct { u8 sk, timer; u16 amount; } XpDrop;
 static XpDrop drops[3];
 static int area_region = -1, area_timer;
-static s8 target_npc = -1;
+static s16 target_npc = -1, cached_target = -1;
 static u8 cached_hp = 255, cached_target_hp = 255;
 static u8 hud_dirty_all = 1, hud_dirty_msg, hud_dirty_xp, hud_dirty_area, hud_dirty_status, hud_dirty_target;
 
@@ -141,13 +141,19 @@ static void hud_draw_area(void) {
     text_draw(8, 6, name, TC_ORANGE);
 }
 
+// the combat target, or the NPC picked with L: name and level (and health for monsters)
+static int shown_target(void) { return lock_target >= 0 ? lock_target : target_npc; }
+
 static void hud_draw_target(void) {
     hud_clear_rect(128, 0, 112, 26);
-    if (target_npc < 0 || !npcs[(int)target_npc].active) return;
-    Npc *n = &npcs[(int)target_npc];
+    int t = shown_target();
+    if (t < 0 || !npcs[t].active) return;
+    Npc *n = &npcs[t];
     const NpcDef *d = &npc_defs[n->kind];
-    draw_panel(130, 3, 106, 22, 0);
-    text_draw(136, 5, d->name, TC_WHITE);
+    int fight = d->flags & NF_ATTACK;
+    draw_panel(130, 3, 106, fight ? 22 : 13, 0);
+    text_draw(136, 5, d->name, lock_target >= 0 ? TC_YELLOW : TC_WHITE);
+    if (!fight) return;
     char *p = sadd(sbuf, "Lv ");
     sadd_num(p, d->level);
     text_right(230, 5, sbuf, TC_GOLD);
@@ -159,6 +165,7 @@ void hud_clear_state(void) {
     for (int i = 0; i < 2; i++) msgs[i].timer = 0;
     for (int i = 0; i < 3; i++) drops[i].timer = 0;
     target_npc = -1;
+    lock_target = -1;
 }
 
 void ui_hud_reset(void) {
@@ -193,14 +200,19 @@ void ui_hud_update(void) {
         if (!n->active) {
             target_npc = -1;
             hud_dirty_target = 1;
-        } else if (n->hp != cached_target_hp) {
-            cached_target_hp = n->hp;
-            hud_dirty_target = 1;
-        }
-        if (pl.action != ACT_COMBAT && !n->in_combat && !n->hpbar_timer) {
+        } else if (pl.action != ACT_COMBAT && !n->in_combat && !n->hpbar_timer) {
             target_npc = -1;
             hud_dirty_target = 1;
         }
+    }
+    int t = shown_target();
+    if (t != cached_target) {
+        cached_target = t;
+        hud_dirty_target = 1;
+    }
+    if (t >= 0 && npcs[t].hp != cached_target_hp) {
+        cached_target_hp = npcs[t].hp;
+        hud_dirty_target = 1;
     }
     if (hud_dirty_all) {
         hud_dirty_all = 0;

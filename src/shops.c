@@ -39,7 +39,19 @@ static const StockDef st_gerrant[] = {
     {I_NET, 5}, {I_ROD, 5}, {I_FEATHER, 1000}, {I_RAW_SHRIMP, 0}, {I_RAW_ANCHOVY, 0},
     {I_RAW_TROUT, 0}, {I_RAW_SALMON, 0},
 };
-static const StockDef st_betty[] = {{I_EYE_NEWT, 300}};
+#define BASIC_RUNES(n)                                                                        \
+    {I_FIRE_RUNE, n}, {I_WATER_RUNE, n}, {I_AIR_RUNE, n}, {I_EARTH_RUNE, n}, {I_MIND_RUNE, n},    \
+    {I_BODY_RUNE, n}
+static const StockDef st_betty[] = {BASIC_RUNES(300), {I_EYE_NEWT, 300}};
+static const StockDef st_aubury[] = {BASIC_RUNES(5000), {I_CHAOS_RUNE, 250}, {I_DEATH_RUNE, 250}};
+static const StockDef st_lowe[] = {
+    {I_BRONZE_ARROW, 2000}, {I_IRON_ARROW, 1500}, {I_STEEL_ARROW, 1000}, {I_MITHRIL_ARROW, 800},
+    {I_SHORTBOW, 4}, {I_LONGBOW, 4}, {I_OAK_SHORTBOW, 3}, {I_OAK_LONGBOW, 3}, {I_WILLOW_SHORTBOW, 2},
+    {I_WILLOW_LONGBOW, 2}, {I_MAPLE_SHORTBOW, 1}, {I_MAPLE_LONGBOW, 1},
+};
+static const StockDef st_zaff[] = {
+    {I_STAFF, 5}, {I_MAGIC_STAFF, 5}, {I_STAFF_AIR, 2}, {I_STAFF_WATER, 2}, {I_STAFF_EARTH, 2}, {I_STAFF_FIRE, 2},
+};
 static const StockDef st_swords[] = {
     {I_BRONZE_SWORD, 5}, {I_IRON_SWORD, 4}, {I_STEEL_SWORD, 4}, {I_STEEL_LONGSWORD, 3}, {I_BRONZE_DAGGER, 10},
 };
@@ -85,6 +97,9 @@ static const ShopDef shop_defs[SHOP_COUNT] = {
     [SHOP_ZEKE] = SPEC("Zeke's Superior Scimitars", st_zeke),
     [SHOP_LOUIE] = SPEC("Louie's Armoured Legs Bazaar", st_louie),
     [SHOP_NURMOF] = SPEC("Nurmof's Pickaxe Shop", st_nurmof),
+    [SHOP_LOWE] = SPEC("Lowe's Archery Emporium", st_lowe),
+    [SHOP_ZAFF] = SPEC("Zaff's Superior Staffs!", st_zaff),
+    [SHOP_AUBURY] = SPEC("Aubury's Rune Shop", st_aubury),
 };
 
 // live stock: base = normal stock (0 for items players sold), fixed = always listed

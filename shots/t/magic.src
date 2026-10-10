@@ -1,0 +1,114 @@
+# Magic: autocast Wind Strike with a staff of air (air runes are free, mind runes are used; at level
+# 40 Wind Strike hits as hard as Fire Strike), a manual Confuse from the spellbook, a teleport and
+# High Level Alchemy.
+wait 60
+newgame
+world
+clearinv
+xp MAGIC 400000
+item 0 AIR_RUNE 50
+item 1 MIND_RUNE 100
+equip WEAPON STAFF_AIR
+spell WIND_STRIKE
+tp 179 123 3
+npcpos COW 184 123
+wait 4
+press L
+wait 4
+press A
+wait 4
+press A
+wait 40
+shot shots/t/magic_cast.png
+untildead COW
+world
+expectxp MAGIC 400055
+expectqty 0 50
+expecttarget NONE
+expectat CELL 179 123
+# --- manual cast: Spellbook, Confuse (fourth in the book), Cast at the L target
+item 2 WATER_RUNE 10
+item 3 EARTH_RUNE 10
+item 4 BODY_RUNE 10
+equip WEAPON NONE
+spell NONE
+npcpos COW:2 182 123
+wait 4
+press L
+wait 4
+press START
+wait 24
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 16
+shot shots/t/magic_book.png
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 4
+press A
+wait 200
+expectcurse COW:2 1
+expectqty 4 9
+expectstate WORLD
+# --- Varrock Teleport: 3 air, 1 fire, 1 law (the book stays on Confuse, the 4th spell; Varrock
+# Teleport is the 20th, and right jumps 12 rows)
+press B
+item 5 FIRE_RUNE 10
+item 6 LAW_RUNE 10
+press START
+wait 24
+press A
+wait 16
+press RIGHT
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 4
+press A
+wait 60
+expectplace TELE_VARROCK
+expectqty 6 9
+# --- High Level Alchemy (spell 45; level 55) on an iron sword: 60% of 91 = 54 coins
+clearinv
+xp MAGIC 2000000
+item 0 IRON_SWORD
+item 1 FIRE_RUNE 5
+item 2 NATURE_RUNE 1
+press START
+wait 24
+press A
+wait 16
+press RIGHT
+press RIGHT
+press DOWN
+shot shots/t/magic_alch.png
+press A
+wait 4
+press A
+wait 10
+press A
+wait 10
+expectitem 0 COINS
+expectqty 0 54
+expectitem 1 NONE
+expectxp MAGIC 2000650
+# --- dark wizards cast Water Strike (max 2) at the player: stand three cells from the stone
+#     circle's wizards (aggressive at this combat level) and lose some hitpoints
+press START
+wait 20
+clearinv
+xp MAGIC 0
+xp DEFENCE 0
+hp 10
+tp 154 90 2
+wait 300
+shot shots/t/magic_wizard.png
+wait 300
+expectstate WORLD
+expecthpbelow 10
