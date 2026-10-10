@@ -1,10 +1,6 @@
 // Entry point and main loop.
 #include "game.h"
 
-#define BOOT_VBLANKS 3   // where boot used to end before the map moved to regions
-#define BOOT_LINES 172
-extern volatile u32 snd_play_frame;   // VBlanks since power-on (crt0.s, sound.c)
-
 u8 game_state;
 u32 frame;
 u16 keys, keys_pressed, keys_repeat;
@@ -31,14 +27,6 @@ int main(void) {
     sound_init();
     world_init();
     title_open();
-    // Boot always ends at the same moment (VBlank BOOT_VBLANKS, BOOT_LINES scanlines in), so the
-    // frame count that seeds the RNG on the login screen, and the mixer's catch-up after boot,
-    // do not depend on how long setup took: test runs stay reproducible across code changes.
-    for (;;) {
-        u32 vb = snd_play_frame;
-        int v = REG_VCOUNT, lines = v >= 160 ? v - 160 : v + 68;
-        if (vb > BOOT_VBLANKS || (vb == BOOT_VBLANKS && lines >= BOOT_LINES)) break;
-    }
 
     for (;;) {
         vblank_wait();

@@ -8,7 +8,11 @@ usage: snap.py OUT_DIR [--compare BASE_DIR]
 Runs the built ROM (rs07demake.gba) with symbols from build/rs07demake.map. Shots are numbered per
 script, so a compare needs the same scripts on both sides. Scripts that reference symbols the build
 no longer has are skipped. Values from 'dump' lines are compared too (perf counters may wobble by
-a scanline or two when code moves; that is reported but is not a failure)."""
+a scanline or two when code moves; that is reported but is not a failure).
+
+Scripts run with the harness's 'gameframe' mode: waits count the game's own frames, not video frames,
+so a change that makes some heavy frame (a teleport's redraw, dialogue typing) drop one more or one
+fewer VBlank does not shift every later screenshot. Both sides of a compare must use this mode."""
 import os
 import re
 import subprocess
@@ -37,7 +41,7 @@ for src in scripts:
     os.makedirs(d, exist_ok=True)
     txt = os.path.join(d, 'script.txt')
     subprocess.check_call([sys.executable, 'tools/qtest.py', src, txt])
-    s = open(txt).read()
+    s = 'gameframe @frame\n' + open(txt).read()
     try:
         s = re.sub(r'@(\w+)(?:\+(\w+))?', lambda m: '%x' % (syms[m.group(1)] + int(m.group(2) or '0', 0)), s)
     except KeyError as e:
