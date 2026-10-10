@@ -48,7 +48,7 @@ DIRS = {'DOWN': 0, 'UP': 1, 'LEFT': 2, 'RIGHT': 3}
 COLOURS = {'WHITE': 'TC_WHITE', 'GOLD': 'TC_GOLD', 'CYAN': 'TC_CYAN', 'GREEN': 'TC_GREEN', 'RED': 'TC_RED',
            'YELLOW': 'TC_YELLOW', 'ORANGE': 'TC_ORANGE'}
 SPK_TARGET, SPK_PLAYER, SPK_NONE = 0xFF, 0xFE, 0xFD
-PAGE_W = 172          # dialogue text width in pixels (see ui.c)
+PAGE_W = 172          # dialogue text width in pixels (see dialog.c)
 PAGE_LINES = 3
 OPTION_W = 196
 

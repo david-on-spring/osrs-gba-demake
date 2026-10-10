@@ -1,6 +1,6 @@
 """Login screen backdrop, after the OSRS login screen: a stone hall with brick walls, two
 pillars framing a misty archway, iron braziers either side (the flames are animated sprites,
-see title_flames in src/ui.c) and the stone "RuneScape" logo over a red "OLD SCHOOL" banner.
+see title_flames in src/title.c) and the stone "RuneScape" logo over a red "OLD SCHOOL" banner.
 
 Drawn once at build time into the panel canvas's 4bpp tile layout (30x20 tiles, row-major) with
 its own 16-colour palette. The palette keeps the panel colour roles (src/game.h PC_*) so the

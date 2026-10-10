@@ -1,0 +1,28 @@
+# Bank: open from a booth, deposit the whole inventory with SELECT, withdraw one coin.
+wait 60
+newgame
+world
+clearinv
+item 0 COINS 100
+item 1 LOGS
+tp 139 163 1
+press A
+wait 20
+expectstate BANK
+shot shots/t/bank_open.png
+press SELECT
+wait 6
+expectitem 0 NONE
+expectbank 0 COINS
+expectbank 1 LOGS
+# Withdraw 1 coin (first popup option)
+press A
+wait 4
+press A
+wait 6
+expectitem 0 COINS
+expectqty 0 1
+shot shots/t/bank_withdraw.png
+press B
+wait 10
+expectstate WORLD

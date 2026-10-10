@@ -6,7 +6,7 @@
 //                  an item from the menu, or on an event (Delrith's defeat)
 //   quest_show[]   NPCs that only exist during part of a quest (ghost, skeleton, Delrith)
 // The VM runs until it has something to show (a dialogue page or a choice), hands that to the
-// dialogue box in ui.c, and resumes when the player continues.
+// dialogue box in dialog.c, and resumes when the player continues.
 #include "game.h"
 
 #define VM_IDLE 0xFFFF

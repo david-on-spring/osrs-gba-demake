@@ -1,0 +1,178 @@
+// World sprites: player, NPCs, ground items, fires and hitsplats, depth sorted.
+#include "world_internal.h"
+
+typedef struct { s16 y; s16 who; } SortEnt;   // who: npc index (can exceed 127), -1 = player
+
+static void lunge_offset(int dir, int lunge, int *ox, int *oy) {
+    int amt = lunge > 4 ? 8 - lunge : lunge;
+    if (amt > 3) amt = 3;
+    *ox = DX[dir] * amt;
+    *oy = DY[dir] * amt;
+}
+
+// human-shaped sprite sets: six consecutive 16x16 frames D0 D1 U0 U1 S0 S1
+static void draw_human(int base, int sx, int sy, int dir, int anim, int pal, int moving, int flags) {
+    int phase = moving ? (anim >> 3) & 3 : 0;
+    int f, hflip = 0;
+    if (dir == DIR_DOWN || dir == DIR_UP) {
+        f = (dir == DIR_DOWN ? 0 : 2) + (phase & 1);
+        hflip = phase == 3;
+    } else {
+        f = 4 + (phase & 1);
+        hflip = dir == DIR_LEFT;
+    }
+    int bob = (phase & 1) ? -1 : 0;
+    obj_sprite(sx, sy + bob, base + f * 4, pal, 2, hflip, 1, OBJF_MOSAIC | flags);
+}
+
+// best tool of a kind for the avatar to hold (the wielded one if it is of that kind)
+static int shown_tool(const Tool *t, int n, int sk) {
+    for (int i = 0; i < n; i++)
+        if (pl.equip[EQ_WEAPON] == t[i].id) return t[i].id;
+    int own;
+    const Tool *b = best_tool(t, n, sk, &own);
+    return b ? b->id : 0;
+}
+
+// the composited player sprite, animated by what the player is doing
+static void draw_player(int sx, int sy) {
+    int phase = pl.moving ? (pl.anim >> 3) & 3 : 0;
+    int act = AVA_IDLE, t = 0, tool = 0;
+    int busy = game_state == GS_WORLD && !pl.moving;
+    int since_tick = pl.action_timer * TICK_FRAMES + tick_frames;   // skill tick strikes at 0
+    if (busy) switch (pl.action) {
+        case ACT_CHOP:
+            act = AVA_CHOP;
+            tool = shown_tool(axes, 6, SK_WOODCUTTING);
+            t = since_tick;
+            break;
+        case ACT_MINE:
+            act = AVA_MINE;
+            tool = shown_tool(picks, 6, SK_MINING);
+            t = since_tick;
+            break;
+        case ACT_FISH:
+            act = fish_spots[pl.target].kind ? AVA_ROD : AVA_NET;
+            tool = act == AVA_ROD ? I_ROD : I_NET;
+            t = since_tick;
+            break;
+        case ACT_COMBAT: {
+            Npc *n = &npcs[pl.target];
+            if (n->active && adjacent(pl.x, pl.y, n->x, n->y)) {
+                act = AVA_COMBAT;
+                // the swing pose follows the hit; the wind-up always fills the last 24 frames
+                int sp = weapon_speed(), cd = pl.attack_cd > sp ? sp : pl.attack_cd;
+                int since = (sp - cd) * TICK_FRAMES + tick_frames, left = sp * TICK_FRAMES - since;
+                t = since < 12 ? since : 4 * TICK_FRAMES - left;
+                if (t < 12) t = 12;
+            }
+            break;
+        }
+        }
+    if (phase & 1) sy--;
+    avatar_draw_world(sx, sy, pl.dir, phase, act, t, tool);
+}
+
+static void draw_hpbar(int sx, int sy, int hp, int max) {
+    int k = max ? (hp * 14 + max - 1) / max : 0;
+    if (k > 14) k = 14;
+    obj_sprite(sx, sy - 7, SPR_HPBAR + k * 2, 6, 1, 0, 0, OBJF_WIDE);
+}
+
+void world_draw_sprites(int unused) {
+    (void)unused;
+    if (game_state == GS_TITLE) return;   // the login screen is black
+    int fx = game_state == GS_WORLD || game_state == GS_DIALOG || game_state == GS_TITLE;
+    // hitsplats on top
+    for (int i = 0; i < MAX_SPLATS && fx; i++)
+        if (splats[i].timer) obj_sprite(splats[i].wx - cam_x, splats[i].wy - cam_y - (splats[i].timer > 34 ? 40 - splats[i].timer : 6) + 4, DYN_TILE_BASE + i * 4, 6, 1, 0, 1, 0);
+
+    SortEnt ents[MAX_NPCS + 1];
+    int ne = 0;
+    ents[ne].y = pl.py;
+    ents[ne++].who = -1;
+    for (int i = 0; i < npc_hi; i++) {
+        Npc *n = &npcs[i];
+        if (!n->active) continue;
+        int sx = n->px - cam_x, sy = n->py - cam_y;
+        if (sx < -16 || sx > SCREEN_W || sy < -24 || sy > SCREEN_H) continue;
+        ents[ne].y = n->py;
+        ents[ne++].who = i;
+    }
+    for (int i = 1; i < ne; i++) {
+        SortEnt e = ents[i];
+        int j = i - 1;
+        while (j >= 0 && ents[j].y < e.y) {
+            ents[j + 1] = ents[j];
+            j--;
+        }
+        ents[j + 1] = e;
+    }
+    // bars first so they are above everything
+    if (pl.hpbar_timer && fx) draw_hpbar(pl.px - cam_x, pl.py - cam_y, pl.hp, skill_level(SK_HITPOINTS));
+    for (int i = 0; i < npc_hi; i++) {
+        Npc *n = &npcs[i];
+        if (n->active && n->hpbar_timer && fx) draw_hpbar(n->px - cam_x, n->py - cam_y, n->hp, npc_defs[n->kind].hp);
+    }
+    for (int k = 0; k < ne; k++) {
+        int ox, oy;
+        if (ents[k].who < 0) {
+            lunge_offset(pl.dir, pl.lunge, &ox, &oy);
+            draw_player(pl.px - cam_x + ox, pl.py - cam_y + oy);
+        } else {
+            Npc *n = &npcs[ents[k].who];
+            const NpcDef *d = &npc_defs[n->kind];
+            lunge_offset(n->dir, n->lunge, &ox, &oy);
+            int sx = n->px - cam_x + ox, sy = n->py - cam_y + oy;
+            int alt = n->moving ? (n->anim >> 3) & 1 : ((frame >> 5) + ents[k].who) % 7 == 0;
+            switch (d->sprite) {
+            case SPR_KIND_HUMAN: draw_human(SPR_HUM_D0, sx, sy, n->dir, n->anim, d->pal, n->moving, 0); break;
+            case SPR_KIND_WIZARD: draw_human(SPR_WIZ_D0, sx, sy, n->dir, n->anim, d->pal, n->moving, 0); break;
+            case SPR_KIND_WITCH: draw_human(SPR_WITCH_D0, sx, sy, n->dir, n->anim, d->pal, n->moving, 0); break;
+            case SPR_KIND_PRIEST: draw_human(SPR_PRI_D0, sx, sy, n->dir, n->anim, d->pal, n->moving, 0); break;
+            case SPR_KIND_DRESS: draw_human(SPR_DRESS_D0, sx, sy, n->dir, n->anim, d->pal, n->moving, 0); break;
+            case SPR_KIND_SKELETON: draw_human(SPR_SKEL_D0, sx, sy, n->dir, n->anim, d->pal, n->moving, 0); break;
+            case SPR_KIND_GHOST: {
+                // translucent, hovering
+                int hover = ((frame >> 4) + ents[k].who) & 3;
+                hover = hover == 3 ? 1 : hover;
+                obj_sprite(sx, sy - 2 - hover, ((frame >> 4) & 1) ? SPR_GHOST1 : SPR_GHOST0, d->pal, 2, n->dir == DIR_LEFT, 1, OBJF_SEMI);
+                break;
+            }
+            case SPR_KIND_DEMON:
+                obj_sprite(sx - 8, sy - 16, ((frame >> 4) & 1) ? SPR_DEMON1 : SPR_DEMON0, d->pal, 2, n->dir == DIR_LEFT, 0, OBJF_32 | OBJF_MOSAIC);
+                break;
+            default: {
+                int tile;
+                switch (d->sprite) {
+                case SPR_KIND_COW: tile = alt ? SPR_COW1 : SPR_COW0; break;
+                case SPR_KIND_CHICKEN: tile = alt ? SPR_CHK1 : SPR_CHK0; break;
+                case SPR_KIND_SHEEP: tile = n->state ? (alt ? SPR_SHORN1 : SPR_SHORN0) : (alt ? SPR_SHEEP1 : SPR_SHEEP0); break;
+                case SPR_KIND_IMP: tile = (alt || ((frame >> 3) & 4)) ? SPR_IMP1 : SPR_IMP0; break;
+                default: tile = alt ? SPR_RAT1 : SPR_RAT0; break;
+                }
+                obj_sprite(sx, sy, tile, d->pal, 2, n->dir == DIR_LEFT, 1, OBJF_MOSAIC);
+            }
+            }
+        }
+    }
+    // shadows under actors
+    for (int k = 0; k < ne; k++) {
+        int sx, sy;
+        if (ents[k].who < 0) {
+            sx = pl.px;
+            sy = pl.py;
+        } else {
+            sx = npcs[ents[k].who].px;
+            sy = npcs[ents[k].who].py;
+        }
+        obj_sprite(sx - cam_x, sy - cam_y + 11, SPR_SHADOW, 6, 2, 0, 0, OBJF_WIDE | OBJF_MOSAIC);
+    }
+    if (!fx) return;
+    for (int i = 0; i < MAX_FIRES; i++)
+        if (fires[i].active) obj_sprite(fires[i].x * 16 - cam_x, fires[i].y * 16 - cam_y, SPR_FIRE0 + ((frame >> 3) % 3) * 4, 6, 2, (frame >> 4) & 1, 1, OBJF_MOSAIC);
+    for (int i = 0; i < FISHSPOT_COUNT; i++)
+        obj_sprite(fish_spots[i].x * 16 - cam_x, fish_spots[i].y * 16 - cam_y, SPR_SPOT0 + ((frame / 12 + i) % 3) * 4, 6, 2, 0, 1, OBJF_MOSAIC);
+    for (int i = 0; i < MAX_GROUND; i++)
+        if (ground[i].id) obj_icon(ground[i].x * 16 - cam_x, ground[i].y * 16 - cam_y, items[ground[i].id].icon, 2);
+}
