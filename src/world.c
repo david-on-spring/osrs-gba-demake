@@ -4,7 +4,7 @@
 #include "world_internal.h"
 
 EWRAM_BSS Npc npcs[MAX_NPCS];
-_Static_assert(sizeof(Npc) == 30, "tools/qtest.py NPC_SIZE");
+_Static_assert(sizeof(Npc) == 32, "tools/qtest.py NPC_SIZE");
 Player pl;
 s16 cam_x, cam_y;
 
@@ -19,7 +19,8 @@ static u8 ispawn_timer[ITEM_SPAWN_COUNT + 1];   // ticks until a respawning grou
 static u8 kind_vis[NPC_KIND_COUNT];             // quest NPC kinds currently shown
 
 const s8 DX[4] = {0, 0, -1, 1};
-const s8 DY[4] = {1, -1, 0, 0};
+const s8 DY[4] = {-1, 1, 0, 0};    // tiles: y grows north
+const s8 SDY[4] = {1, -1, 0, 0};   // screen: y grows south
 
 
 // ---------------------------------------------------------------------------------------
@@ -39,8 +40,8 @@ static const Override *ovr_find(u32 cell) {
     return 0;
 }
 
-int ovr_set(int x, int y, int mask, int meta, int over, int type) {
-    u32 cell = map_key(x, y);
+int ovr_set(int x, int y, int p, int mask, int meta, int over, int type) {
+    u32 cell = map_key(x, y, p);
     Override *o = (Override *)ovr_find(cell);
     if (!o) {
         if (n_ovr >= MAX_OVR) return 0;
@@ -56,8 +57,8 @@ int ovr_set(int x, int y, int mask, int meta, int over, int type) {
     return 1;
 }
 
-void ovr_clear(int x, int y, int mask) {
-    u32 cell = map_key(x, y);
+void ovr_clear(int x, int y, int p, int mask) {
+    u32 cell = map_key(x, y, p);
     Override *o = (Override *)ovr_find(cell);
     if (!o) return;
     o->mask &= ~mask;
@@ -66,26 +67,39 @@ void ovr_clear(int x, int y, int mask) {
     ovr_unmark(cell);
 }
 
-int world_type(int x, int y) {
-    if (!in_map(x, y)) return T_WATER;
-    const Override *o = ovr_find(map_key(x, y));
-    return (o && (o->mask & OV_TYPE)) ? o->type : map_type_at(x, y);
+int world_type(int x, int y, int p) {
+    if (!in_map(x, y, p)) return T_WATER;
+    const Override *o = ovr_find(map_key(x, y, p));
+    return (o && (o->mask & OV_TYPE)) ? o->type : map_type_at(x, y, p);
 }
 
-int world_meta(int x, int y) {
-    const Override *o = ovr_find(map_key(x, y));
-    return (o && (o->mask & OV_META)) ? o->meta : map_meta_at(x, y);
+int world_meta(int x, int y, int p) {
+    const Override *o = ovr_find(map_key(x, y, p));
+    return (o && (o->mask & OV_META)) ? o->meta : map_meta_at(x, y, p);
 }
 
-int world_over(int x, int y) {
-    const Override *o = ovr_find(map_key(x, y));
-    return (o && (o->mask & OV_OVER)) ? o->over : map_over_at(x, y);
+int world_over(int x, int y, int p) {
+    const Override *o = ovr_find(map_key(x, y, p));
+    return (o && (o->mask & OV_OVER)) ? o->over : map_over_at(x, y, p);
 }
 
-int world_roof(int x, int y) { return map_roof_at(x, y); }
+int world_roof(int x, int y, int p) { return map_roof_at(x, y, p); }
 
-int res_alt_meta(int x, int y) {
-    u32 cell = map_key(x, y);
+// everything draw_tile() needs from one cell (the cell must be in_map)
+void world_cell_gfx(int x, int y, int p, int *meta, int *over, int *roof) {
+    u32 c = map_key(x, y, p);
+    *meta = map_meta[c];
+    *over = map_over[c];
+    *roof = map_roof[c];
+    const Override *o = ovr_find(c);
+    if (o) {
+        if (o->mask & OV_META) *meta = o->meta;
+        if (o->mask & OV_OVER) *over = o->over;
+    }
+}
+
+int res_alt_meta(int x, int y, int p) {
+    u32 cell = map_key(x, y, p);
     int lo = 0, hi = RES_COUNT - 1;
     while (lo <= hi) {
         int mid = (lo + hi) >> 1;
@@ -97,73 +111,80 @@ int res_alt_meta(int x, int y) {
 }
 
 
-int fire_at(int x, int y) {
+int fire_at(int x, int y, int p) {
     for (int i = 0; i < MAX_FIRES; i++)
-        if (fires[i].active && fires[i].x == x && fires[i].y == y) return i;
+        if (fires[i].active && fires[i].x == x && fires[i].y == y && fires[i].plane == p) return i;
     return -1;
 }
 
 // NPC occupancy (map.h): free_tile() runs for every NPC step, so it must not scan all NPCs
 int npc_hi;                       // npcs[] slots in use (spawn table size)
 
-int npc_at(int x, int y) {
-    if (!in_map(x, y) || !occ_get(x, y)) return -1;
+int npc_at(int x, int y, int p) {
+    if (!in_map(x, y, p) || !occ_get(x, y, p)) return -1;
     for (int i = 0; i < npc_hi; i++)
-        if (npcs[i].active && npcs[i].x == x && npcs[i].y == y) return i;
+        if (npcs[i].active && npcs[i].x == x && npcs[i].y == y && npcs[i].plane == p) return i;
     return -1;
 }
 
-int spot_at(int x, int y) {
+int spot_at(int x, int y, int p) {
     for (int i = 0; i < FISHSPOT_COUNT; i++)
-        if (fish_spots[i].x == x && fish_spots[i].y == y) return i;
+        if (fish_spots[i].x == x && fish_spots[i].y == y && fish_spots[i].plane == p) return i;
     return -1;
 }
 
-int walkable(int x, int y) {
-    if (!in_map(x, y)) return 0;
-    return world_type(x, y) <= T_WALKABLE_MAX;   // fires don't block (walk over them as in OSRS)
+int walkable(int x, int y, int p) {
+    if (!in_map(x, y, p)) return 0;
+    return world_type(x, y, p) <= T_WALKABLE_MAX;   // fires don't block (walk over them as in OSRS)
 }
 
-int free_tile(int x, int y) {
-    return walkable(x, y) && npc_at(x, y) < 0 && !(pl.x == x && pl.y == y);
+int free_tile(int x, int y, int p) {
+    return walkable(x, y, p) && npc_at(x, y, p) < 0 && !(pl.x == x && pl.y == y && pl.plane == p);
 }
 
 // ---------------------------------------------------------------------------------------
-// Zones. The castle's upper floors sit below the overworld in the same cell grid; zones[] gives
-// each one's rectangle, palette set and floor. Staircases warp between them with a short fade
-// from their quest scripts (OP_WARP). On the ground the world is seamless: the palette set
-// follows the camera (pal_regions[]), swapping only while the old set's town is off screen.
+// Zones. The castle's upper floors are planes 1 and 2 above the ground; zones[] gives each
+// floor's rectangle (the camera stays inside it), palette set and plane. Staircases warp between
+// them with a short fade from their quest scripts (OP_WARP). On the ground the world is seamless:
+// the palette set follows the camera (pal_regions[]), swapping only while the old set's town is
+// off screen.
 static u8 cur_zone = 0xFF, cur_roof;
-static struct { u8 phase, t, dir; s16 x, y; } warp;   // phase 1 fading out, 2 fading in
+static struct { u8 phase, t, dir, plane; s16 x, y; } warp;   // phase 1 fading out, 2 fading in
 #define WARP_FRAMES 8
 
-int world_zone(int x, int y) {
+int world_zone(int x, int y, int p) {
     for (int i = 0; i < ZONE_COUNT; i++)
-        if (x >= zones[i].x0 && x <= zones[i].x1 && y >= zones[i].y0 && y <= zones[i].y1) return i;
+        if (zones[i].plane == p && x >= zones[i].x0 && x <= zones[i].x1 && y >= zones[i].y0 && y <= zones[i].y1)
+            return i;
     return 0;
 }
 
+// Chebyshev distance from the player to an NPC; NPCs on another floor are out of reach
+static int dist(int ax, int ay, int bx, int by);
+static int npc_dist(const Npc *n) { return n->plane == pl.plane ? dist(n->x, n->y, pl.x, pl.y) : 0x7FFF; }
+
 // zone (floor) and the roof the player is under; call after the player moves
 static void zone_refresh(void) {
-    int z = world_zone(pl.x, pl.y);
+    int z = world_zone(pl.x, pl.y, pl.plane);
     if (z != cur_zone) {
         cur_zone = z;
         if (zones[z].plane) gfx_set_world_palette_set(zones[z].pal_set);
         gfx_mark_world_dirty();
     }
-    int r = world_roof(pl.x, pl.y);
+    int r = world_roof(pl.x, pl.y, pl.plane);
     if (r != cur_roof) {
         cur_roof = r;
         gfx_set_hidden_roof(r);
     }
 }
 
-void player_warp(int x, int y, int dir) {
+void player_warp(int x, int y, int p, int dir) {
     player_stop();
     warp.phase = 1;
     warp.t = 0;
     warp.x = x;
     warp.y = y;
+    warp.plane = p;
     warp.dir = dir;
 }
 int world_warping(void) { return warp.phase != 0; }
@@ -172,7 +193,7 @@ static void warp_update(void) {
     if (warp.phase == 1) {
         gfx_set_world_fade(16 - (++warp.t) * 16 / WARP_FRAMES);
         if (warp.t < WARP_FRAMES) return;
-        player_tp(warp.x, warp.y, warp.dir);
+        player_tp(warp.x, warp.y, warp.plane, warp.dir);
         zone_refresh();
         warp.phase = 2;
         warp.t = 0;
@@ -185,9 +206,27 @@ static void warp_update(void) {
 int world_region(void) {
     for (int i = 0; i < REGION_COUNT; i++) {
         const Region *r = &regions[i];
-        if (pl.x >= r->x0 && pl.x <= r->x1 && pl.y >= r->y0 && pl.y <= r->y1) return i;
+        if (pl.plane == r->plane && pl.x >= r->x0 && pl.x <= r->x1 && pl.y >= r->y0 && pl.y <= r->y1) return i;
     }
     return REGION_COUNT - 1;
+}
+
+// Test scripts move an NPC by filling this in (tools/qtest.py npcpos): npc index + 1, then the
+// tile. Applied at the start of the next frame, with its occupancy moved too.
+struct { u16 npc; s16 x, y; u8 plane; } dbg_npc_move;
+
+void world_debug(void) {
+    if (!dbg_npc_move.npc) return;
+    Npc *n = &npcs[dbg_npc_move.npc - 1];
+    dbg_npc_move.npc = 0;
+    if (n->active) occ_clear(n->x, n->y, n->plane);
+    n->x = dbg_npc_move.x;
+    n->y = dbg_npc_move.y;
+    n->plane = dbg_npc_move.plane;
+    n->px = TILE_PX(n->x);
+    n->py = TILE_PY(n->y);
+    n->moving = 0;
+    if (n->active) occ_set(n->x, n->y, n->plane);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -202,8 +241,9 @@ void world_init(void) {
         n->kind = spawns[i].kind;
         n->x = n->hx = spawns[i].x;
         n->y = n->hy = spawns[i].y;
-        n->px = n->x * 16;
-        n->py = n->y * 16;
+        n->plane = spawns[i].plane;
+        n->px = TILE_PX(n->x);
+        n->py = TILE_PY(n->y);
         n->dir = DIR_DOWN;
         n->hp = npc_defs[n->kind].hp;
         n->moving = 0;
@@ -212,7 +252,7 @@ void world_init(void) {
         n->attack_cd = 0;
         n->hpbar_timer = 0;
         n->curse = n->bound = 0;
-        occ_set(n->x, n->y);
+        occ_set(n->x, n->y, n->plane);
     }
     for (int i = 0; i < MAX_FIRES; i++) fires[i].active = 0;
     for (int i = 0; i < MAX_GROUND; i++) ground[i].id = 0;
@@ -231,29 +271,30 @@ void npc_set_active(int i, int on) {
     Npc *n = &npcs[i];
     if (on == n->active) return;
     if (on) {
-        // a wanderer may be standing on the spot: use the nearest free cell instead
+        // a wanderer may be standing on the spot: use the nearest free cell instead (rings
+        // searched top row first, as they appear on screen)
         int sx = -1, sy = -1;
         for (int r = 0; r <= 2 && sx < 0; r++)
-            for (int dy = -r; dy <= r && sx < 0; dy++)
+            for (int dy = r; dy >= -r && sx < 0; dy--)
                 for (int dx = -r; dx <= r && sx < 0; dx++)
-                    if ((dx == r || dx == -r || dy == r || dy == -r) && free_tile(n->hx + dx, n->hy + dy))
+                    if ((dx == r || dx == -r || dy == r || dy == -r) && free_tile(n->hx + dx, n->hy + dy, n->plane))
                         sx = n->hx + dx, sy = n->hy + dy;
         if (sx < 0) return;
         n->active = 1;
         n->x = sx;
         n->y = sy;
-        n->px = n->x * 16;
-        n->py = n->y * 16;
+        n->px = TILE_PX(n->x);
+        n->py = TILE_PY(n->y);
         n->hp = npc_defs[n->kind].hp;
         n->moving = n->in_combat = n->hpbar_timer = n->state = 0;
         n->curse = n->bound = 0;
         n->respawn = 0;
-        occ_set(n->x, n->y);
+        occ_set(n->x, n->y, n->plane);
     } else {
         n->active = 0;
         n->in_combat = 0;
         foe_release(i);
-        occ_clear(n->x, n->y);
+        occ_clear(n->x, n->y, n->plane);
         if (pl.action == ACT_COMBAT && pl.target == i) player_stop();
     }
 }
@@ -271,8 +312,8 @@ void world_refresh_npcs(void) {
 // centre on the player, kept inside the player's zone; on the ground, load the palette set of
 // the town the camera is near (any set draws the countryside: its banks are shared)
 void world_camera(void) {
-    const Zone *z = &zones[world_zone(pl.x, pl.y)];
-    int x0 = z->x0 * 16, y0 = z->y0 * 16, x1 = (z->x1 + 1) * 16 - SCREEN_W, y1 = (z->y1 + 1) * 16 - SCREEN_H;
+    const Zone *z = &zones[world_zone(pl.x, pl.y, pl.plane)];
+    int x0 = TILE_PX(z->x0), y0 = TILE_PY(z->y1), x1 = TILE_PX(z->x1 + 1) - SCREEN_W, y1 = TILE_PY(z->y0 - 1) - SCREEN_H;
     cam_x = pl.px + 8 - SCREEN_W / 2;
     cam_y = pl.py + 8 - SCREEN_H / 2;
     if (cam_x > x1) cam_x = x1;
@@ -280,7 +321,7 @@ void world_camera(void) {
     if (cam_x < x0) cam_x = x0;
     if (cam_y < y0) cam_y = y0;
     if (z->plane) return;
-    int cx = cam_x >> 4, cy = cam_y >> 4;
+    int cx = WORLD_X0 + (cam_x >> 4), cy = WORLD_Y1 - (cam_y >> 4);   // the tile at the top-left
     for (int i = 0; i < PAL_REGION_COUNT; i++) {
         const PalRegion *r = &pal_regions[i];
         if (cx >= r->x0 && cx <= r->x1 && cy >= r->y0 && cy <= r->y1) {
@@ -290,23 +331,24 @@ void world_camera(void) {
     }
 }
 
-void player_tp(int x, int y, int dir) {
+void player_tp(int x, int y, int p, int dir) {
     player_stop();
     pl.x = x;
     pl.y = y;
-    pl.px = x * 16;
-    pl.py = y * 16;
+    pl.plane = p;
+    pl.px = TILE_PX(x);
+    pl.py = TILE_PY(y);
     pl.dir = dir;
     pl.moving = 0;
 }
 
 int player_can_walk_through(void) {
-    return free_tile(pl.x + DX[pl.dir] * 2, pl.y + DY[pl.dir] * 2);
+    return free_tile(pl.x + DX[pl.dir] * 2, pl.y + DY[pl.dir] * 2, pl.plane);
 }
 
 int player_walk_through(void) {
     int nx = pl.x + DX[pl.dir] * 2, ny = pl.y + DY[pl.dir] * 2;
-    if (!free_tile(nx, ny)) return 0;
+    if (!free_tile(nx, ny, pl.plane)) return 0;
     pl.x = nx;
     pl.y = ny;
     pl.moving = 1;   // glide across the door / past the guard
@@ -329,12 +371,13 @@ void world_after_load(void) {
     target_set(-1);
     proj_clear();
     // saves from an older map layout may place the player inside a wall: go home
-    if (!in_map(pl.x, pl.y) || world_type(pl.x, pl.y) > T_WALKABLE_MAX) {
+    if (!in_map(pl.x, pl.y, pl.plane) || world_type(pl.x, pl.y, pl.plane) > T_WALKABLE_MAX) {
         pl.x = START_X;
         pl.y = START_Y;
+        pl.plane = START_P;
     }
-    pl.px = pl.x * 16;
-    pl.py = pl.y * 16;
+    pl.px = TILE_PX(pl.x);
+    pl.py = TILE_PY(pl.y);
     pl.moving = 0;
     pl.action = ACT_NONE;
     warp.phase = 0;
@@ -358,6 +401,7 @@ void world_new_game(void) {
     p->hp = 10;
     p->x = START_X;
     p->y = START_Y;
+    p->plane = START_P;
     p->dir = DIR_DOWN;
     p->style = STYLE_ACCURATE;
     p->autoret = 1;
@@ -373,16 +417,16 @@ void world_new_game(void) {
 
 // ---------------------------------------------------------------------------------------
 // Ground items, fires, hitsplats
-void drop_item(int x, int y, int id, int qty) {
+void drop_item(int x, int y, int p, int id, int qty) {
     if (items[id].flags & IF_STACK) {
         for (int i = 0; i < MAX_GROUND; i++)
-            if (ground[i].id == id && ground[i].x == x && ground[i].y == y) {
+            if (ground[i].id == id && ground[i].x == x && ground[i].y == y && ground[i].plane == p) {
                 ground[i].qty += qty;
                 ground[i].timer = 240;
                 return;
             }
     } else if (qty > 1) {
-        for (int k = 0; k < qty; k++) drop_item(x, y, id, 1);
+        for (int k = 0; k < qty; k++) drop_item(x, y, p, id, 1);
         return;
     }
     int slot = -1, oldest = 0x7FFF;
@@ -400,6 +444,7 @@ void drop_item(int x, int y, int id, int qty) {
     ground[slot].qty = qty;
     ground[slot].x = x;
     ground[slot].y = y;
+    ground[slot].plane = p;
     ground[slot].timer = 240;  // two minutes of ticks
 }
 
@@ -410,9 +455,9 @@ int item_on_ground_count(void) {
     return n;
 }
 
-int pickup_at(int x, int y) {
+int pickup_at(int x, int y, int p) {
     for (int i = MAX_GROUND - 1; i >= 0; i--) {
-        if (!ground[i].id || ground[i].x != x || ground[i].y != y) continue;
+        if (!ground[i].id || ground[i].x != x || ground[i].y != y || ground[i].plane != p) continue;
         Ground *g = &ground[i];
         if (!(items[g->id].flags & IF_STACK && inv_count(g->id)) && !inv_free()) {
             msg("You don't have enough inventory space.");
@@ -461,14 +506,14 @@ void splat_spawn(int wx, int wy, int dmg) {
 static void start_step(int dir) {
     pl.dir = dir;
     int nx = pl.x + DX[dir], ny = pl.y + DY[dir];
-    if (in_map(nx, ny)) {
-        int t = world_type(nx, ny);
+    if (in_map(nx, ny, pl.plane)) {
+        int t = world_type(nx, ny, pl.plane);
         if (t == T_STAIRS) {   // walking into a staircase climbs it
             interact();
             return;
         }
     }
-    if (!free_tile(nx, ny)) return;
+    if (!free_tile(nx, ny, pl.plane)) return;
     pl.x = nx;
     pl.y = ny;
     pl.moving = 1;
@@ -477,11 +522,11 @@ static void start_step(int dir) {
 static void npc_step(Npc *n, int dir) {
     n->dir = dir;
     int nx = n->x + DX[dir], ny = n->y + DY[dir];
-    if (!free_tile(nx, ny)) return;
-    occ_clear(n->x, n->y);
+    if (!free_tile(nx, ny, n->plane)) return;
+    occ_clear(n->x, n->y, n->plane);
     n->x = nx;
     n->y = ny;
-    occ_set(nx, ny);
+    occ_set(nx, ny, n->plane);
     n->moving = 1;
 }
 
@@ -491,7 +536,7 @@ static int dir_toward(int fx, int fy, int tx, int ty, int alt) {
     int horiz = adx > ady;
     if (alt) horiz = !horiz;
     if (horiz && dx) return dx < 0 ? DIR_LEFT : DIR_RIGHT;
-    if (dy) return dy < 0 ? DIR_UP : DIR_DOWN;
+    if (dy) return dy > 0 ? DIR_UP : DIR_DOWN;
     if (dx) return dx < 0 ? DIR_LEFT : DIR_RIGHT;
     return -1;
 }
@@ -509,15 +554,15 @@ static int dist(int ax, int ay, int bx, int by) {
 }
 
 // projectiles fly over water, fences and furniture; walls, trees and cliffs stop them
-static int blocks_shot(int x, int y) {
-    int t = world_type(x, y);
+static int blocks_shot(int x, int y, int p) {
+    int t = world_type(x, y, p);
     return (t >= T_WALL && t <= T_SWALL) || (t >= T_TREE && t <= T_DEADTREE) || t == T_CLIFF || t == T_HEDGE ||
            t == T_VOID || t == T_LOCKDOOR;
 }
 
 // Bresenham walk between the two cells (ends excluded)
-int clear_shot(int ax, int ay, int bx, int by) {
-    if (world_zone(ax, ay) != world_zone(bx, by)) return 0;
+int clear_shot(int ax, int ay, int bx, int by, int p) {
+    if (world_zone(ax, ay, p) != world_zone(bx, by, p)) return 0;
     int dx = bx - ax, dy = by - ay;
     int sx = dx < 0 ? -1 : 1, sy = dy < 0 ? -1 : 1;
     dx = dx < 0 ? -dx : dx;
@@ -528,7 +573,7 @@ int clear_shot(int ax, int ay, int bx, int by) {
         if (e2 > -dy) err -= dy, x += sx;
         if (e2 < dx) err += dx, y += sy;
         if (x == bx && y == by) return 1;
-        if (blocks_shot(x, y)) return 0;
+        if (blocks_shot(x, y, p)) return 0;
     }
 }
 
@@ -537,7 +582,7 @@ static void step_toward(int tx, int ty) {
     for (int alt = 0; alt < 2; alt++) {
         int d = dir_toward(pl.x, pl.y, tx, ty, alt);
         if (d < 0) return;
-        if (free_tile(pl.x + DX[d], pl.y + DY[d])) {
+        if (free_tile(pl.x + DX[d], pl.y + DY[d], pl.plane)) {
             start_step(d);
             return;
         }
@@ -548,7 +593,7 @@ static void npc_step_toward(Npc *n, int tx, int ty) {
     for (int alt = 0; alt < 2; alt++) {
         int d = dir_toward(n->x, n->y, tx, ty, alt);
         if (d < 0) return;
-        if (free_tile(n->x + DX[d], n->y + DY[d])) {
+        if (free_tile(n->x + DX[d], n->y + DY[d], n->plane)) {
             npc_step(n, d);
             return;
         }
@@ -591,7 +636,7 @@ static void game_tick(void) {
             player_stop();
         } else if (!npc_in_reach(pl.target)) {
             if (still) {
-                if (dist(pl.x, pl.y, n->x, n->y) > 12) player_stop();
+                if (npc_dist(n) > 12) player_stop();
                 else step_toward(n->x, n->y);
             }
         } else if (still) {
@@ -611,7 +656,7 @@ static void game_tick(void) {
         }
     } else if (pl.action == ACT_TALK) {
         Npc *n = &npcs[pl.target];
-        if (!n->active || dist(pl.x, pl.y, n->x, n->y) > 12) {
+        if (!n->active || npc_dist(n) > 12) {
             player_stop();
         } else if (!adjacent(pl.x, pl.y, n->x, n->y)) {
             if (!pl.moving) step_toward(n->x, n->y);
@@ -638,13 +683,13 @@ static void game_tick(void) {
         const NpcDef *d = &npc_defs[n->kind];
         if (!n->active) {
             if (n->respawn && !--n->respawn) {
-                if (free_tile(n->hx, n->hy)) {
+                if (free_tile(n->hx, n->hy, n->plane)) {
                     n->active = 1;
                     n->x = n->hx;
                     n->y = n->hy;
-                    occ_set(n->x, n->y);
-                    n->px = n->x * 16;
-                    n->py = n->y * 16;
+                    occ_set(n->x, n->y, n->plane);
+                    n->px = TILE_PX(n->x);
+                    n->py = TILE_PY(n->y);
                     n->hp = d->hp;
                     n->moving = 0;
                     n->hpbar_timer = 0;
@@ -659,20 +704,20 @@ static void game_tick(void) {
         if (n->bound) n->bound--;                            // Bind / Snare / Entangle wear off
         if (n->moving) continue;
         if (!n->in_combat && (d->flags & NF_AGGRO) && pl.action != ACT_COMBAT && foe_free(i) &&
-            my_cb <= d->level * 2 && dist(n->x, n->y, pl.x, pl.y) <= 3) {
+            my_cb <= d->level * 2 && npc_dist(n) <= 3) {
             n->in_combat = 1;
             n->attack_cd = 2;
         }
         if (n->in_combat) {
             // leashed, or the player is busy with another NPC: give up the fight
-            if (dist(n->x, n->y, n->hx, n->hy) > 12 || dist(n->x, n->y, pl.x, pl.y) > 9 || !foe_free(i)) {
+            if (dist(n->x, n->y, n->hx, n->hy) > 12 || npc_dist(n) > 9 || !foe_free(i)) {
                 n->in_combat = 0;
                 foe_release(i);
                 continue;
             }
             // casters (dark wizards) fight from up to 7 cells away; everyone else walks up
             int reach = adjacent(n->x, n->y, pl.x, pl.y) ||
-                        (d->magic_max && dist(n->x, n->y, pl.x, pl.y) <= 7 && clear_shot(n->x, n->y, pl.x, pl.y));
+                        (d->magic_max && npc_dist(n) <= 7 && clear_shot(n->x, n->y, pl.x, pl.y, pl.plane));
             if (!reach) {
                 if (!n->bound && (!pl.moving || pl.action == ACT_COMBAT)) npc_step_toward(n, pl.x, pl.y);
                 continue;
@@ -706,13 +751,13 @@ static void game_tick(void) {
         const ItemSpawn *sp = &item_spawns[i];
         int found = 0;
         for (int g = 0; g < MAX_GROUND; g++)
-            if (ground[g].id == sp->item && ground[g].x == sp->x && ground[g].y == sp->y) {
+            if (ground[g].id == sp->item && ground[g].x == sp->x && ground[g].y == sp->y && ground[g].plane == sp->plane) {
                 ground[g].timer = 240;
                 found = 1;
                 break;
             }
         if (found) ispawn_timer[i] = 40;
-        else if (!--ispawn_timer[i]) drop_item(sp->x, sp->y, sp->item, 1);
+        else if (!--ispawn_timer[i]) drop_item(sp->x, sp->y, sp->plane, sp->item, 1);
     }
 
     shops_tick();
@@ -724,7 +769,7 @@ static void game_tick(void) {
 }
 
 static void move_entity(s16 *px, s16 *py, int tx, int ty, u8 *moving, int speed, u8 *anim) {
-    int gx = tx * 16, gy = ty * 16;
+    int gx = TILE_PX(tx), gy = TILE_PY(ty);
     for (int s = 0; s < speed; s++) {
         if (*px < gx) (*px)++;
         else if (*px > gx) (*px)--;
@@ -736,6 +781,7 @@ static void move_entity(s16 *px, s16 *py, int tx, int ty, u8 *moving, int speed,
 }
 
 void world_update(void) {
+    world_debug();
     if (warp.phase) {
         warp_update();
     } else if (pl.moving) {
@@ -769,7 +815,7 @@ void world_update(void) {
             // A on the target (or with nobody in front) opens its menu; a different NPC in
             // front is dealt with directly
             int fx = pl.x + DX[pl.dir], fy = pl.y + DY[pl.dir];
-            int f = in_map(fx, fy) ? npc_at(fx, fy) : -1;
+            int f = in_map(fx, fy, pl.plane) ? npc_at(fx, fy, pl.plane) : -1;
             if (lock_target >= 0 && (f < 0 || f == lock_target)) target_menu_open();
             else interact();
         }
@@ -785,7 +831,7 @@ void world_update(void) {
     // the target is forgotten once it is gone or far away
     if (lock_target >= 0) {
         Npc *n = &npcs[lock_target];
-        if (!n->active || dist(pl.x, pl.y, n->x, n->y) > 15 || world_zone(n->x, n->y) != world_zone(pl.x, pl.y))
+        if (!n->active || npc_dist(n) > 15 || world_zone(n->x, n->y, n->plane) != world_zone(pl.x, pl.y, pl.plane))
             target_set(-1);
     }
     if (game_state == GS_TARGET) return;   // the target menu pauses the world

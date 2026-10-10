@@ -106,13 +106,14 @@ const char *npc_examine(int kind);
 #define MAX_NPCS 256
 typedef struct {
     u8 active, kind, dir, moving;
-    s16 x, y;            // tile
-    s16 px, py;          // pixel position (top-left)
+    s16 x, y;            // OSRS tile (x east, y north) on floor 'plane'
+    s16 px, py;          // pixel position (top-left; TILE_PX / TILE_PY)
     s16 hx, hy;          // home tile
     u8 hp, step, anim, attack_cd;
     u8 in_combat, lunge, hpbar_timer, state;   // state: quest use (e.g. sheared sheep timer)
     u16 timer, respawn;
     u8 curse, bound;     // curse: CU_* bits from Confuse..Stun; bound: ticks held by Bind/Snare/Entangle
+    u8 plane;
 } Npc;
 enum { CU_ATK5 = 1, CU_STR5 = 2, CU_DEF5 = 4, CU_DEF10 = 8, CU_STR10 = 16, CU_ATK10 = 32 };
 
@@ -127,7 +128,7 @@ enum { STYLE_RAPID = 1, STYLE_LONGRANGE = 2 };
 enum { CB_MELEE, CB_RANGED, CB_MAGIC };
 
 typedef struct {
-    s16 x, y, px, py;
+    s16 x, y, px, py;            // OSRS tile (on floor 'plane') and pixel position
     u8 dir, moving, step, anim;
     u8 action, action_timer, lunge, turn_delay;
     s16 tx, ty;                  // action target tile
@@ -143,7 +144,7 @@ typedef struct {
     u8 qstage[16];               // quest progress (0 = not started, QuestDef.done = complete)
     u16 qvar[16];                // per-quest flag bits / counters
     u8 spell;                    // autocast spell (spells[] index, 0 = none), used while a staff is wielded
-    u8 pad;
+    u8 plane;                    // floor: 0 ground .. 3
     u16 home_cd;                 // ticks until Lumbridge Home Teleport can be cast again (counts while playing)
 } Player;
 
@@ -225,7 +226,7 @@ void gfx_set_world_fade(int level16);     // 16 = normal, 0 = black
 void gfx_set_mosaic(int n);
 void gfx_set_ui_alpha(int eva, int text_too);
 void gfx_mark_world_dirty(void);
-void gfx_mark_cell_dirty(int x, int y);
+void gfx_mark_cell_dirty(int x, int y, int p);   // redraw a tile changed at runtime
 void gfx_world_update(void);
 void obj_sprite(int x, int y, int tile, int pal, int prio, int hflip, int size16, int flags);
 void obj_icon(int x, int y, int icon, int prio);
@@ -288,9 +289,14 @@ enum { TC_WHITE = 1, TC_GREY, TC_DIM, TC_SHADOW, TC_GOLD, TC_CYAN, TC_GREEN, TC_
        TC_ORANGE, TC_BLUE, TC_BLACK, TC_DKRED, TC_DKBLUE };
 
 // world.c, combat.c, skilling.c, world_draw.c (their shared internals: world_internal.h)
-int world_type(int x, int y);           // cell type (T_*), including runtime changes
-int world_meta(int x, int y);           // ground metatile
-int world_over(int x, int y);           // overlay metatile (tree canopies)
+// Positions are absolute OSRS tiles: x grows east, y north, plane is the floor (0 ground .. 3).
+// Pixels (px, py, cam_x, cam_y) grow east and south from the tile WORLD_X0, WORLD_Y1 on every floor.
+#define TILE_PX(x) (((x) - WORLD_X0) * 16)
+#define TILE_PY(y) ((WORLD_Y1 - (y)) * 16)
+int world_type(int x, int y, int p);    // cell type (T_*), including runtime changes
+int world_meta(int x, int y, int p);    // ground metatile
+int world_over(int x, int y, int p);    // overlay metatile (tree canopies)
+void world_cell_gfx(int x, int y, int p, int *meta, int *over, int *roof);   // the three at once, for drawing
 void world_init(void);
 void world_new_game(void);
 void world_update(void);
@@ -300,10 +306,10 @@ int world_region(void);
 void player_start_firemaking(int slot);
 void player_stop(void);
 void player_respawn(void);
-void player_tp(int x, int y, int dir);
-void player_warp(int x, int y, int dir);  // fade out, move, fade in (staircases)
+void player_tp(int x, int y, int p, int dir);
+void player_warp(int x, int y, int p, int dir);  // fade out, move, fade in (staircases)
 int world_warping(void);
-int world_zone(int x, int y);           // zones[] index of a cell
+int world_zone(int x, int y, int p);    // zones[] index of a tile
 int npc_talkable(int n);                // has dialogue or a quest script
 void player_walk_to(int npc, int act);  // pursue an NPC to fight it (ACT_COMBAT) or talk to it (ACT_TALK)
 void world_camera(void);
@@ -313,7 +319,7 @@ void world_refresh_npcs(void);          // apply quest NPC visibility
 void npc_set_active(int i, int on);
 int npc_portrait_tile(int kind);        // first tile of a 16x16 frame for dialogue portraits
 int item_on_ground_count(void);
-void drop_item(int x, int y, int id, int qty);
+void drop_item(int x, int y, int p, int id, int qty);
 
 // ui.c, hud.c, menu.c, dialog.c, store.c, title.c (their shared internals: ui_internal.h)
 void ui_init(void);
@@ -407,7 +413,7 @@ int quest_stage(int q);
 int quest_done(int q);
 int quest_points(void);
 int quest_talk(int npc);                // run the talk script for npcs[npc], 1 if one exists
-int quest_object(int type, int x, int y);
+int quest_object(int type);            // the A button on a cell of this type
 int quest_item(int slot);               // "Use" an inventory item with a script
 int quest_item_usable(int id);
 int quest_npc_dying(int npc);           // 1 if a quest takes over the NPC's death (Delrith)

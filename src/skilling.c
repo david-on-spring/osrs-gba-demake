@@ -72,36 +72,37 @@ static const Resource *find_res(const Resource *tab, int n, int type) {
     return 0;
 }
 
-void deplete(int x, int y, int type, int respawn_ticks) {
+void deplete(int x, int y, int p, int type, int respawn_ticks) {
     int slot = -1;
     for (int i = 0; i < MAX_DEPLETED; i++)
         if (!depleted[i].active) {
             slot = i;
             break;
         }
-    int alt = res_alt_meta(x, y);
+    int alt = res_alt_meta(x, y, p);
     if (slot < 0 || alt < 0 || n_ovr + 2 > MAX_OVR) return;   // table full: resource stays
     Depleted *d = &depleted[slot];
     d->active = 1;
     d->type = type;
     d->x = x;
     d->y = y;
+    d->plane = p;
     d->timer = respawn_ticks;
     int is_tree = find_res(trees, NTREES, type) != 0;
-    ovr_set(x, y, OV_META | OV_TYPE, alt, 0, is_tree ? T_STUMP : T_ROCK_EMPTY);
-    gfx_mark_cell_dirty(x, y);
-    if (is_tree && y > 0) {
-        ovr_set(x, y - 1, OV_OVER, 0, 0, 0);   // remove the canopy drawn on the cell above
-        gfx_mark_cell_dirty(x, y - 1);
+    ovr_set(x, y, p, OV_META | OV_TYPE, alt, 0, is_tree ? T_STUMP : T_ROCK_EMPTY);
+    gfx_mark_cell_dirty(x, y, p);
+    if (is_tree && in_map(x, y + 1, p)) {
+        ovr_set(x, y + 1, p, OV_OVER, 0, 0, 0);   // remove the canopy drawn on the cell above (north)
+        gfx_mark_cell_dirty(x, y + 1, p);
     }
 }
 
 void restore(Depleted *d) {
-    ovr_clear(d->x, d->y, OV_META | OV_TYPE);
-    gfx_mark_cell_dirty(d->x, d->y);
-    if (d->y > 0) {
-        ovr_clear(d->x, d->y - 1, OV_OVER);
-        gfx_mark_cell_dirty(d->x, d->y - 1);
+    ovr_clear(d->x, d->y, d->plane, OV_META | OV_TYPE);
+    gfx_mark_cell_dirty(d->x, d->y, d->plane);
+    if (in_map(d->x, d->y + 1, d->plane)) {
+        ovr_clear(d->x, d->y + 1, d->plane, OV_OVER);
+        gfx_mark_cell_dirty(d->x, d->y + 1, d->plane);
     }
     d->active = 0;
 }
@@ -120,7 +121,7 @@ void skill_tick(void) {
     int lvl;
     switch (pl.action) {
     case ACT_CHOP: {
-        const Resource *r = find_res(trees, NTREES, world_type(pl.tx, pl.ty));
+        const Resource *r = find_res(trees, NTREES, world_type(pl.tx, pl.ty, pl.plane));
         if (!r) {
             player_stop();
             return;
@@ -139,14 +140,14 @@ void skill_tick(void) {
             msg(log_msgs[r - trees]);
             add_xp(SK_WOODCUTTING, r->xp);
             if (rnd_range(256) < r->deplete) {
-                deplete(pl.tx, pl.ty, r->type, r->respawn);
+                deplete(pl.tx, pl.ty, pl.plane, r->type, r->respawn);
                 player_stop();
             }
         }
         break;
     }
     case ACT_MINE: {
-        const Resource *r = find_res(rocks, NROCKS, world_type(pl.tx, pl.ty));
+        const Resource *r = find_res(rocks, NROCKS, world_type(pl.tx, pl.ty, pl.plane));
         if (!r) {
             player_stop();
             return;
@@ -165,7 +166,7 @@ void skill_tick(void) {
             msg(r->item == I_COPPER_ORE ? "You manage to mine some copper." : r->item == I_TIN_ORE ? "You manage to mine some tin." :
                 r->item == I_CLAY ? "You manage to mine some clay." : "You manage to mine some iron.");
             add_xp(SK_MINING, r->xp);
-            deplete(pl.tx, pl.ty, r->type, r->respawn);
+            deplete(pl.tx, pl.ty, pl.plane, r->type, r->respawn);
             player_stop();
         }
         break;
@@ -235,6 +236,7 @@ void skill_tick(void) {
             fires[f].active = 1;
             fires[f].x = pl.x;
             fires[f].y = pl.y;
+            fires[f].plane = pl.plane;
             fires[f].timer = 60 + rnd_range(60);
             add_xp(SK_FIREMAKING, id == I_LOGS ? 400 : id == I_OAK_LOGS ? 600 : id == I_YEW_LOGS ? 2025 : 900);
             msg("The fire catches and the logs begin to burn.");
@@ -242,7 +244,7 @@ void skill_tick(void) {
             static const u8 order[4] = {DIR_LEFT, DIR_RIGHT, DIR_DOWN, DIR_UP};
             for (int k = 0; k < 4; k++) {
                 int d = order[k];
-                if (free_tile(pl.x + DX[d], pl.y + DY[d])) {
+                if (free_tile(pl.x + DX[d], pl.y + DY[d], pl.plane)) {
                     pl.x += DX[d];
                     pl.y += DY[d];
                     pl.moving = 1;
@@ -251,15 +253,15 @@ void skill_tick(void) {
             }
             if (pl.moving) {
                 // keep facing the fire while stepping away
-                pl.dir = pl.x < fires[f].x ? DIR_RIGHT : pl.x > fires[f].x ? DIR_LEFT : pl.y < fires[f].y ? DIR_DOWN : DIR_UP;
+                pl.dir = pl.x < fires[f].x ? DIR_RIGHT : pl.x > fires[f].x ? DIR_LEFT : pl.y > fires[f].y ? DIR_DOWN : DIR_UP;
             }
         }
         break;
     }
     case ACT_COOK: {
-        int t = world_type(pl.tx, pl.ty);
+        int t = world_type(pl.tx, pl.ty, pl.plane);
         int on_range = t == T_RANGE;
-        if (!on_range && t != T_FIREPIT && fire_at(pl.tx, pl.ty) < 0) {
+        if (!on_range && t != T_FIREPIT && fire_at(pl.tx, pl.ty, pl.plane) < 0) {
             msg("The fire has gone out.");
             player_stop();
             return;
@@ -317,8 +319,8 @@ void player_start_firemaking(int slot) {
         sfx(SFX_ERR);
         return;
     }
-    int t = world_type(pl.x, pl.y);
-    if (fire_at(pl.x, pl.y) >= 0 || t == T_FLOOR || t == T_WOODFLOOR || t == T_DOOR || t == T_BRIDGE ||
+    int t = world_type(pl.x, pl.y, pl.plane);
+    if (fire_at(pl.x, pl.y, pl.plane) >= 0 || t == T_FLOOR || t == T_WOODFLOOR || t == T_DOOR || t == T_BRIDGE ||
         t == T_CARPET || t == T_DITCH) {
         msg("You can't light a fire here.");
         sfx(SFX_ERR);
@@ -371,7 +373,7 @@ void npc_fight(int n) {
 
 void interact(void) {
     int fx = pl.x + DX[pl.dir], fy = pl.y + DY[pl.dir];
-    int n = in_map(fx, fy) ? npc_at(fx, fy) : -1;
+    int n = in_map(fx, fy, pl.plane) ? npc_at(fx, fy, pl.plane) : -1;
     if (n >= 0) {
         const NpcDef *d = &npc_defs[npcs[n].kind];
         if (!(d->flags & NF_ATTACK) && quest_talk_entry[npcs[n].kind] != 0xFFFF) npc_talk(n);
@@ -379,7 +381,7 @@ void interact(void) {
         else if (d->flags & NF_TALK) npc_talk(n);
         return;
     }
-    int s = spot_at(fx, fy);
+    int s = spot_at(fx, fy, pl.plane);
     if (s >= 0) {
         if (fish_spots[s].kind == 0) {
             if (!inv_count(I_NET)) {
@@ -410,10 +412,10 @@ void interact(void) {
         pl.target = s;
         return;
     }
-    if (!in_map(fx, fy)) return;
-    int t = world_type(fx, fy);
-    if (fire_at(fx, fy) < 0 && quest_object(t, fx, fy)) return;
-    if (fire_at(fx, fy) >= 0 || t == T_RANGE || t == T_FIREPIT) {
+    if (!in_map(fx, fy, pl.plane)) return;
+    int t = world_type(fx, fy, pl.plane);
+    if (fire_at(fx, fy, pl.plane) < 0 && quest_object(t)) return;
+    if (fire_at(fx, fy, pl.plane) >= 0 || t == T_RANGE || t == T_FIREPIT) {
         int raw = first_raw();
         if (!raw && inv_count(I_COOKED_MEAT)) {
             // as in OSRS, cooked meat can be burnt on purpose (Hetty wants burnt meat)
@@ -488,6 +490,6 @@ void interact(void) {
         shop_open();
         return;
     }
-    if (pickup_at(pl.x, pl.y)) return;
-    if (walkable(fx, fy) && pickup_at(fx, fy)) return;
+    if (pickup_at(pl.x, pl.y, pl.plane)) return;
+    if (walkable(fx, fy, pl.plane) && pickup_at(fx, fy, pl.plane)) return;
 }

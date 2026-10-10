@@ -72,7 +72,7 @@ static int cond(int c, int a, int b) {
         return 0;
     case C_FLAG: return (pl.qvar[a] >> b) & 1;
     case C_VAR_GE: return pl.qvar[a] >= b;
-    case C_NEAR: return cheb(pl.x, pl.y, a, b & 0x1FF) <= b >> 9;
+    case C_NEAR: return pl.plane == quest_places[a].plane && cheb(pl.x, pl.y, quest_places[a].x, quest_places[a].y) <= b;
     case C_QP_GE: return quest_points() >= b;
     case C_FREE: return inv_free() >= b;
     case C_CHANCE: return rnd_range(100) < b;
@@ -88,7 +88,7 @@ static int cond(int c, int a, int b) {
 static void give(int id, int qty) {
     int got = inv_add(id, qty);
     if (got < qty) {
-        drop_item(pl.x, pl.y, id, qty - got);
+        drop_item(pl.x, pl.y, pl.plane, id, qty - got);
         msg("Your inventory is full, so it drops to the floor.");
     }
 }
@@ -199,8 +199,8 @@ int qvm_step(DlgEvent *ev) {
         case OP_XP: add_xp(c[1], rd16(pc + 2) * 10); vm.pc = pc + 4; break;
         case OP_SFX: sfx(c[1]); vm.pc = pc + 2; break;
         case OP_COMPLETE: complete(c[1]); vm.pc = pc + 2; world_refresh_npcs(); break;
-        case OP_TP: player_tp(c[1], c[2], c[3]); vm.pc = pc + 4; break;
-        case OP_WARP: player_warp(rd16(pc + 1), rd16(pc + 3), c[5]); vm.pc = pc + 6; break;
+        case OP_TP: player_tp(rd16(pc + 1), rd16(pc + 3), c[5], c[6]); vm.pc = pc + 7; break;
+        case OP_WARP: player_warp(rd16(pc + 1), rd16(pc + 3), c[5], c[6]); vm.pc = pc + 7; break;
         case OP_WALKTHRU: player_walk_through(); vm.pc = pc + 1; break;
         case OP_NPCSTATE:
             if (vm.npc >= 0) npcs[vm.npc].state = c[1];
@@ -253,7 +253,7 @@ static u16 lookup(const QEntry *t, int key) {
 }
 
 int quest_talk(int npc) { return run(quest_talk_entry[npcs[npc].kind], npc); }
-int quest_object(int type, int x, int y) { return run(lookup(quest_obj_entry, type), -1); }
+int quest_object(int type) { return run(lookup(quest_obj_entry, type), -1); }
 int quest_item_usable(int id) { return lookup(quest_item_entry, id) != 0xFFFF; }
 int quest_item(int slot) { return run(lookup(quest_item_entry, pl.inv[slot].id), -1); }
 
