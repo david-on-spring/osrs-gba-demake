@@ -20,11 +20,11 @@ zfill(3200, 3421, 3206, 3427, 'GRASS')
 tent = stamp(B, 3202, 3422, 3205, 3425, 'HWALL', 'RUG', doors=[(3203, 3422)], roof='tent')
 # the church: pews and the altar at the east end
 church = stamp(B, 3253, 3471, 3260, 3488, 'WALL', 'FLOOR', doors=[(3256, 3471), (3257, 3471)], roof='slate')
-zfill(3256, 3472, 3257, 3486, 'CARPET')
+zfill(3255, 3472, 3256, 3486, 'CARPET')
+zput(3255, 3487, 'ALTAR')
 zput(3256, 3487, 'ALTAR')
-zput(3257, 3487, 'ALTAR')
 for Y in (3475, 3477, 3479, 3481, 3483):
-    for X in (3254, 3255, 3258, 3259):
+    for X in (3254, 3257, 3258, 3259):
         zput(X, Y, 'PEW')
 zput(3254, 3487, 'POTPLANT')
 zput(3259, 3487, 'POTPLANT')

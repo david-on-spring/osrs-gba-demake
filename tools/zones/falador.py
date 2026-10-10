@@ -16,12 +16,22 @@ zshop('CASSIE', building_at(B, 2975, 3384), 'CASSIE')
 zshop('WAYNE', building_at(B, 2972, 3312), 'WAYNE')
 # Falador Park: white bridge over the duck pond, the statue in its curved low walls, flower beds,
 # sunflowers and benches
-pond = [(X, Y) for X in range(3008, 3030) for Y in range(3370, 3392) if TY[cy(Y)][cx(X)] == 'WATER']
-pmid = sum(X for X, _ in pond) // len(pond)
-for X in (pmid, pmid + 1):                      # north-south across the middle of the pond
-    for Y in range(3370, 3392):
-        if TY[cy(Y)][cx(X)] == 'WATER':
-            zset(X, Y, 'BRIDGE', 'BRIDGE')
+isw = lambda X, Y: TY[cy(Y)][cx(X)] == 'WATER'
+best = None                                    # the shortest north-south crossing of the duck pond
+for X in range(3010, 3030):
+    for Y in range(3372, 3392):
+        if isw(X, Y) and not isw(X, Y + 1):
+            n = 0
+            while isw(X, Y - n):
+                n += 1
+            if 3 <= n <= 7 and not isw(X, Y - n) and isw(X + 1, Y) and isw(X + 1, Y - n + 1) and (best is None or n < best[0]):
+                best = (n, X, Y)
+if best:
+    n, X, Y = best
+    for k in range(n):
+        for u in (0, 1):
+            if isw(X + u, Y - k):
+                zset(X + u, Y - k, 'BRIDGE', 'BRIDGE')
 deco(3004, 3385, 'STATUE')
 for (X, Y) in ((3002, 3384), (3002, 3385), (3003, 3386), (3005, 3386), (3006, 3385), (3006, 3384)):
     deco(X, Y, 'LOWWALL')
