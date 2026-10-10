@@ -27,7 +27,7 @@ Script statements:
   if [not] COND goto label
       COND: stage Q OP N (OP: == != >= <= > <) | done Q | started Q | has ITEM [N] | worn ITEM
             flag Q B | var Q >= N | near POS R | near X Y R | qp >= N | free N | chance PCT
-            facing DIR | level SKILL >= N | npcstate
+            facing DIR | level SKILL >= N | npcstate | clear (walkthrough would succeed)
   stage Q N | flag Q B | unflag Q B | addvar Q N | setvar Q N
   give ITEM [N] | take ITEM [N] | xp SKILL N | sfx NAME | complete Q
   tp X Y DIR | walkthrough | npcstate N | npcoff | npcheal | shop | bank
@@ -40,7 +40,7 @@ OPS = ['END', 'SAY', 'CHAT', 'CHOICE', 'GOTO', 'IF', 'STAGE', 'FLAG', 'UNFLAG', 
        'COMPLETE', 'TP', 'ADDVAR', 'NPCSTATE', 'NPCOFF', 'NPCHEAL', 'WALKTHRU', 'SHOP', 'BANK', 'SETVAR']
 OP = {n: i for i, n in enumerate(OPS)}
 CONDS = ['STAGE_EQ', 'STAGE_NE', 'STAGE_GE', 'STAGE_LE', 'STAGE_GT', 'STAGE_LT', 'HAS', 'WORN', 'FLAG', 'VAR_GE',
-         'NEAR', 'QP_GE', 'FREE', 'CHANCE', 'DONE', 'FACING', 'LEVEL_GE', 'NPCSTATE']
+         'NEAR', 'QP_GE', 'FREE', 'CHANCE', 'DONE', 'FACING', 'LEVEL_GE', 'NPCSTATE', 'CLEAR']
 COND = {n: i for i, n in enumerate(CONDS)}
 STAGE_OPS = {'==': 'STAGE_EQ', '!=': 'STAGE_NE', '>=': 'STAGE_GE', '<=': 'STAGE_LE', '>': 'STAGE_GT', '<': 'STAGE_LT'}
 DIRS = {'DOWN': 0, 'UP': 1, 'LEFT': 2, 'RIGHT': 3}
@@ -374,6 +374,8 @@ class Compiler:
             cond, a, b = 'LEVEL_GE', 'SK_' + c[1], int(c[3])
         elif k == 'npcstate':
             cond = 'NPCSTATE'
+        elif k == 'clear':
+            cond = 'CLEAR'
         else:
             raise QuestError('line %d: unknown condition %s' % (ln, k))
         self.emit('OP_IF', 'C_' + cond, neg)

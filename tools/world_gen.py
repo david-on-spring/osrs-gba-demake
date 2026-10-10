@@ -110,7 +110,7 @@ BLOCK = ['WATER', 'WALL', 'HWALL', 'WWALL', 'SWALL', 'FENCE', 'TREE', 'OAK', 'WI
          'DEADTREE', 'CACTUS', 'STUMP', 'COPPER', 'TIN', 'IRON', 'ROCK_EMPTY', 'BOULDER', 'BOOTH',
          'RANGE', 'COUNTER', 'BUSH', 'FOUNTAIN', 'CROPS', 'STALL', 'ALTAR', 'CLIFF', 'FIREPIT',
          'GRAVE', 'CLAY', 'HOPPER', 'FLOURBIN', 'WHEEL', 'COFFIN', 'CADAVA', 'CAULDRON', 'COMPOST',
-         'LOCKDOOR', 'GRILL', 'HOLE', 'DRAIN', 'CHEST']
+         'LOCKDOOR', 'GRILL', 'HOLE', 'DRAIN', 'CHEST', 'TOLLGATE']
 TYPES = WALK + BLOCK
 T = {n: i for i, n in enumerate(TYPES)}
 WALKSET = set(WALK)
@@ -662,9 +662,7 @@ building(3256, 3204, 3262, 3210, 'HWALL', 'WOODFLOOR', [('N', 3259)])
 fence_line([(3266, 3184), (3266, 3330)])
 fence_line([(3256, 3184), (3266, 3184)])
 fence_line([(3266, 3330), (3282, 3338)])
-for x in range(cx(3266), cx(3266) + 1):
-    for y in range(cy(3229), cy(3227) + 1):
-        setg(x, y, 'DOOR')
+TOLLGATE = [(cx(3266), y) for y in range(cy(3229), cy(3227) + 1)]   # shut until the toll is paid
 # east cow field
 fence_rect(3254, 3255, 3265, 3298, gates=[('W', 3270), ('W', 3290)])
 # north chicken farm with coop
@@ -1139,6 +1137,11 @@ for x in range(mx0 + 1, mx0 + 5):
     TY[my1 - 3][x] = 'WALL'
 TY[my1 - 3][mx0 + 2] = 'LOCKDOOR'
 QUEST_OBJS.append(('LOCKDOOR', mx0 + 2, my1 - 3))
+# Al Kharid toll gate: 10 coins each way, collected by the border guards on the Lumbridge side
+for (x, y) in TOLLGATE:
+    TY[y][x] = 'TOLLGATE'
+    QUEST_OBJS.append(('TOLLGATE', x, y))
+QPOS['TOLLGATE_W'] = (TOLLGATE[0][0] - 1, TOLLGATE[0][1])
 for (dx, dy) in ((0, 0), (1, 0), (0, 1), (1, 1)):
     put(mx0 + dx, my1 + 4 + dy, 'FOUNTAIN')
 QPOS['MANOR_FOUNTAIN'] = (mx0, my1 + 4)
@@ -1171,7 +1174,7 @@ def flood():
         x, y = q.popleft()
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             xx, yy = x + dx, y + dy
-            if inb(xx, yy) and not seen[yy][xx] and (TY[yy][xx] in WALKSET or TY[yy][xx] == 'LOCKDOOR'):
+            if inb(xx, yy) and not seen[yy][xx] and (TY[yy][xx] in WALKSET or TY[yy][xx] in ('LOCKDOOR', 'TOLLGATE')):
                 seen[yy][xx] = True
                 q.append((xx, yy))
     return seen
@@ -1253,6 +1256,8 @@ spawn('FRANK', 3029, 3226)
 spawn('BARTENDER', 3045, 3236)
 spawn('AMIK', 2971, 3344)
 SPAWNS.append(('BK_GUARD', BKF_DOOR[0] + 1, BKF_DOOR[1]))
+spawn('BORDER_GUARD', TOLLGATE[0][0] - 1, TOLLGATE[0][1] - 1, cell=True)
+spawn('BORDER_GUARD', TOLLGATE[-1][0] - 1, TOLLGATE[-1][1] + 1, cell=True)
 spawn('ARIS', 3203, 3424)
 spawn('PRYSIN', PALACE[0] + 2, PALACE[1] + 5, cell=True)
 spawn('ROVIN', PALACE[2] - 2, PALACE[1] + 5, cell=True)
@@ -1394,7 +1399,7 @@ def check_reachability():
         x, y = q.popleft()
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             xx, yy = x + dx, y + dy
-            if inb(xx, yy) and not seen[yy][xx] and (TY[yy][xx] in WALKSET or TY[yy][xx] == 'LOCKDOOR'):
+            if inb(xx, yy) and not seen[yy][xx] and (TY[yy][xx] in WALKSET or TY[yy][xx] in ('LOCKDOOR', 'TOLLGATE')):
                 seen[yy][xx] = True
                 q.append((xx, yy))
     errs = []
@@ -1444,7 +1449,7 @@ CHARS = {'GRASS': '.', 'FLOWERS': ',', 'PATH': '_', 'COBBLE': '=', 'FLOOR': ':',
          'IRON': '3', 'ROCK_EMPTY': '0', 'BOULDER': 'o', 'BOOTH': 'B', 'RANGE': 'R', 'COUNTER': 'C', 'BUSH': 'b',
          'FOUNTAIN': 'F', 'CROPS': 'r', 'STALL': 'L', 'ALTAR': 'A', 'CLIFF': '^', 'FIREPIT': 'P', 'GRAVE': '+',
          'CLAY': '4', 'HOPPER': 'V', 'FLOURBIN': 'U', 'WHEEL': '@', 'COFFIN': '&', 'CADAVA': '%', 'CAULDRON': 'Q',
-         'COMPOST': '$', 'LOCKDOOR': '!', 'GRILL': 'G', 'HOLE': '?', 'DRAIN': 'z', 'CHEST': 'k'}
+         'COMPOST': '$', 'LOCKDOOR': '!', 'GRILL': 'G', 'HOLE': '?', 'DRAIN': 'z', 'CHEST': 'k', 'TOLLGATE': 'g'}
 
 
 def ascii_map():
@@ -2054,6 +2059,17 @@ def quest_art():
     im[9][7] = WC['GOLD']
     im[9][8] = WC['GOLD']
     A['CHEST'] = outline(im, WC['OUT'])
+    # toll gate: a leaf of planks with iron bands across a north-south fence line
+    im = blank(16, 16)
+    for y in range(16):
+        for x in range(5, 11):
+            im[y][x] = WC['K2'] if x in (5, 10) else (WC['K1'] if x % 2 else WC['K0'])
+        if y % 5 == 2:
+            for x in range(4, 12):
+                im[y][x] = WC['IR1']
+    im[8][11] = WC['GOLD']
+    im[9][11] = WC['GOLD']
+    A['TOLLGATE'] = outline(im, WC['OUT'])
     return A
 
 

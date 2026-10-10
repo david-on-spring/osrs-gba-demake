@@ -80,6 +80,7 @@ static int cond(int c, int a, int b) {
     case C_FACING: return pl.dir == b;
     case C_LEVEL_GE: return skill_level(a) >= b;
     case C_NPCSTATE: return vm.npc >= 0 && npcs[vm.npc].state;
+    case C_CLEAR: return player_can_walk_through();
     }
     return 0;
 }

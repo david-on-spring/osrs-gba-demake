@@ -7,7 +7,7 @@
 **The 2007 free-to-play RuneScape mainland, rebuilt from scratch for the Game Boy Advance.**
 
 Lumbridge to Varrock, Falador to Al Kharid: skill, quest, fight and bank your way across Gielinor
-on a 16.78 MHz handheld, with an FF7 Remake–inspired menu that keeps the screen clear.
+on a 16.78 MHz handheld, with OSRS-style stone menus, a parchment chatbox and the classic login screen.
 
 ![Platform](https://img.shields.io/badge/platform-Game%20Boy%20Advance-6b5bd6)
 ![Language](https://img.shields.io/badge/language-C%20%2B%20ARM%20asm-00599c)
@@ -61,8 +61,9 @@ streamed tile by tile, so you can walk from one end to the other without a singl
 ### A menu that stays out of the way
 
 The world screen shows only your HP, the area name, XP drops and messages. Everything else lives
-behind **START**: frosted, translucent panels with chamfered corners and thin cyan accents slide in
-over a dimmed, blurred world, styled after Final Fantasy VII Remake.
+behind **START**, drawn like Old School RuneScape's own interface: brown stone windows with orange
+titles and yellow values, a parchment chatbox for dialogue, OSRS level-up messages and quest scrolls,
+and the login screen with its flames and music toggle.
 
 <table>
 <tr>
@@ -239,7 +240,7 @@ tools/run_quest_tests.sh        # plays all 13 quests end to end, plus save/relo
 | Piece | What it does |
 |---|---|
 | **World streaming** | The map stays in ROM. A reference-counted cache of 576 VRAM tiles is updated one row or column at a time as the camera moves, so the whole mainland fits in video memory with no seams. Stumps and depleted rocks live in a small override table. |
-| **UI canvases** | Two background layers give every screen cell its own tile. Panels and proportional text are drawn per pixel into RAM and streamed to VRAM. A per-scanline HBlank DMA paints the panel gradient, and hardware alpha blending plus mosaic produce the frosted-glass look. |
+| **UI canvases** | Two background layers give every screen cell its own tile. Panels and proportional text are drawn per pixel into RAM and streamed to VRAM. A per-scanline HBlank DMA paints the panel gradient, and hardware alpha blending fades the windows in and out. |
 | **Avatar compositing** | 137 layer graphics (bodies, armour, shields, weapons, tools) are stacked into a 32×32 sprite whenever your gear or pose changes, then recoloured by metal tier through the palette. |
 | **Quest scripts** | Quests are written in a small script language (`tools/quests.txt`) and compiled to bytecode at build time, with checks on dialogue fit, labels and reachability. A tiny VM runs them in game. |
 | **Music** | MIDI files are converted at build time. A 10-voice wavetable synth written in ARM assembly runs from IWRAM and mixes 13.4 kHz audio into DirectSound through DMA, using about 17% of each frame. |

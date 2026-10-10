@@ -140,6 +140,8 @@ static int res_alt_meta(int cell) {
     return -1;
 }
 
+static void foe_release(int i);
+
 static int fire_at(int x, int y) {
     for (int i = 0; i < MAX_FIRES; i++)
         if (fires[i].active && fires[i].x == x && fires[i].y == y) return i;
@@ -169,9 +171,7 @@ static int spot_at(int x, int y) {
 
 static int walkable(int x, int y) {
     if (!in_map(x, y)) return 0;
-    if (world_type(x, y) > T_WALKABLE_MAX) return 0;
-    if (fire_at(x, y) >= 0) return 0;
-    return 1;
+    return world_type(x, y) <= T_WALKABLE_MAX;   // fires don't block (walk over them as in OSRS)
 }
 
 static int free_tile(int x, int y) {
@@ -239,6 +239,7 @@ void npc_set_active(int i, int on) {
     } else {
         n->active = 0;
         n->in_combat = 0;
+        foe_release(i);
         occ_clear(n->x, n->y);
         if (pl.action == ACT_COMBAT && pl.target == i) player_stop();
     }
@@ -262,6 +263,10 @@ void player_tp(int x, int y, int dir) {
     pl.py = y * 16;
     pl.dir = dir;
     pl.moving = 0;
+}
+
+int player_can_walk_through(void) {
+    return free_tile(pl.x + DX[pl.dir] * 2, pl.y + DY[pl.dir] * 2);
 }
 
 int player_walk_through(void) {
@@ -496,6 +501,36 @@ static int hit_chance256(int atk_roll, int def_roll) {
 
 static void npc_die(int i);
 
+// Single-way combat: one NPC at a time may fight the player. The lock is held by the
+// player's chosen target while the player pursues it, and by whoever last traded a hit
+// for FOE_TICKS afterwards (so running away eventually frees the player).
+#define FOE_TICKS 10
+static s16 foe = -1;
+static u8 foe_timer;
+
+static int foe_free(int i) {
+    return foe < 0 || foe == i || !foe_timer || !npcs[foe].active;
+}
+static void foe_engage(int i) {
+    foe = i;
+    foe_timer = FOE_TICKS;
+}
+static void foe_release(int i) {
+    if (foe == i) foe = -1;
+}
+
+// ticks between swings for the wielded weapon (OSRS speeds)
+static int weapon_speed(void) {
+    switch (pl.equip[EQ_WEAPON]) {
+    case I_BRONZE_AXE: case I_IRON_AXE: case I_STEEL_AXE: case I_MITHRIL_AXE: case I_ADAMANT_AXE:
+    case I_RUNE_AXE: case I_BRONZE_PICK: case I_IRON_PICK: case I_STEEL_PICK: case I_MITHRIL_PICK:
+    case I_ADAMANT_PICK: case I_RUNE_PICK: case I_IRON_MACE: case I_STEEL_LONGSWORD: case I_RUNE_LONGSWORD:
+        return 5;
+    default:
+        return 4;   // unarmed, daggers, swords, scimitars
+    }
+}
+
 static void player_attack(int i) {
     Npc *n = &npcs[i];
     const NpcDef *d = &npc_defs[n->kind];
@@ -511,6 +546,7 @@ static void player_attack(int i) {
         dmg = 0;
     }
     if (dmg > n->hp) dmg = n->hp;
+    foe_engage(i);
     pl.lunge = 8;
     n->hpbar_timer = 200;
     n->in_combat = 1;
@@ -536,6 +572,7 @@ static void npc_attack(int i) {
     if (maxhit < 1) maxhit = 1;
     int dmg = roll(hit_chance256(a, def)) ? rnd_range(maxhit + 1) : 0;
     if (dmg > pl.hp) dmg = pl.hp;
+    foe_engage(i);
     n->lunge = 8;
     pl.hpbar_timer = 200;
     splat_spawn(pl.px, pl.py, dmg);
@@ -544,7 +581,7 @@ static void npc_attack(int i) {
     if (pl.action != ACT_COMBAT && pl.autoret && !pl.moving) {
         pl.action = ACT_COMBAT;
         pl.target = i;
-        pl.attack_cd = 1;
+        if (!pl.attack_cd) pl.attack_cd = 1;
         ui_set_target(i);
     }
     if (!pl.hp) {
@@ -556,6 +593,7 @@ static void npc_attack(int i) {
 
 void player_respawn(void) {
     for (int i = 0; i < npc_hi; i++) npcs[i].in_combat = 0;
+    foe = -1;
     player_stop();
     pl.x = START_X;
     pl.y = START_Y;
@@ -657,6 +695,7 @@ static void npc_die(int i) {
     n->active = 0;
     occ_clear(n->x, n->y);
     n->in_combat = 0;
+    foe_release(i);
     n->respawn = npc_defs[n->kind].respawn;
     if (pl.target == i && pl.action == ACT_COMBAT) player_stop();
 }
@@ -973,11 +1012,16 @@ static void interact(void) {
             return;
         }
         if (d->flags & NF_ATTACK) {
+            if (pl.action == ACT_COMBAT && pl.target == n) return;   // already fighting it
+            if (!foe_free(n)) {
+                msg("I'm already under attack.");
+                return;
+            }
+            // the swing timer keeps running: re-pressing A never makes an attack come sooner
             pl.action = ACT_COMBAT;
             pl.target = n;
-            pl.attack_cd = 0;
+            foe_engage(n);
             ui_set_target(n);
-            tick_frames = TICK_FRAMES - 1;
         } else if (d->flags & NF_TALK) {
             Npc *np = &npcs[n];
             np->dir = pl.dir == DIR_UP ? DIR_DOWN : pl.dir == DIR_DOWN ? DIR_UP : pl.dir == DIR_LEFT ? DIR_RIGHT : DIR_LEFT;
@@ -1100,10 +1144,16 @@ static void interact(void) {
 
 // ---------------------------------------------------------------------------------------
 static void game_tick(void) {
+    // combat timers tick whatever the player is doing
+    if (pl.attack_cd) pl.attack_cd--;
+    if (foe_timer) foe_timer--;
     // player combat
     if (pl.action == ACT_COMBAT) {
         Npc *n = &npcs[pl.target];
         if (!n->active) {
+            player_stop();
+        } else if (!foe_free(pl.target)) {
+            msg("I'm already under attack.");
             player_stop();
         } else if (!adjacent(pl.x, pl.y, n->x, n->y)) {
             if (!pl.moving && !n->moving) {
@@ -1112,10 +1162,10 @@ static void game_tick(void) {
             }
         } else if (!pl.moving && !n->moving) {
             pl.dir = dir_toward(pl.x, pl.y, n->x, n->y, 0);
-            if (pl.attack_cd) pl.attack_cd--;
+            foe_engage(pl.target);
             if (!pl.attack_cd) {
                 player_attack(pl.target);
-                pl.attack_cd = 4;
+                pl.attack_cd = weapon_speed();
             }
         }
     } else if (pl.action != ACT_NONE && !pl.moving) {
@@ -1154,14 +1204,16 @@ static void game_tick(void) {
         }
         if (n->state && n->kind == NPC_SHEEP) n->state--;   // sheared wool grows back
         if (n->moving) continue;
-        if (!n->in_combat && (d->flags & NF_AGGRO) && pl.action != ACT_COMBAT &&
+        if (!n->in_combat && (d->flags & NF_AGGRO) && pl.action != ACT_COMBAT && foe_free(i) &&
             my_cb <= d->level * 2 && dist(n->x, n->y, pl.x, pl.y) <= 3) {
             n->in_combat = 1;
             n->attack_cd = 2;
         }
         if (n->in_combat) {
-            if (dist(n->x, n->y, n->hx, n->hy) > 12 || dist(n->x, n->y, pl.x, pl.y) > 9) {
+            // leashed, or the player is busy with another NPC: give up the fight
+            if (dist(n->x, n->y, n->hx, n->hy) > 12 || dist(n->x, n->y, pl.x, pl.y) > 9 || !foe_free(i)) {
                 n->in_combat = 0;
+                foe_release(i);
                 continue;
             }
             if (!adjacent(n->x, n->y, pl.x, pl.y)) {
@@ -1343,8 +1395,11 @@ static void draw_player(int sx, int sy) {
             Npc *n = &npcs[pl.target];
             if (n->active && adjacent(pl.x, pl.y, n->x, n->y)) {
                 act = AVA_COMBAT;
-                int cd = pl.attack_cd > 4 ? 4 : pl.attack_cd;
-                t = (4 - cd) * TICK_FRAMES + tick_frames;
+                // the swing pose follows the hit; the wind-up always fills the last 24 frames
+                int sp = weapon_speed(), cd = pl.attack_cd > sp ? sp : pl.attack_cd;
+                int since = (sp - cd) * TICK_FRAMES + tick_frames, left = sp * TICK_FRAMES - since;
+                t = since < 12 ? since : 4 * TICK_FRAMES - left;
+                if (t < 12) t = 12;
             }
             break;
         }
@@ -1361,6 +1416,7 @@ static void draw_hpbar(int sx, int sy, int hp, int max) {
 
 void world_draw_sprites(int unused) {
     (void)unused;
+    if (game_state == GS_TITLE) return;   // the login screen is black
     int fx = game_state == GS_WORLD || game_state == GS_DIALOG || game_state == GS_TITLE;
     // hitsplats on top
     for (int i = 0; i < MAX_SPLATS && fx; i++)

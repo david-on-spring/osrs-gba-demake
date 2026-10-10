@@ -232,11 +232,13 @@ int text_wrap(const char *s, int width, char lines[][48], int maxlines) {
 // ---------------------------------------------------------------------------------------
 // Panel primitives (panel canvas)
 
-// Frosted panel with chamfered top-left/bottom-right corners and bright corner brackets.
+// OSRS stone window: brown fill (a per-scanline gradient on colour 1), a black outline and a
+// light/dark bevel just inside it. (The chamfer argument is from the old look and ignored.)
 // Rows are written a tile word at a time from a per-row pattern that is only rebuilt when the
-// row's span changes (the chamfers), so big panels stay cheap.
+// row's span changes, so big panels stay cheap.
 IWRAM_CODE void draw_panel(int x, int y, int w, int h, int ch) {
     Canvas *c = &cv_panel;
+    ch = 0;
     int x1 = x + w - 1, y1 = y + h - 1;
     u32 pw[30], pm[30];
     int pl = -9999, pr = -9999, pe = -1, t0 = 0, t1 = -1;
@@ -292,67 +294,60 @@ IWRAM_CODE void draw_panel(int x, int y, int w, int h, int ch) {
         }
     }
     mark(c, y < 0 ? 0 : y, y1 >= SCREEN_H ? SCREEN_H - 1 : y1);
-    // bright brackets: top-left diagonal + arms, bottom-right diagonal + arms
-    for (int i = 0; i <= ch; i++) {
-        cv_pset(c, x + ch - i, y + i, PC_EDGE);
-        cv_pset(c, x1 - ch + i, y1 - i, PC_EDGE);
+    // bevel: lit top/left, shaded bottom/right
+    cv_fill(c, x + 1, y + 1, w - 2, 1, PC_EDGE);
+    cv_fill(c, x + 1, y + 2, 1, h - 3, PC_EDGE);
+    cv_fill(c, x + 2, y1 - 1, w - 3, 1, PC_WELL);
+    cv_fill(c, x1 - 1, y + 2, 1, h - 3, PC_WELL);
+}
+
+// OSRS chatbox / quest scroll paper
+void draw_parchment(int x, int y, int w, int h) {
+    Canvas *c = &cv_panel;
+    cv_fill(c, x, y, w, h, PC_EDGE_DIM);
+    cv_fill(c, x + 1, y + 1, w - 2, h - 2, PC_PARCH_D);
+    cv_fill(c, x + 2, y + 2, w - 4, h - 4, PC_PARCH);
+}
+
+// raised stone button (login screen, popups); the selected one glows
+void draw_stone_button(int x, int y, int w, int h, int sel) {
+    Canvas *c = &cv_panel;
+    cv_fill(c, x, y, w, h, PC_EDGE_DIM);
+    cv_fill(c, x + 1, y + 1, w - 2, h - 2, sel ? PC_HL1 : PC_HL2);
+    cv_fill(c, x + 1, y + 1, w - 2, 1, PC_EDGE);
+    cv_fill(c, x + 1, y + 1, 1, h - 2, PC_EDGE);
+    cv_fill(c, x + 2, y + h - 2, w - 3, 1, PC_WELL);
+    cv_fill(c, x + w - 2, y + 2, 1, h - 4, PC_WELL);
+    if (sel) {
+        cv_fill(c, x - 1, y - 1, w + 2, 1, PC_WHITE);
+        cv_fill(c, x - 1, y + h, w + 2, 1, PC_WHITE);
+        cv_fill(c, x - 1, y, 1, h, PC_WHITE);
+        cv_fill(c, x + w, y, 1, h, PC_WHITE);
     }
-    int arm = w / 4 < 18 ? w / 4 : 18;
-    cv_fill(c, x + ch, y, arm, 1, PC_EDGE);
-    cv_fill(c, x, y + ch, 1, arm / 2, PC_EDGE);
-    cv_fill(c, x1 - ch - arm + 1, y1, arm, 1, PC_EDGE);
-    cv_fill(c, x1, y1 - ch - arm / 2 + 1, 1, arm / 2, PC_EDGE);
 }
 
 void draw_panel_plain(int x, int y, int w, int h, int col) { cv_fill(&cv_panel, x, y, w, h, col); }
 
-// Selection bar: bright left accent, colour fading to the right with a slanted end.
-// Each row is five spans (solid / two dithers / a dither over transparency); a dither's pixel
-// colour only depends on pixel parity, so every span is one repeated word written per tile.
-IWRAM_CODE static void hl_span(u32 *line, int x0, int x1, u32 word, u32 pmask) {
-    if (x0 < 0) x0 = 0;
-    if (x1 > SCREEN_W) x1 = SCREEN_W;
-    while (x0 < x1) {
-        int t = x0 >> 3, s0 = x0 & 7, e0 = x1 - (t << 3) > 8 ? 8 : x1 - (t << 3);
-        u32 m = (e0 == 8 ? 0xFFFFFFFFu : ((1u << (e0 * 4)) - 1)) & ~((1u << (s0 * 4)) - 1) & pmask;
-        line[t * 8] = (line[t * 8] & ~m) | (word & m);
-        x0 = (t + 1) << 3;
-    }
-}
-
+// Hovered row: a flat band of lighter stone (colour HL1 breathes, see gfx_set_hl_pulse)
+// with a dark underline, like an OSRS list entry under the mouse.
 IWRAM_CODE void draw_highlight(int x, int y, int w, int h) {
-    Canvas *c = &cv_panel;
-    for (int r = 0; r < h; r++) {
-        int yy = y + r;
-        if ((unsigned)yy >= SCREEN_H) continue;
-        int len = w - (h - 1 - r) / 2;
-        int a = len * 5 / 10, b = len * 7 / 10, d = len * 85 / 100;
-        u32 *line = &c->tiles[(yy >> 3) * 240 + (yy & 7)];
-        // pixel px uses colour "odd" when (px - x + r) is odd
-        int par = (r - x) & 1;
-        u32 odd_n = par ? 0x0F0F0F0Fu : 0xF0F0F0F0u;   // nibbles of pixels where (px - x + r) is odd
-        u32 even_n = ~odd_n;
-        hl_span(line, x, x + 2, (u32)PC_EDGE * 0x11111111u, ~0u);
-        hl_span(line, x + 2, x + a, (u32)PC_HL1 * 0x11111111u, ~0u);
-        hl_span(line, x + a, x + b, ((u32)PC_HL1 * 0x11111111u & odd_n) | ((u32)PC_HL2 * 0x11111111u & even_n), ~0u);
-        hl_span(line, x + b, x + d, ((u32)PC_HL2 * 0x11111111u & odd_n) | ((u32)PC_HL3 * 0x11111111u & even_n), ~0u);
-        hl_span(line, x + d, x + len, (u32)PC_HL3 * 0x11111111u, odd_n);
-    }
-    mark(c, y < 0 ? 0 : y, y + h - 1 >= SCREEN_H ? SCREEN_H - 1 : y + h - 1);
+    cv_fill(&cv_panel, x, y, w, h - 1, PC_HL1);
+    cv_fill(&cv_panel, x, y + h - 1, w, 1, PC_HL2);
 }
 
-// Slim parallelogram gauge.
+// Flat OSRS gauge with a black outline; health bars (green) sit on red like the game's.
 void draw_bar(int x, int y, int w, int val, int max, int col, int dark) {
     Canvas *c = &cv_panel;
     if (max <= 0) max = 1;
     if (val < 0) val = 0;
     if (val > max) val = max;
-    int fill = (w - 4) * val / max;
+    int fill = (w - 2) * val / max;
     if (val > 0 && fill == 0) fill = 1;
-    for (int r = 0; r < 4; r++) {
-        int off = 3 - r;
-        cv_fill(c, x + off, y + r, w - 3, 1, PC_BAR_BG);
-        if (fill) cv_fill(c, x + off + 1, y + r, fill, 1, r < 2 ? col : dark);
+    cv_fill(c, x, y, w, 5, PC_EDGE_DIM);
+    cv_fill(c, x + 1, y + 1, w - 2, 3, col == PC_GREEN || col == PC_RED ? PC_RED : PC_BAR_BG);
+    if (fill) {
+        cv_fill(c, x + 1, y + 1, fill, 3, col == PC_RED ? PC_GREEN : col);
+        cv_fill(c, x + 1, y + 3, fill, 1, col == PC_RED ? PC_GREEN_D : dark);
     }
 }
 
@@ -376,22 +371,25 @@ void draw_button(int x, int y, char label) {
     text_draw_ns(x + 2 - (font_width[glyph(s[0])] > 3), y + 1, s, TC_WHITE);
 }
 
+// engraved divider
 void draw_rule(int x, int y, int w) {
     cv_fill(&cv_panel, x, y, w, 1, PC_EDGE_DIM);
-    cv_fill(&cv_panel, x, y, w / 5, 1, PC_EDGE);
+    cv_fill(&cv_panel, x, y + 1, w, 1, PC_EDGE);
 }
 
+// inset slot (inventory/bank/equipment); the selected one gets OSRS's white outline
 void draw_cell(int x, int y, int w, int h, int sel) {
     Canvas *c = &cv_panel;
-    cv_fill(c, x, y, w, h, PC_WELL);
+    cv_fill(c, x, y, w, h, sel ? PC_HL3 : PC_WELL);
     if (sel) {
-        cv_fill(c, x, y, w, 1, PC_EDGE);
-        cv_fill(c, x, y + h - 1, w, 1, PC_EDGE);
-        cv_fill(c, x, y, 1, h, PC_EDGE);
-        cv_fill(c, x + w - 1, y, 1, h, PC_EDGE);
-        cv_fill(c, x + 1, y + 1, w - 2, h - 2, PC_HL3);
+        cv_fill(c, x, y, w, 1, PC_WHITE);
+        cv_fill(c, x, y + h - 1, w, 1, PC_WHITE);
+        cv_fill(c, x, y, 1, h, PC_WHITE);
+        cv_fill(c, x + w - 1, y, 1, h, PC_WHITE);
     } else {
-        cv_pset(c, x, y, PC_EDGE_DIM);
-        cv_pset(c, x + w - 1, y + h - 1, PC_EDGE_DIM);
+        cv_fill(c, x, y, w, 1, PC_EDGE_DIM);
+        cv_fill(c, x, y, 1, h, PC_EDGE_DIM);
+        cv_fill(c, x + 1, y + h - 1, w - 1, 1, PC_HL2);
+        cv_fill(c, x + w - 1, y + 1, 1, h - 1, PC_HL2);
     }
 }
