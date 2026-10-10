@@ -2,14 +2,14 @@
 """Expand quest test scripts (.src) into harness scripts. usage: qtest.py in.src out.txt
 
 Adds to the harness commands:
-  tp X Y DIR             teleport (cells; DIR 0 down, 1 up, 2 left, 3 right)
+  tp X Y DIR [PLANE]     teleport to an OSRS tile (DIR 0 down, 1 up, 2 left, 3 right)
   item SLOT NAME [QTY]   put an item (I_NAME) in inventory slot SLOT
   clearinv               empty the inventory
   equip SLOT NAME [QTY]  wear an item (SLOT = HEAD WEAPON BODY SHIELD LEGS FEET NECK AMMO; QTY for AMMO)
   spell NAME             set the autocast spell (a src/spells.c name in capitals, e.g. WIND_STRIKE; NONE)
   expectammo NAME N      PASS/FAIL check of the ammo slot and its quantity
   expectspell NAME       PASS/FAIL check of the autocast spell
-  expectnpcat I|KIND [ZONE] X Y  PASS/FAIL check of an NPC's cell (with ZONE: an OSRS tile)
+  expectnpcat I|KIND [ZONE] X Y  PASS/FAIL check of an NPC's OSRS tile
   expecthpbelow N        PASS/FAIL check that current hitpoints are below N
   homecd TICKS           set the home teleport cooldown
   expecthomecd MIN       PASS/FAIL check that the home teleport cooldown is at least MIN ticks
@@ -37,15 +37,18 @@ Adds to the harness commands:
   expecthp N             PASS/FAIL check of current hitpoints
   expectstate STATE      PASS/FAIL check of game_state (TITLE WORLD MENU DIALOG BANK SHOP LEVELUP QUESTDONE)
   hp N                   set current hitpoints
-  npcpos I|KIND [ZONE] X Y  move NPC I (see build/spawns.txt), the first of a kind (or KIND:N, the Nth), to a cell
+  npcpos I|KIND [ZONE] X Y  move NPC I (see build/spawns.txt), the first of a kind (or KIND:N, the Nth), to an OSRS tile
   untildead I|KIND [N]   run until that NPC is inactive (killed), at most N frames (default 3000)
   tpz ZONE X Y DIR       teleport to OSRS tile (X, Y) in a zone (OVERWORLD, CASTLE_1, CASTLE_2; a town's name
                          such as LUMBRIDGE is the overworld)
-  expectat ZONE X Y      PASS/FAIL check that the player stands on OSRS tile (X, Y) of a zone (ZONE CELL: a cell)
+  expectat ZONE X Y      PASS/FAIL check that the player stands on OSRS tile (X, Y) of a zone
   face THING DIR         stand next to THING facing it (DIR is the way the player faces; another free side
                          is used if that one is blocked). THING is an NPC kind (its first spawn), obj:TYPE
                          or item:NAME (the 'stand' lines in build/spawns.txt)
-Player field offsets come from src/game.h's layout (checked against the map symbols)."""
+Scripts run in the harness's gameframe mode: a wait of N frames is N frames of the game's own
+loop, however many video frames each took. Positions are absolute OSRS tiles (X east, Y north, plane); a ZONE names the plane (OVERWORLD,
+CASTLE_1, CASTLE_2 or a town). Player field offsets come from src/game.h's layout (checked against
+the map symbols)."""
 import os
 import re
 import sys
@@ -65,10 +68,10 @@ SKILLS = ['ATTACK', 'STRENGTH', 'DEFENCE', 'HITPOINTS', 'PRAYER', 'WOODCUTTING',
           'COOKING', 'MINING', 'RANGED', 'MAGIC']
 EQ = ['HEAD', 'WEAPON', 'BODY', 'SHIELD', 'LEGS', 'FEET', 'NECK', 'AMMO']
 # (src/save.c asserts these against the struct)
-OFF_XP, OFF_INV, OFF_EQUIP, OFF_AMMO, OFF_BANK, OFF_QSTAGE, OFF_QVAR, OFF_SPELL, OFF_HOMECD = \
-    0x20, 0x50, 0xC0, 0xD0, 0xD2, 0x258, 0x268, 0x288, 0x28A
+OFF_XP, OFF_INV, OFF_EQUIP, OFF_AMMO, OFF_BANK, OFF_QSTAGE, OFF_QVAR, OFF_SPELL, OFF_PLANE, OFF_HOMECD = \
+    0x20, 0x50, 0xC0, 0xD0, 0xD2, 0x258, 0x268, 0x288, 0x289, 0x28A
 STATES = ['TITLE', 'WORLD', 'MENU', 'DIALOG', 'BANK', 'SHOP', 'LEVELUP', 'QUESTDONE', 'TARGET']   # GS_* in src/game.h
-NPC_SIZE = 30      # sizeof(Npc), asserted in src/world.c
+NPC_SIZE = 32      # sizeof(Npc), asserted in src/world.c
 # spell names in book order from src/spells.c ("Wind Strike" -> WIND_STRIKE)
 SPELLS = [re.sub(r'\W+', '_', n).strip('_').upper()
           for n in re.findall(r'^\s+(?:\{|CB\(|CU\(|NA\()"([^"]+)"', open(os.path.join(root, 'src/spells.c')).read(), re.M)]
@@ -81,32 +84,36 @@ def spawn_lines():
     return [ln.split() for ln in open(SPAWNS_TXT)]
 
 
-def zone_cell(z, X, Y):
+def zone_plane(z):
     for p in spawn_lines():
         if p[0] == 'zone' and p[1] == z:
-            OX, OY, S, CX0, CY0 = map(int, p[2:])
-            return CX0 + (X - OX) // S, CY0 + (OY - Y) // S
+            return int(p[2])
     raise SystemExit('unknown zone ' + z)
 
 
-def thing_cell(name):
+def world_origin():
+    return next((int(p[1]), int(p[2])) for p in spawn_lines() if p[0] == 'world')
+
+
+def thing_tile(name):
     for p in spawn_lines():
         if (p[0].isdigit() and p[1] == name) or (p[0] in ('obj', 'item', 'place') and
                                                   (p[0] + ':' + p[1] == name or (p[0] == 'place' and p[1] == name))):
-            return int(p[-2]), int(p[-1])
+            return int(p[-3]), int(p[-2]), int(p[-1])
     raise SystemExit('unknown thing ' + name)
 
 
 def at_arg(p, i):
-    """Cell from p[i:]: 'X Y' cells, or 'ZONE X Y' in OSRS tiles."""
-    if p[i].isalpha():
-        return zone_cell(p[i], int(p[i + 1]), int(p[i + 2]))
-    return int(p[i]), int(p[i + 1])
+    """OSRS tile from p[i:]: 'X Y' on the ground floor, or 'ZONE X Y'."""
+    if not p[i].lstrip("-").isdigit():
+        return int(p[i + 1]), int(p[i + 2]), zone_plane(p[i])
+    return int(p[i]), int(p[i + 1]), 0
 
 
-def tp_lines(x, y, d):
-    return ['press B', 'wait 2', 'poke16 @pl %x' % x, 'poke16 @pl+2 %x' % y, 'poke16 @pl+4 %x' % (x * 16),
-            'poke16 @pl+6 %x' % (y * 16), 'poke8 @pl+8 %x' % d, 'wait 4']
+def tp_lines(x, y, plane, d):
+    x0, y1 = world_origin()
+    return ['press B', 'wait 2', 'poke16 @pl %x' % x, 'poke16 @pl+2 %x' % y, 'poke16 @pl+4 %x' % ((x - x0) * 16),
+            'poke16 @pl+6 %x' % ((y1 - y) * 16), 'poke8 @pl+8 %x' % d, 'poke8 @pl+0x%x %x' % (OFF_PLANE, plane), 'wait 4']
 
 
 DIRV = {'DOWN': (0, 0, 1), 'UP': (1, 0, -1), 'LEFT': (2, -1, 0), 'RIGHT': (3, 1, 0)}
@@ -121,29 +128,27 @@ def npc_index(k):          # an index, a kind's first spawn, or KIND:N, its Nth 
     return hits[int(nth) - 1 if nth else 0]
 
 
-out = []
+out = ['gameframe @frame']   # waits count game frames (tools/harness.c), so dropped frames do not shift the script
 for line in open(sys.argv[1]):
     p = line.split()
     if not p:
         continue
     c = p[0]
     if c == 'tp':
-        x, y, d = int(p[1]), int(p[2]), int(p[3])
-        out += ['press B', 'wait 2', 'poke16 @pl %x' % x, 'poke16 @pl+2 %x' % y, 'poke16 @pl+4 %x' % (x * 16),
-                'poke16 @pl+6 %x' % (y * 16), 'poke8 @pl+8 %x' % d, 'wait 4']
+        out += tp_lines(int(p[1]), int(p[2]), int(p[4]) if len(p) > 4 else 0, int(p[3]))
     elif c == 'tpz':
-        x, y = zone_cell(p[1], int(p[2]), int(p[3]))
-        out += tp_lines(x, y, int(p[4]) if p[4].isdigit() else DIRV[p[4]][0])
+        out += tp_lines(int(p[2]), int(p[3]), zone_plane(p[1]), int(p[4]) if p[4].isdigit() else DIRV[p[4]][0])
     elif c == 'expectat':
-        x, y = (int(p[2]), int(p[3])) if p[1] == 'CELL' else zone_cell(p[1], int(p[2]), int(p[3]))
-        out += ['expect16 @pl %x %s_x' % (x, c), 'expect16 @pl+2 %x %s_y' % (y, c)]
+        x, y, pln = at_arg(p, 1)
+        out += ['expect16 @pl %x %s_x' % (x, c), 'expect16 @pl+2 %x %s_y' % (y, c),
+                'expect8 @pl+0x%x %x %s_plane' % (OFF_PLANE, pln, c)]
     elif c == 'face':       # stand beside the thing facing it, from the side asked for if it is free
         d = DIRV[p[2]][0]
-        st = [(int(q[2]), int(q[3]), int(q[4])) for q in spawn_lines() if q[0] == 'stand' and q[1] == p[1]]
+        st = [tuple(int(v) for v in q[2:6]) for q in spawn_lines() if q[0] == 'stand' and q[1] == p[1]]
         if not st:
             raise SystemExit('nowhere to stand facing ' + p[1])
-        sx, sy, sd = next((t for t in st if t[2] == d), st[0])
-        out += tp_lines(sx, sy, sd)
+        sx, sy, sp, sd = next((t for t in st if t[3] == d), st[0])
+        out += tp_lines(sx, sy, sp, sd)
     elif c == 'item':
         slot, it = int(p[1]), ITEM[p[2]]
         q = int(p[3]) if len(p) > 3 else 1
@@ -172,7 +177,7 @@ for line in open(sys.argv[1]):
         out += ['expect16 @pl %x %s_x' % (x, p[1]), 'expect16 @pl+2 %x %s_y' % (y, p[1])]
     elif c == 'expectnpcat':
         base = npc_index(p[1]) * NPC_SIZE
-        x, y = at_arg(p, 2)
+        x, y, pln = at_arg(p, 2)
         out += ['expect16 @npcs+0x%x %x %s_x' % (base + 4, x, p[1]),
                 'expect16 @npcs+0x%x %x %s_y' % (base + 6, y, p[1])]
     elif c == 'expecthpbelow':
@@ -222,13 +227,10 @@ for line in open(sys.argv[1]):
         out.append('expect8 @pl+0x16 %x hp_%s' % (int(p[1]), p[1]))
     elif c == 'expectstate':
         out.append('expect8 @game_state %x state_%s' % (STATES.index(p[1]), p[1]))
-    elif c == 'npcpos':     # npcpos INDEX X Y: put an NPC (index from build/spawns.txt) on a cell
-        x, y = at_arg(p, 2)
-        base = npc_index(p[1]) * NPC_SIZE
-        cell = y * next(int(q[1]) for q in spawn_lines() if q[0] == 'mapw') + x
-        out += ['poke8 @npcs+0x%x 0' % (base + 3), 'poke16 @npcs+0x%x %x' % (base + 4, x), 'poke16 @npcs+0x%x %x' % (base + 6, y),
-                'poke16 @npcs+0x%x %x' % (base + 8, x * 16), 'poke16 @npcs+0x%x %x' % (base + 10, y * 16),
-                'poke8 @occ_bits+0x%x %x' % ((cell >> 5) * 4 + ((cell & 31) >> 3), 1 << (cell & 7))]
+    elif c == 'npcpos':     # npcpos INDEX [ZONE] X Y: put an NPC (index from build/spawns.txt) on a tile
+        x, y, pln = at_arg(p, 2)    # (world_debug() in src/world.c moves it, with its occupancy, next frame)
+        out += ['poke16 @dbg_npc_move+2 %x' % x, 'poke16 @dbg_npc_move+4 %x' % y, 'poke8 @dbg_npc_move+6 %x' % pln,
+                'poke16 @dbg_npc_move %x' % (npc_index(p[1]) + 1)]
     elif c == 'untildead':
         out.append('until8 @npcs+0x%x 0 %d' % (npc_index(p[1]) * NPC_SIZE, int(p[2]) if len(p) > 2 else 3000))
     elif c == 'hp':

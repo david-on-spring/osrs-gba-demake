@@ -3289,12 +3289,105 @@ assert MW <= 65535 and MH <= 65535
 # ----------------------------------------------------------------------------------------
 # C emission
 # ----------------------------------------------------------------------------------------
+# The game works in absolute OSRS tiles (X east, Y north, plane); the cell grid above is only how
+# the generator lays the map out. osrs_of() maps a cell to its tile, through the zone it lies in.
+WORLD_X0, WORLD_Y1 = OW.OX, OW.OY       # pixel origin: px = (X - WORLD_X0) * 16, py = (WORLD_Y1 - Y) * 16
+
+
+def osrs_of(x, y):
+    """Grid cell -> absolute OSRS tile (X, Y, plane)."""
+    for (n, z, ps, p) in ZONES:
+        if z.X0 <= x <= z.X1 and z.Y0 <= y <= z.Y1:
+            return (z.OX + (x - z.CX0) * z.S, z.OY - (y - z.CY0) * z.S, p)
+    raise ValueError('cell %d,%d lies in no zone' % (x, y))
+
+
+def osrs_rect(x0, y0, x1, y1):
+    """Cell rect -> OSRS (X0, Y0, X1, Y1, plane), with Y0 the south edge."""
+    a, b = osrs_of(x0, y1), osrs_of(x1, y0)
+    assert a[2] == b[2], ('rect spans planes', x0, y0, x1, y1)
+    return (a[0], a[1], b[0], b[1], a[2])
+
+
+# the grid rows each plane occupies (one zone per plane; the cell grid is still the map storage)
+PLANE_GRID = {}
+for (_n, _z, _ps, _p) in ZONES:
+    assert _z.S == 1 and _p not in PLANE_GRID, ('one 1:1 zone per plane', _n)
+    PLANE_GRID[_p] = (_z.CX0 - _z.OX, _z.CY0 + _z.OY)    # cell = (X + gx, gy - Y)
+NPLANES = max(PLANE_GRID) + 1
+
+
+# ----------------------------------------------------------------------------------------
+# Regions: the map as OSRS map squares (64x64 tiles, per plane). Each region holds sixteen
+# 16x16-tile blocks, each block LZ77-compressed in the GBA BIOS format (tools/lz77.py) with
+# its cells as meta u16[256], over u16[256], type u8[256], roof u8[256] (index (y & 15) * 16 +
+# (x & 15)), plus an uncompressed walkability bitmap so NPCs can move anywhere without
+# decompressing. Blocks wholly outside the playable bounds are not stored; neither are
+# regions outside them.
+import lz77  # noqa: E402
+
+REGION, BLOCK = 64, 16
+BOUNDS = {}         # plane -> OSRS (X0, Y0, X1, Y1): the zone of that floor
+for (_n, _z, _ps, _p) in ZONES:
+    BOUNDS[_p] = osrs_rect(_z.X0, _z.Y0, _z.X1, _z.Y1)[:4]
+RF_EDGE, RF_ROOFS, RF_OVERLAY = 1, 2, 4
+
+
+def cell_of(X, Y, p):
+    """OSRS tile -> grid cell, or None outside the floor's bounds."""
+    X0, Y0, X1, Y1 = BOUNDS[p]
+    if not (X0 <= X <= X1 and Y0 <= Y <= Y1):
+        return None
+    gx, gy = X + PLANE_GRID[p][0], PLANE_GRID[p][1] - Y
+    return (gx, gy) if 0 <= gx < MW and 0 <= gy < MH else None
+
+
+def build_regions():
+    """-> list of (plane, rx, ry, pal_set, flags, [block stream or None] * 16, walk words)."""
+    from collections import Counter
+    regs = []
+    for p in sorted(BOUNDS):
+        X0, Y0, X1, Y1 = BOUNDS[p]
+        for rx in range(X0 // REGION, X1 // REGION + 1):
+            for ry in range(Y0 // REGION, Y1 // REGION + 1):
+                blocks, walk = [], [0] * (REGION * REGION // 32)
+                psets, flags = Counter(), 0
+                for b in range(16):
+                    bx0, by0 = rx * REGION + (b & 3) * BLOCK, ry * REGION + (b >> 2) * BLOCK
+                    meta, over, typ, roof = [0] * 256, [0] * 256, [T['WATER']] * 256, [0] * 256
+                    inside = 0
+                    for ly in range(BLOCK):
+                        for lx in range(BLOCK):
+                            c = cell_of(bx0 + lx, by0 + ly, p)
+                            if c is None:
+                                flags |= RF_EDGE
+                                continue
+                            gx, gy = c
+                            i = ly * BLOCK + lx
+                            inside += 1
+                            meta[i], over[i], typ[i], roof[i] = map_meta[gy][gx], map_over[gy][gx], T[TY[gy][gx]], ROOF[gy][gx]
+                            psets[pset_of(gx, gy)] += 1
+                            flags |= (RF_ROOFS if roof[i] else 0) | (RF_OVERLAY if over[i] else 0)
+                            if typ[i] <= T['DOOR']:      # T_WALKABLE_MAX
+                                rl, rr = (b >> 2) * BLOCK + ly, (b & 3) * BLOCK + lx
+                                walk[rl * 2 + (rr >> 5)] |= 1 << (rr & 31)
+                    if not inside:
+                        blocks.append(None)
+                        continue
+                    raw = b''.join(v.to_bytes(2, 'little') for v in meta) + b''.join(v.to_bytes(2, 'little') for v in over) + \
+                        bytes(typ) + bytes(roof)
+                    blocks.append(lz77.compress(raw))
+                if any(blocks):
+                    regs.append((p, rx, ry, psets.most_common(1)[0][0], flags, blocks, walk))
+    return regs
+
+
+MAP_REGIONS = build_regions()
+assert all(rx < 256 and ry < 256 for (_, rx, ry, *_r) in MAP_REGIONS)
 
 
 def emit_header(h):
-    h.append('#define MAP_W %d' % MW)
-    h.append('#define MAP_H %d' % MH)
-    h.append('#define OW_H %d' % OW_H)
+    h.append('#define MAP_REGION_COUNT %d' % len(MAP_REGIONS))
     for n, i in T.items():
         h.append('#define T_%s %d' % (n, i))
     h.append('#define T_WALKABLE_MAX %d' % T['DOOR'])
@@ -3311,34 +3404,71 @@ def emit_header(h):
     h.append('enum { %s };' % ', '.join('ZONE_' + z[0] for z in ZONES))
     h.append('enum { %s };' % ', '.join('SHOP_' + n for n, _, _ in SHOPS))
     h.append('#define SHOP_COUNT %d' % len(SHOPS))
-    h.append('#define START_X %d' % START[0])
-    h.append('#define START_Y %d' % START[1])
-    for n in sorted(k for k in QPOS if k.startswith('TELE_')):    # teleport spell arrival cells
-        h.append('#define %s_X %d' % (n, QPOS[n][0]))
-        h.append('#define %s_Y %d' % (n, QPOS[n][1]))
+    h.append('#define WORLD_X0 %d   // pixel origin (OSRS tile at px 0)' % WORLD_X0)
+    h.append('#define WORLD_Y1 %d   // OSRS tile row at py 0 (Y grows north, py south)' % WORLD_Y1)
+    h.append('#define PLANE_COUNT %d' % NPLANES)
+    for n, cell in [('START', START)] + [(k, QPOS[k]) for k in sorted(k for k in QPOS if k.startswith('TELE_'))]:
+        X, Y, P = osrs_of(*cell)        # start / respawn and the teleport spells' arrival tiles
+        h.append('#define %s_X %d' % (n, X))
+        h.append('#define %s_Y %d' % (n, Y))
+        h.append('#define %s_P %d' % (n, P))
     h.append('''
-typedef struct { u8 kind; u16 x, y; } Spawn;
-typedef struct { u8 kind; u16 x, y; } FishSpotDef;
-typedef struct { const char *name; u16 x0, y0, x1, y1; } Region;
+// positions are absolute OSRS tiles: x east, y north, plane 0..3; rects are inclusive, y0 south
+typedef struct { u8 kind, plane; u16 x, y; } Spawn;
+typedef struct { u8 kind, plane; u16 x, y; } FishSpotDef;
+typedef struct { const char *name; u16 x0, y0, x1, y1; u8 plane; } Region;
 typedef struct { u16 x0, y0, x1, y1; u8 pal_set, plane; } Zone;
-typedef struct { u16 x0, y0, x1, y1; u8 pal_set; } PalRegion;   // camera cell (top-left) rect -> palette set
+typedef struct { u16 x0, y0, x1, y1; u8 pal_set; } PalRegion;   // camera tile (top-left) rect -> palette set
+typedef struct { u16 x, y; u8 plane; } ShopPos;
 extern const u32 world_tiles[WORLD_TILE_COUNT * 8];
 extern const u32 meta_tiles[META_COUNT][4];   // low 16: tile id, high 16: flip/palette attrs
-extern const u16 map_meta[MAP_W * MAP_H];
-extern const u16 map_over[MAP_W * MAP_H];
-extern const u8 map_type[MAP_W * MAP_H];
-extern const u8 map_roof[MAP_W * MAP_H];      // roof group (0 none): hidden while the player is under it
-extern const u32 res_cell[RES_COUNT];         // sorted cell indices of trees/rocks
+// The map: OSRS map squares (64x64 tiles) of each plane, sorted by (plane, rx, ry). A block is
+// 16x16 tiles, LZ77-compressed in the GBA BIOS format: meta u16[256], over u16[256], type
+// u8[256], roof u8[256] (roof group, 0 none: hidden while the player is under it), cell
+// (x & 15, y & 15) at index (y & 15) * 16 + (x & 15). See docs/regions.md.
+enum { RF_EDGE = 1, RF_ROOFS = 2, RF_OVERLAY = 4 };   // region flags: partly outside the bounds, has roofs, overlay
+typedef struct {
+    u8 rx, ry, plane, pal_set;    // map square (x >> 6, y >> 6), floor, palette set of most of its cells
+    u8 flags;                     // RF_*
+    const u32 *blk[16];           // block (x >> 4 & 3, y >> 4 & 3) at [(y >> 4 & 3) * 4 + (x >> 4 & 3)]; 0 = outside the map
+    const u32 *walk;              // 64x64 bits, word (y & 63) * 2 + (x >> 5 & 1), bit x & 31: walkable cells
+} MapRegion;
+extern const MapRegion map_regions[MAP_REGION_COUNT];
+extern const u16 map_bounds[PLANE_COUNT][4];   // x0, y0, x1, y1 of each floor (x0 > x1: no such floor)
+extern const u32 res_cell[RES_COUNT];         // sorted keys ((plane << 28) | (y << 14) | x) of trees/rocks
 extern const u16 res_alt[RES_COUNT];          // their depleted metatile (stump / empty rock)
 extern const u16 world_pal[WORLD_PAL_SETS][14 * 16];
 extern const u16 water_slots[WORLD_PAL_SETS][WATER_SLOT_MAX + 1];   // palette indices, 0-terminated
 extern const Spawn spawns[SPAWN_COUNT];
 extern const FishSpotDef fish_spots[FISHSPOT_COUNT];
 extern const Region regions[REGION_COUNT];
-extern const u16 shop_pos[SHOP_COUNT][2];     // cell at the centre of each shop's building
+extern const ShopPos shop_pos[SHOP_COUNT];      // tile at the centre of each shop's building
 extern const Zone zones[ZONE_COUNT];
 extern const PalRegion pal_regions[PAL_REGION_COUNT];
 ''')
+
+
+def emit_regions(c, arr):
+    streams, walks = {}, {}      # identical blocks / bitmaps are stored once
+    for (p, rx, ry, ps, fl, blocks, walk) in MAP_REGIONS:
+        for b in blocks:
+            if b is not None and b not in streams:
+                streams[b] = len(streams)
+                w = [int.from_bytes(b[i:i + 4], 'little') for i in range(0, len(b), 4)]
+                c.append(arr('u32', 'mb_%d[%d]' % (streams[b], len(w)), w, 12, '0x%08X').replace('const u32', 'static const u32'))
+        k = tuple(walk)
+        if k not in walks:
+            walks[k] = len(walks)
+            c.append(arr('u32', 'mw_%d[128]' % walks[k], walk, 8, '0x%08X').replace('const u32', 'static const u32'))
+    c.append('const MapRegion map_regions[MAP_REGION_COUNT] = {')
+    for (p, rx, ry, ps, fl, blocks, walk) in MAP_REGIONS:
+        c.append('  {%d, %d, %d, %d, %d, {%s}, mw_%d},' % (rx, ry, p, ps, fl, ', '.join(
+            'mb_%d' % streams[b] if b is not None else '0' for b in blocks), walks[tuple(walk)]))
+    c.append('};')
+    nb = sum(1 for r in MAP_REGIONS for b in r[5] if b is not None)
+    print('regions: %d (planes %s), %d blocks (%d stored), %d bytes compressed of %d, %d walk bitmaps' % (
+        len(MAP_REGIONS), ','.join(str(p) for p in sorted(BOUNDS)), nb, len(streams), sum(len(b) for b in streams),
+        nb * 1536, len(walks)), file=sys.stderr)
 
 
 def emit_source(c, arr, tile_words, npc_kinds):
@@ -3352,12 +3482,10 @@ def emit_source(c, arr, tile_words, npc_kinds):
     for m in meta_out:
         c.append('  {0x%08X,0x%08X,0x%08X,0x%08X},' % tuple(m))
     c.append('};')
-    c.append(arr('u16', 'map_meta[MAP_W * MAP_H]', [map_meta[y][x] for y in range(MH) for x in range(MW)], 24, '%d'))
-    c.append(arr('u16', 'map_over[MAP_W * MAP_H]', [map_over[y][x] for y in range(MH) for x in range(MW)], 32, '%d'))
-    c.append(arr('u8', 'map_type[MAP_W * MAP_H]', [T[TY[y][x]] for y in range(MH) for x in range(MW)], 40, '%d'))
-    c.append(arr('u8', 'map_roof[MAP_W * MAP_H]', [ROOF[y][x] for y in range(MH) for x in range(MW)], 40, '%d'))
-    c.append(arr('u32', 'res_cell[RES_COUNT]', [i for i, _ in RES_ALT], 24, '%d'))
-    c.append(arr('u16', 'res_alt[RES_COUNT]', [m for _, m in RES_ALT], 24, '%d'))
+    emit_regions(c, arr)
+    res = sorted(((lambda X, Y, P: (P << 28) | (Y << 14) | X)(*osrs_of(i % MW, i // MW)), m) for i, m in RES_ALT)
+    c.append(arr('u32', 'res_cell[RES_COUNT]', [k for k, _ in res], 12, '0x%08X'))
+    c.append(arr('u16', 'res_alt[RES_COUNT]', [m for _, m in res], 24, '%d'))
     c.append('const u16 world_pal[WORLD_PAL_SETS][14 * 16] = {')
     for wp in world_pal:
         c.append('  {' + ','.join('0x%04X' % v for v in wp) + '},')
@@ -3368,25 +3496,35 @@ def emit_source(c, arr, tile_words, npc_kinds):
     c.append('};')
     c.append('const Spawn spawns[SPAWN_COUNT] = {')
     for k, x, y in SPAWNS:
-        c.append('  {NPC_%s, %d, %d},' % (k, x, y))
+        X, Y, P = osrs_of(x, y)
+        c.append('  {NPC_%s, %d, %d, %d},' % (k, P, X, Y))
     c.append('};')
     c.append('const FishSpotDef fish_spots[FISHSPOT_COUNT] = {')
     for k, x, y in FISH_SPOTS:
-        c.append('  {%d, %d, %d},' % (0 if k == 'NET' else 1, x, y))
+        X, Y, P = osrs_of(x, y)
+        c.append('  {%d, %d, %d, %d},' % (0 if k == 'NET' else 1, P, X, Y))
     c.append('};')
-    c.append('const u16 shop_pos[SHOP_COUNT][2] = {')
+    c.append('const ShopPos shop_pos[SHOP_COUNT] = {')
     for n, x, y in SHOPS:
-        c.append('  {%d, %d},   // %s' % (x, y, n))
+        c.append('  {%d, %d, %d},   // %s' % (osrs_of(x, y) + (n,)))
+    c.append('};')
+    c.append('const u16 map_bounds[PLANE_COUNT][4] = {')
+    for p in range(NPLANES):
+        c.append('  {%d, %d, %d, %d},' % BOUNDS.get(p, (1, 0, 0, 0)))
     c.append('};')
     c.append('const Region regions[REGION_COUNT] = {')
     for n, x0, y0, x1, y1 in REGIONS:
-        c.append('  {"%s", %d, %d, %d, %d},' % (n.replace('"', '\\"'), x0, y0, x1, y1))
+        c.append('  {"%s", %d, %d, %d, %d, %d},' % ((n.replace('"', '\\"'),) + osrs_rect(x0, y0, x1, y1)))
     c.append('};')
     c.append('const PalRegion pal_regions[PAL_REGION_COUNT] = {')
     for (x0, y0, x1, y1), ps in PAL_REGIONS:
-        c.append('  {%d, %d, %d, %d, %d},' % (x0, y0, x1, y1, ps))
+        X0, Y0, X1, Y1, P = osrs_rect(x0, y0, min(x1, OW_W - 1), min(y1, OW_H - 1))
+        assert P == 0
+        c.append('  {%d, %d, %d, %d, %d},' % (X0, Y0, X1, Y1, ps))
     c.append('};')
     c.append('const Zone zones[ZONE_COUNT] = {')
     for n, z, ps, pl_ in ZONES:
-        c.append('  {%d, %d, %d, %d, %d, %d},   // %s' % (z.X0, z.Y0, z.X1, z.Y1, ps, pl_, n))
+        X0, Y0, X1, Y1, P = osrs_rect(z.X0, z.Y0, z.X1, z.Y1)
+        assert P == pl_
+        c.append('  {%d, %d, %d, %d, %d, %d},   // %s' % (X0, Y0, X1, Y1, ps, pl_, n))
     c.append('};')

@@ -240,7 +240,7 @@ void home_update(void) {
     if (home_cast >= HOME_CAST_FRAMES) {
         home_cast = 0;
         pl.home_cd = HOME_COOLDOWN_TICKS;
-        player_warp(START_X, START_Y, DIR_DOWN);
+        player_warp(START_X, START_Y, START_P, DIR_DOWN);
     }
 }
 
@@ -253,9 +253,9 @@ int spell_cast_self(int s) {
     player_stop();
     sfx(SFX_CAST);
     switch (sp->param) {
-    case 2: player_warp(TELE_VARROCK_X, TELE_VARROCK_Y, DIR_DOWN); break;
-    case 3: player_warp(TELE_FALADOR_X, TELE_FALADOR_Y, DIR_DOWN); break;
-    default: player_warp(START_X, START_Y, DIR_DOWN); break;
+    case 2: player_warp(TELE_VARROCK_X, TELE_VARROCK_Y, TELE_VARROCK_P, DIR_DOWN); break;
+    case 3: player_warp(TELE_FALADOR_X, TELE_FALADOR_Y, TELE_FALADOR_P, DIR_DOWN); break;
+    default: player_warp(START_X, START_Y, START_P, DIR_DOWN); break;
     }
     return 1;
 }

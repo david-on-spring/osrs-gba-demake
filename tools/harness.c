@@ -4,6 +4,10 @@
 //                 audio on | audio off | wav file.wav   (capture the mixed audio output to a WAV)
 //                 until8 ADDR VAL [MAXFRAMES] | expect8/expect16 ADDR VAL LABEL   (test helpers)
 //                 expectge32 ADDR VAL LABEL   (PASS if the u32 at ADDR >= VAL)
+//                 expectlt8/expectlt16 ADDR VAL LABEL   (PASS if the byte / u16 at ADDR < VAL)
+//                 gameframe ADDR   (from here on a "frame" is one tick of the game's u32 frame counter
+//                                   at ADDR rather than one video frame, so frames the game drops
+//                                   do not shift its state against the script; 0 turns it off)
 #include <mgba/core/core.h>
 #include <mgba/core/blip_buf.h>
 #include <mgba/core/interface.h>
@@ -100,7 +104,17 @@ static struct mCore *gcore;
 static short *abuf;
 static size_t alen, acap;
 static int arec;
+static unsigned frame_addr;   // gameframe: the game's frame counter, 0 = count video frames
+static void run_video_frame(void);
 static void run_frame(void) {
+    if (!frame_addr) {
+        run_video_frame();
+        return;
+    }
+    unsigned f0 = gcore->busRead32(gcore, frame_addr);
+    for (int i = 0; i < 64 && gcore->busRead32(gcore, frame_addr) == f0; i++) run_video_frame();
+}
+static void run_video_frame(void) {
     gcore->runFrame(gcore);
     blip_t *l = gcore->getAudioChannel(gcore, 0), *r = gcore->getAudioChannel(gcore, 1);
     int avail = blip_samples_avail(l);
@@ -200,6 +214,9 @@ int main(int argc, char **argv) {
             core->setKeys(core, 0);
             for (int i = 0; i < 4; i++) run_frame();
             total += 6;
+        } else if (!strcmp(cmd, "gameframe")) {
+            frame_addr = 0;
+            sscanf(line, "%*s %x", &frame_addr);
         } else if (!strcmp(cmd, "line")) {
             sscanf(line, "%*s %d", &n);
             int guard = 0;
@@ -256,10 +273,10 @@ int main(int argc, char **argv) {
             sscanf(line, "%*s %x %x %199s", &addr, &val, arg);
             unsigned got = cmd[6] == '8' ? core->busRead8(core, addr) : core->busRead16(core, addr);
             printf("%s %s (got %x, want %x)\n", got == val ? "PASS" : "FAIL", arg, got, val);
-        } else if (!strcmp(cmd, "expectlt8")) {
+        } else if (!strcmp(cmd, "expectlt8") || !strcmp(cmd, "expectlt16")) {
             unsigned addr = 0, val = 0;
             sscanf(line, "%*s %x %x %199s", &addr, &val, arg);
-            unsigned got = core->busRead8(core, addr);
+            unsigned got = cmd[8] == '8' ? core->busRead8(core, addr) : core->busRead16(core, addr);
             printf("%s %s (got %x, want < %x)\n", got < val ? "PASS" : "FAIL", arg, got, val);
         } else if (!strcmp(cmd, "expectge32")) {
             unsigned addr = 0, val = 0;

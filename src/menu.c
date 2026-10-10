@@ -886,7 +886,7 @@ static void item_action(int slot, int act) {
         quest_item(slot);
         break;
     case 1:  // drop
-        drop_item(pl.x, pl.y, id, s->qty);
+        drop_item(pl.x, pl.y, pl.plane, id, s->qty);
         s->id = 0;
         s->qty = 0;
         sfx(SFX_PICKUP);

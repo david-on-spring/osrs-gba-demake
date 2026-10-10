@@ -38,7 +38,7 @@ $(BUILD)/avatar_art.c: tools/gen_avatar.py
 
 $(BUILD)/avatar_art.h: $(BUILD)/avatar_art.c
 
-$(BUILD)/%.o: src/%.c src/game.h src/gba.h src/ui_internal.h src/world_internal.h $(BUILD)/assets.h $(BUILD)/music_data.h $(BUILD)/avatar_art.h $(BUILD)/quest_data.h
+$(BUILD)/%.o: src/%.c src/game.h src/gba.h src/ui_internal.h src/world_internal.h src/map.h $(BUILD)/assets.h $(BUILD)/music_data.h $(BUILD)/avatar_art.h $(BUILD)/quest_data.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # version.h: the git tag (or tag-commits-hash between releases) and the commit date. Rewritten

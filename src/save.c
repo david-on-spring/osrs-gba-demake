@@ -2,8 +2,9 @@
 //
 // Legacy layout at offset 0: magic (4) | version (2) | pad (2) | size (2) | pad (2) | Player |
 // checksum (4). Version 2 added the neck slot and quest progress over version 1. Current saves
-// use three character slots (versions 3 and 4, below); version 4 added Ranged, Magic, the ammo
-// slot and the autocast spell.
+// use three character slots (versions 3 to 6, below); version 4 added Ranged, Magic, the ammo
+// slot and the autocast spell, 5 the seamless 1:1 world, and 6 stores OSRS tiles (x, y, plane)
+// instead of cells of the generator's grid.
 #include "game.h"
 
 __attribute__((used, aligned(4))) static const char sram_tag[] = "SRAM_V113";
@@ -46,6 +47,8 @@ typedef struct {
 } PlayerV3;
 
 // tools/qtest.py pokes these offsets directly
+_Static_assert(__builtin_offsetof(Player, x) == 0 && __builtin_offsetof(Player, px) == 4, "qtest.py tp_lines");
+_Static_assert(__builtin_offsetof(Player, plane) == 0x289, "qtest.py OFF_PLANE");
 _Static_assert(__builtin_offsetof(Player, xp) == 0x20, "qtest.py OFF_XP");
 _Static_assert(__builtin_offsetof(Player, inv) == 0x50, "qtest.py OFF_INV");
 _Static_assert(__builtin_offsetof(Player, equip) == 0xC0, "qtest.py OFF_EQUIP");
@@ -70,7 +73,7 @@ static void from_v3(const PlayerV3 *o) {
     p->playtime = o->playtime;
     for (int i = 0; i < 16; i++) p->qstage[i] = o->qstage[i], p->qvar[i] = o->qvar[i];
     p->spell = 0;
-    p->pad = 0;
+    p->plane = 0;
     p->home_cd = 0;
 }
 
@@ -94,7 +97,7 @@ static u32 checksum(const u8 *p, int n) {
 // Slot k at SLOT_BASE(k): magic (4) | version (2) | pad (2) | size (2) | pad (2) | name (16) |
 // Player | checksum (4, over name + Player). The old single save at offset 0 (versions 1-2)
 // is copied into slot 1 the first time the login screen sees it (and left in place).
-#define SLOT_VERSION 5             // 5: the seamless 1:1 world (cells changed meaning; older saves start in Lumbridge)
+#define SLOT_VERSION 6             // 6: positions are OSRS tiles (x, y, plane); 5 stored cells of the 1:1 grid
 #define SLOT_BASE(k) (0x1000 * ((k) + 1))
 #define SLOT_NAME 12
 #define SLOT_PLAYER 28
@@ -112,6 +115,22 @@ static u32 slot_sum(const char *name, const void *p, int size) {
     return h;
 }
 
+// Version 5 stored the position as a cell of the 416x460 grid of the seamless world: the
+// overworld at cells (0..415, 0..415) from OSRS (2928, 3551), and the castle's first and second
+// floors at rows 420.. (columns 0..31 and 36..67) from OSRS (3195, 3236). Fixed here, whatever
+// the map later becomes.
+static void from_v5_cell(s16 *x, s16 *y, u8 *plane) {
+    int cx = *x, cy = *y;
+    if (cx >= 0 && cx < 416 && cy >= 0 && cy < 416) {
+        *x = 2928 + cx, *y = 3551 - cy, *plane = 0;
+    } else if (cy >= 420 && cy <= 456 && cx >= 0 && cx <= 67 && (cx <= 31 || cx >= 36)) {
+        *plane = cx <= 31 ? 1 : 2;
+        *x = 3195 + (cx <= 31 ? cx : cx - 36), *y = 3236 - (cy - 420);
+    } else {
+        *x = START_X, *y = START_Y, *plane = START_P;
+    }
+}
+
 static EWRAM_BSS Player slot_tmp;
 static EWRAM_BSS PlayerV3 slot_v3;
 static char slot_name_tmp[16];
@@ -127,7 +146,7 @@ static int slot_read(int k) {
     sram_read(b + 8, &size, 2);
     if (magic != SAVE_MAGIC) return 0;
     int v3 = ver == 3 && size == sizeof(PlayerV3);
-    if (!v3 && ((ver != SLOT_VERSION && ver != 4) || size != sizeof(Player))) return 0;
+    if (!v3 && ((ver != SLOT_VERSION && ver != 5 && ver != 4) || size != sizeof(Player))) return 0;
     void *dst = v3 ? (void *)&slot_v3 : (void *)&slot_tmp;
     sram_read(b + SLOT_NAME, slot_name_tmp, 16);
     sram_read(b + SLOT_PLAYER, dst, size);
@@ -140,9 +159,14 @@ static int slot_read(int k) {
         slot_tmp = pl;
         pl = keep;
     }
-    if (ver != SLOT_VERSION) {           // saved on the old map layout
+    if (ver == 5) {                      // same layout, positions in cells of the version 5 grid
+        from_v5_cell(&slot_tmp.x, &slot_tmp.y, &slot_tmp.plane);
+        u8 tp;
+        from_v5_cell(&slot_tmp.tx, &slot_tmp.ty, &tp);
+    } else if (ver != SLOT_VERSION) {    // saved on an older map layout
         slot_tmp.x = START_X;
         slot_tmp.y = START_Y;
+        slot_tmp.plane = START_P;
     }
     return 1;
 }
@@ -184,6 +208,7 @@ void save_migrate(void) {
     if (any || !legacy_load()) return;
     pl.x = START_X;                      // the old map layout
     pl.y = START_Y;
+    pl.plane = START_P;
     const char *d = "Adventurer";
     int i = 0;
     for (; d[i]; i++) player_name[i] = d[i];

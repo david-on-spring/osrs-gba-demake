@@ -20,7 +20,6 @@ PLACES = [
 out, d = sys.argv[1], sys.argv[2]
 L = ['wait 60', 'press A', 'wait 30']
 for name, X, Y in PLACES:
-    x, y = (X - 2928) // 2, (3552 - Y) // 2
-    L += ['poke16 @pl %x' % x, 'poke16 @pl+2 %x' % y, 'poke16 @pl+4 %x' % (x * 16), 'poke16 @pl+6 %x' % (y * 16),
+    L += ['poke16 @pl %x' % X, 'poke16 @pl+2 %x' % Y, 'poke16 @pl+4 %x' % ((X - 2928) * 16), 'poke16 @pl+6 %x' % ((3551 - Y) * 16),
           'wait 12', 'shot %s/%s.png' % (d, name), 'dump @cache_misses 1']
 open(out, 'w').write('\n'.join(L) + '\n')
