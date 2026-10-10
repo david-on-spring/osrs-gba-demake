@@ -10,7 +10,7 @@ script, so a compare needs the same scripts on both sides. Scripts that referenc
 no longer has are skipped. Values from 'dump' lines are compared too (perf counters may wobble by
 a scanline or two when code moves; that is reported but is not a failure).
 
-Scripts run with the harness's 'gameframe' mode: waits count the game's own frames, not video frames,
+Scripts run in the harness's 'gameframe' mode (tools/qtest.py turns it on): waits count the game's own frames, not video frames,
 so a change that makes some heavy frame (a teleport's redraw, dialogue typing) drop one more or one
 fewer VBlank does not shift every later screenshot. Both sides of a compare must use this mode."""
 import os
@@ -41,7 +41,7 @@ for src in scripts:
     os.makedirs(d, exist_ok=True)
     txt = os.path.join(d, 'script.txt')
     subprocess.check_call([sys.executable, 'tools/qtest.py', src, txt])
-    s = 'gameframe @frame\n' + open(txt).read()
+    s = open(txt).read()   # (qtest.py starts it with 'gameframe @frame')
     try:
         s = re.sub(r'@(\w+)(?:\+(\w+))?', lambda m: '%x' % (syms[m.group(1)] + int(m.group(2) or '0', 0)), s)
     except KeyError as e:

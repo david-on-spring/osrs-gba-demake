@@ -45,7 +45,8 @@ Adds to the harness commands:
   face THING DIR         stand next to THING facing it (DIR is the way the player faces; another free side
                          is used if that one is blocked). THING is an NPC kind (its first spawn), obj:TYPE
                          or item:NAME (the 'stand' lines in build/spawns.txt)
-Positions are absolute OSRS tiles (X east, Y north, plane); a ZONE names the plane (OVERWORLD,
+Scripts run in the harness's gameframe mode: a wait of N frames is N frames of the game's own
+loop, however many video frames each took. Positions are absolute OSRS tiles (X east, Y north, plane); a ZONE names the plane (OVERWORLD,
 CASTLE_1, CASTLE_2 or a town). Player field offsets come from src/game.h's layout (checked against
 the map symbols)."""
 import os
@@ -127,7 +128,7 @@ def npc_index(k):          # an index, a kind's first spawn, or KIND:N, its Nth 
     return hits[int(nth) - 1 if nth else 0]
 
 
-out = []
+out = ['gameframe @frame']   # waits count game frames (tools/harness.c), so dropped frames do not shift the script
 for line in open(sys.argv[1]):
     p = line.split()
     if not p:
