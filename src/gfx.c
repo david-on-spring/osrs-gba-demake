@@ -53,24 +53,28 @@ static s16 ui_scroll;
 
 void gfx_set_ui_scroll(int x) { ui_scroll = x; }
 
+// OSRS interface colours: brown stone panels, parchment chatbox, and the game's text colours
+// (orange #FF981F labels, yellow #FFFF00 values, dark red #800000 dialogue names...)
 static const u16 panel_pal[16] = {
-    0x0000, 0x0000, 0x0820, 0x7B4B, 0x4185, 0x6625, 0x4983, 0x3902,
-    0x26FC, 0x376A, 0x1DE4, 0x7A49, 0x40E3, 0x0420, 0x7FDD, 0x253C,
+    0x0000, 0x14C7, 0x0C85, 0x258E, 0x0442, 0x214B, 0x1909, 0x190A,
+    0x2299, 0x0380, 0x01E0, 0x4AF9, 0x3233, 0x0864, 0x7FFF, 0x001C,
 };
 static const u16 text_pal[16] = {
-    0x0000, 0x7FDE, 0x62D5, 0x41CC, 0x0420, 0x2B3E, 0x7F8C, 0x3B8C,
-    0x319E, 0x3BDF, 0x229E, 0x7ED0, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x0000, 0x7FFF, 0x0E7F, 0x3633, 0x0000, 0x03FF, 0x0E7F, 0x03E0,
+    0x001F, 0x03FF, 0x0E7F, 0x7C00, 0x0000, 0x0010, 0x4000, 0x0000,
 };
 
 static inline u16 rgb5(int r, int g, int b) { return r | (g << 5) | (b << 10); }
 
 static void build_gradient(void) {
-    // deep navy at the top fading to near-black, like a frosted glass panel
+    // OSRS stone: warm brown, a touch lighter at the top, every fourth line a shade darker
+    // for a faint masonry grain
     for (int y = 0; y < 161; y++) {
         int t = y > 159 ? 159 : y;
-        int r = 3 - (t * 2) / 159;
-        int g = 7 - (t * 5) / 159;
-        int b = 12 - (t * 7) / 159;
+        int r = 9 - (t * 2) / 159;
+        int g = 8 - (t * 2) / 159;
+        int b = 6 - (t * 2) / 159;
+        if ((y & 3) == 3) r--, g--;
         panel_grad[y] = rgb5(r, g, b);
     }
 }
@@ -149,7 +153,7 @@ void gfx_set_world_fade(int level16) {
     }
 }
 
-void gfx_set_mosaic(int n) { mosaic_n = n; }
+void gfx_set_mosaic(int n) { (void)n; mosaic_n = 0; }   // OSRS never blurs the world
 void gfx_set_ui_alpha(int eva, int text_too) {
     ui_eva = eva;
     ui_text_blend = text_too;
@@ -167,11 +171,9 @@ void gfx_mark_cell_dirty(int x, int y) {
 }
 
 void gfx_set_hl_pulse(int phase) {
-    // phase 0..63 -> gentle breathing of the selection colour
+    // phase 0..63 -> gentle breathing of the hovered row (lighter stone)
     int t = phase < 32 ? phase : 63 - phase;
-    int r = 5 + t / 8, g = 17 + t / 4, b = 24 + t / 5;
-    if (b > 31) b = 31;
-    hl_color = rgb5(r, g, b);
+    hl_color = rgb5(11 + t / 11, 9 + t / 11, 7 + t / 16);
 }
 
 static u16 scale_col(u16 c, int f) {
@@ -311,21 +313,23 @@ void gfx_world_update(void) {
 void obj_sprite(int x, int y, int tile, int pal, int prio, int hflip, int size16, int flags) {
     if (oam_n >= 128) return;
     int w = (flags & (OBJF_AFFINE2X | OBJF_32)) ? 32 : (flags & OBJF_8x8) ? 8 : 16;
-    int h = (flags & OBJF_WIDE) ? 8 : w;
+    int h = (flags & OBJF_WIDE) ? 8 : (flags & OBJF_TALL) ? w * 2 : w;
     if (x <= -w || x >= SCREEN_W || y <= -h || y >= SCREEN_H) return;
     ObjAttr *o = &oam_buf[oam_n++];
     u16 a0 = (y & 0xFF);
     if (flags & OBJF_MOSAIC) a0 |= 1 << 12;
     if (flags & OBJF_SEMI) a0 |= 1 << 10;
     if (flags & OBJF_WIDE) a0 |= 1 << 14;
+    if (flags & OBJF_TALL) a0 |= 2 << 14;   // vertical: 16x32 (32x64 with AFFINE2X)
     if (pal == 0xFF) a0 |= 1 << 13;   // 8bpp icon
     u16 a1 = (x & 0x1FF);
     if (flags & OBJF_AFFINE2X) {
         a0 |= 3 << 8;                  // affine, double size
-        a1 |= 1 << 14;                 // 16x16 source
+        a1 |= (flags & OBJF_TALL ? 2 : 1) << 14;   // 16x16 or 16x32 source
     } else {
         if (hflip) a1 |= 1 << 12;
         if (flags & OBJF_32) a1 |= 2 << 14;
+        else if (flags & OBJF_TALL) a1 |= 2 << 14;
         else if (!(flags & OBJF_8x8)) a1 |= (size16 ? 1 : 0) << 14;
     }
     o->a0 = a0;
@@ -445,7 +449,8 @@ void gfx_vblank(void) {
 
     REG_MOSAIC = mosaic_n | (mosaic_n << 4) | (mosaic_n << 8) | (mosaic_n << 12);
     REG_BLDCNT = (ui_text_blend ? 0x0003 : 0x0002) | 0x0040 | 0x3E00;
-    REG_BLDALPHA = ui_eva | ((16 - ui_eva) << 8);
+    int eva = ui_eva >= 12 ? 16 : ui_eva * 16 / 12;
+    REG_BLDALPHA = eva | ((16 - eva) << 8);
 
     cv_flush(&cv_panel, 10);
     cv_flush(&cv_text, 10);

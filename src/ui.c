@@ -1,7 +1,7 @@
 // All user interface: HUD, the START menu (items, equipment, skills, combat, system),
-// dialogue, bank, shop, level-up popups and the title screen. Styled after FF7 Remake:
-// frosted translucent panels over a dimmed, mosaic-blurred world, chamfered corners,
-// thin cyan accents and sliding/breathing selection bars.
+// dialogue, bank, shop, level-up popups and the title screen. Styled after Old School
+// RuneScape's interface: stone windows with orange titles and yellow values, a parchment
+// chatbox, OSRS level-up messages and quest scrolls, and the login screen.
 #include "game.h"
 
 static char sbuf[96];
@@ -16,13 +16,8 @@ static char *sadd_num(char *p, u32 v) {
     fmt_num(n, v);
     return sadd(p, n);
 }
-static void upper(char *dst, const char *src) {
-    while (*src) {
-        char c = *src++;
-        *dst++ = (c >= 'a' && c <= 'z') ? c - 32 : c;
-    }
-    *dst = 0;
-}
+// centred text without the drop shadow (dark text on parchment)
+static void text_center_ns(int xc, int y, const char *s, int col) { text_draw_ns(xc - text_width(s) / 2, y, s, col); }
 
 // ---------------------------------------------------------------------------------------
 // UI sprite list (icons, cursor, portrait) rebuilt by page redraws, emitted every frame
@@ -114,17 +109,26 @@ static void hud_clear_rect(int x, int y, int w, int h) {
     cv_fill(&cv_panel, x, y, w, h, 0);
 }
 
+// OSRS hitpoints orb: the number beside a round orb that drains from the top as you lose
+// health (red liquid on black), with the heart icon drawn over it (see ui_draw_sprites)
+static s16 orb_icon = -1;
 static void hud_draw_status(void) {
-    hud_clear_rect(150, 132, 90, 28);
+    hud_clear_rect(176, 128, 64, 32);
     int max = skill_level(SK_HITPOINTS);
-    draw_panel(154, 134, 84, 24, 5);
-    text_spaced(162, 137, "HP", TC_CYAN, 1);
+    int cx = 222, cy = 143, r = 11;
+    int level = (2 * r + 1) * (max - pl.hp) / (max ? max : 1);   // drained rows from the top
+    for (int dy = -r - 1; dy <= r + 1; dy++)
+        for (int dx = -r - 1; dx <= r + 1; dx++) {
+            int d2 = dx * dx + dy * dy;
+            if (d2 > (r + 1) * (r + 1)) continue;
+            int col = d2 > r * r ? PC_EDGE_DIM : d2 > (r - 1) * (r - 1) ? PC_EDGE : dy + r < level ? PC_EDGE_DIM : PC_RED;
+            cv_pset(&cv_panel, cx + dx, cy + dy, col);
+        }
     char *p = sbuf;
-    p = sadd_num(p, pl.hp);
-    p = sadd(p, " / ");
-    sadd_num(p, max);
-    text_right(232, 137, sbuf, pl.hp * 4 <= max ? TC_RED : TC_WHITE);
-    draw_bar(160, 149, 74, pl.hp, max, pl.hp * 4 <= max ? PC_RED : PC_GREEN, PC_GREEN_D);
+    sadd_num(p, pl.hp);
+    int pct = max ? pl.hp * 100 / max : 0;
+    text_right(cx - r - 3, cy - 4, sbuf, pct > 66 ? TC_GREEN : pct > 33 ? TC_YELLOW : TC_RED);
+    orb_icon = 1;
 }
 
 static void hud_draw_msgs(void) {
@@ -169,7 +173,7 @@ static void hud_draw_xp(void) {
             *p = 0;
         }
         sadd(p, " xp");
-        int x = text_right(234, y, sbuf, drops[i].timer < 20 ? TC_DIM : TC_CYAN);
+        int x = text_right(234, y, sbuf, drops[i].timer < 20 ? TC_DIM : TC_WHITE);
         drop_icon_on[i] = drops[i].timer >= 20;
         drop_icon_x[i] = x - text_width(sbuf) - 18;
         drop_icon_y[i] = y - 4;
@@ -180,12 +184,9 @@ static void hud_draw_xp(void) {
 static void hud_draw_area(void) {
     hud_clear_rect(0, 0, 128, 22);
     if (!area_timer) return;
-    char up[32];
-    upper(up, regions[area_region].name);
-    int w = text_spaced_width(up, 2);
-    draw_panel(-6, 4, w + 26, 16, 4);
-    cv_fill(&cv_panel, 4, 7, 2, 10, PC_EDGE);
-    text_spaced(10, 7, up, TC_WHITE, 2);
+    const char *name = regions[area_region].name;
+    draw_panel(2, 3, text_width(name) + 12, 15, 0);
+    text_draw(8, 6, name, TC_ORANGE);
 }
 
 static void hud_draw_target(void) {
@@ -193,7 +194,7 @@ static void hud_draw_target(void) {
     if (target_npc < 0 || !npcs[(int)target_npc].active) return;
     Npc *n = &npcs[(int)target_npc];
     const NpcDef *d = &npc_defs[n->kind];
-    draw_panel(130, 3, 106, 22, 4);
+    draw_panel(130, 3, 106, 22, 0);
     text_draw(136, 5, d->name, TC_WHITE);
     char *p = sadd(sbuf, "Lv ");
     sadd_num(p, d->level);
@@ -266,21 +267,25 @@ void ui_hud_update(void) {
         cv_clear(&cv_text);
         cv_clear(&cv_panel);
         LevelUp *l = &lvlq[0];
-        draw_panel(30, 46, 180, 62, 8);
-        text_spaced(84, 52, "LEVEL UP!", TC_GOLD, 3);
-        draw_rule(40, 64, 160);
-        char *p = sadd(sbuf, "Congratulations! Your ");
-        sadd(p, skill_names[l->sk]);
-        text_center(120, 70, sbuf, TC_WHITE);
-        p = sadd(sbuf, "level is now ");
+        // OSRS: the chatbox turns into "Congratulations, you just advanced a X level."
+        draw_parchment(4, 104, 232, 54);
+        const char *nm = skill_names[l->sk];
+        int an = nm[0] == 'A' || nm[0] == 'E' || nm[0] == 'I' || nm[0] == 'O' || nm[0] == 'U';
+        char *p = sadd(sbuf, an ? "Congratulations, you just advanced an " : "Congratulations, you just advanced a ");
+        p = sadd(p, nm);
+        sadd(p, " level.");
+        char lines[2][48];
+        int n = text_wrap(sbuf, 180, lines, 2);
+        for (int i = 0; i < n; i++) text_center_ns(132, 110 + i * 11, lines[i], TC_DKBLUE);
+        p = sadd(sbuf, "Your ");
+        p = sadd(p, nm);
+        p = sadd(p, " level is now ");
         p = sadd_num(p, l->lvl);
         sadd(p, ".");
-        text_center(120, 81, sbuf, TC_CYAN);
-        draw_button(170, 94, 'A');
-        text_draw(180, 94, "OK", TC_GREY);
+        text_center_ns(132, 112 + n * 11, sbuf, TC_BLACK);
+        text_center_ns(132, 145, "Press A to continue", TC_BLUE);
         icons_clear();
-        icon_at(40, 54, skill_icons[l->sk]);
-        icon_at(184, 54, skill_icons[l->sk]);
+        icon_at(14, 118, skill_icons[l->sk]);
         gfx_set_world_fade(10);
     }
 }
@@ -297,23 +302,26 @@ void quest_complete_popup(int q) {
     gfx_set_world_fade(8);
     gfx_set_mosaic(1);
     gfx_set_ui_alpha(13, 0);
+    // OSRS quest scroll: parchment, "Congratulations!", the quest's icon, the rewards
     int rows = 1 + d->nrewards;
-    int h = 78 + rows * 10;
+    int h = 70 + rows * 10;
     int y0 = (160 - h) / 2;
-    draw_panel(18, y0, 204, h, 8);
-    cv_fill(&cv_panel, 26, y0 + 3, 188, 1, PC_GOLD);
-    cv_fill(&cv_panel, 26, y0 + h - 4, 188, 1, PC_GOLD);
-    text_spaced(120 - text_spaced_width("QUEST COMPLETE!", 3) / 2, y0 + 8, "QUEST COMPLETE!", TC_GOLD, 3);
-    draw_rule(28, y0 + 20, 184);
-    text_center(120, y0 + 24, "Congratulations! You have completed", TC_WHITE);
-    text_center(120, y0 + 35, d->name, TC_YELLOW);
-    draw_cell(28, y0 + 48, 22, 22, 0);
-    icon_at(31, y0 + 51, items[d->icon].icon);
-    text_spaced(60, y0 + 48, "YOU ARE AWARDED", TC_CYAN, 1);
-    int y = y0 + 60;
-    char *p = sadd_num(sbuf, d->qp);
+    draw_parchment(18, y0, 204, h);
+    cv_fill(&cv_panel, 18, y0, 204, 3, PC_PARCH_D);          // rolled ends of the scroll
+    cv_fill(&cv_panel, 18, y0 + h - 3, 204, 3, PC_PARCH_D);
+    text_center_ns(120, y0 + 6, "Congratulations!", TC_DKRED);
+    char *p = sadd(sbuf, "You have completed ");
+    sadd(p, d->name);
+    char lines[2][48];
+    int nl = text_wrap(sbuf, 188, lines, 2);
+    for (int i = 0; i < nl; i++) text_center_ns(120, y0 + 18 + i * 10, lines[i], TC_BLACK);
+    int yb = y0 + 22 + nl * 10;
+    icon_at(30, yb + 6, items[d->icon].icon);
+    text_draw_ns(60, yb, "You are awarded:", TC_DKRED);
+    int y = yb + 11;
+    p = sadd_num(sbuf, d->qp);
     sadd(p, d->qp == 1 ? " Quest Point" : " Quest Points");
-    text_draw(64, y, sbuf, TC_WHITE);
+    text_draw_ns(64, y, sbuf, TC_BLACK);
     y += 10;
     for (int i = 0; i < d->nrewards; i++, y += 10) {
         const QReward *r = &d->rewards[i];
@@ -332,13 +340,12 @@ void quest_complete_popup(int q) {
         } else {
             sadd(sbuf, r->text);
         }
-        text_draw(64, y, sbuf, TC_WHITE);
+        text_draw_ns(64, y, sbuf, TC_BLACK);
     }
     p = sadd(sbuf, "Quest Points: ");
     sadd_num(p, quest_points());
-    text_draw(28, y0 + h - 16, sbuf, TC_GOLD);
-    draw_button(178, y0 + h - 16, 'A');
-    text_draw(188, y0 + h - 16, "OK", TC_GREY);
+    text_draw_ns(28, y0 + h - 14, sbuf, TC_DKRED);
+    text_draw_ns(212 - text_width("Press A"), y0 + h - 14, "Press A", TC_BLUE);
 }
 
 void questdone_update(void) {
@@ -368,7 +375,7 @@ void levelup_update(void) {
 // ---------------------------------------------------------------------------------------
 // Common menu chrome
 static void draw_clock(void) {
-    cv_fill(&cv_text, 150, 2, 90, 12, 0);
+    cv_fill(&cv_text, 168, 2, 72, 12, 0);
     u32 secs = pl.playtime / 60;
     char *p = sbuf;
     p = sadd_num(p, secs / 3600);
@@ -379,20 +386,18 @@ static void draw_clock(void) {
     *p++ = '0' + (secs % 60) / 10;
     *p++ = '0' + (secs % 60) % 10;
     *p = 0;
-    text_right(232, 4, sbuf, TC_WHITE);
-    text_spaced(232 - text_width(sbuf) - 30, 4, "TIME", TC_CYAN, 1);
+    text_right(232, 4, sbuf, TC_YELLOW);
 }
 
+// OSRS window title: orange, centred over an engraved rule, on a stone strip
 static void draw_header(const char *title) {
-    char up[24];
-    upper(up, title);
-    cv_fill(&cv_panel, 8, 5, 3, 9, PC_EDGE);
-    text_spaced(15, 4, up, TC_WHITE, 2);
-    draw_rule(8, 16, 224);
+    draw_panel(4, 1, 232, 16, 0);
+    text_center(120, 4, title, TC_ORANGE);
     draw_clock();
 }
 
 static void draw_footer(const char *desc, const char *a_label, const char *b_label) {
+    draw_panel(4, 147, 232, 13, 0);
     if (desc) text_draw(10, 150, desc, TC_GREY);
     int x = 232;
     if (b_label) {
@@ -433,29 +438,33 @@ static void pop_add(const char *s, int id) {
     pop.ids[pop.n++] = id;
 }
 static void pop_draw(void) {
-    int w = 0;
+    // OSRS right-click menu: "Choose Option" on a black title strip, options in white,
+    // the hovered one picked out in yellow
+    int w = text_width("Choose Option");
     for (int i = 0; i < pop.n; i++) {
         int tw = text_width(pop.opts[i]);
         if (tw > w) w = tw;
     }
-    w += 22;
-    int h = pop.n * 12 + 8;
+    w += 14;
+    int h = pop.n * 12 + 18;
     int x = pop.x, y = pop.y;
     if (x + w > 236) x = 236 - w;
     if (y + h > 146) y = 146 - h;
     cv_fill(&cv_text, x, y, w, h, 0);
-    draw_panel(x, y, w, h, 4);
+    draw_panel(x, y, w, h, 0);
+    cv_fill(&cv_panel, x + 1, y + 1, w - 2, 12, PC_EDGE_DIM);
+    text_draw_ns(x + 4, y + 2, "Choose Option", TC_DIM);
     pop_rx = x;
     pop_ry = y;
     pop_rw = w;
     pop_rh = h;
     for (int i = 0; i < pop.n; i++) {
-        int yy = y + 4 + i * 12;
+        int yy = y + 15 + i * 12;
         if (i == pop.sel) {
-            draw_highlight(x + 3, yy, w - 6, 11);
+            draw_highlight(x + 2, yy, w - 4, 12);
             cursor_to(x - 6, yy + 2);
         }
-        text_draw(x + 12, yy + 1, pop.opts[i], i == pop.sel ? TC_WHITE : TC_GREY);
+        text_draw(x + 5, yy + 1, pop.opts[i], i == pop.sel ? TC_YELLOW : TC_WHITE);
     }
 }
 // returns chosen id, -2 when cancelled, -1 while open
@@ -585,7 +594,7 @@ static u8 redraw;
 static const char *sys_note;
 u16 redraw_lines;
 
-static const char *const main_items[MAIN_N] = {"Items", "Equipment", "Skills", "Quests", "Combat", "System"};
+static const char *const main_items[MAIN_N] = {"Inventory", "Worn Equipment", "Skills", "Quest List", "Combat Options", "Settings"};
 static const char *const main_desc[MAIN_N] = {
     "Use and manage items.", "Change your gear.", "Review your skills.", "Your quest journal.",
     "Pick an attack style.", "Save and options.",
@@ -640,7 +649,7 @@ static void draw_main(void) {
 }
 
 static void draw_items(void) {
-    draw_header("Items");
+    draw_header("Inventory");
     draw_panel(6, 20, 152, 98, 5);
     draw_grid(pl.inv, 28, 0, item_sel);
     draw_panel(162, 20, 72, 98, 5);
@@ -656,7 +665,7 @@ static void draw_items(void) {
     draw_footer(sbuf, s->id ? "Use" : 0, "Back");
 }
 
-static const char *const slot_names[EQ_COUNT] = {"HEAD", "WEAPON", "BODY", "SHIELD", "LEGS", "FEET", "NECK"};
+static const char *const slot_names[EQ_COUNT] = {"Head", "Weapon", "Body", "Shield", "Legs", "Feet", "Neck"};
 
 static void build_candidates(void) {
     cand_n = 0;
@@ -684,7 +693,7 @@ static void draw_bonus_row(int x, int y, int w, const char *lab, int val, int de
 }
 
 static void draw_equip(void) {
-    draw_header("Equipment");
+    draw_header("Worn Equipment");
     draw_panel(6, 20, 120, 126, 5);
     for (int i = 0; i < EQ_COUNT; i++) {
         int y = 23 + i * 17;
@@ -720,7 +729,7 @@ static void draw_equip(void) {
         text_right(226, 121, sbuf, TC_GOLD);
         draw_footer("Pick a slot.", "Change", "Back");
     } else {
-        text_spaced(138, 25, slot_names[eq_sel], TC_CYAN, 2);
+        text_spaced(138, 25, slot_names[eq_sel], TC_CYAN, 1);
         draw_rule(136, 36, 92);
         int n = cand_n + (pl.equip[eq_sel] ? 1 : 0);
         if (!n) text_draw(138, 42, "Nothing to equip.", TC_DIM);
@@ -775,7 +784,7 @@ static void draw_skills(void) {
         p = sadd(sbuf, "Next ");
         sadd_num(p, next - xp);
         text_right(226, 118, sbuf, TC_GREY);
-        draw_bar(13, 133, 214, xp - cur, next - cur, PC_BLUE, PC_BLUE_D);
+        draw_bar(13, 133, 214, xp - cur, next - cur, PC_GOLD, PC_GOLD);
     } else {
         text_right(226, 118, "Max level!", TC_GOLD);
         draw_bar(13, 133, 214, 1, 1, PC_GOLD, PC_GOLD);
@@ -788,7 +797,7 @@ static void draw_skills(void) {
 static void draw_combat(void) {
     static const char *const styles[3] = {"Accurate", "Aggressive", "Defensive"};
     static const char *const style_xp[3] = {"Attack XP", "Strength XP", "Defence XP"};
-    draw_header("Combat");
+    draw_header("Combat Options");
     draw_panel(6, 20, 228, 44, 5);
     int w = pl.equip[EQ_WEAPON];
     draw_cell(12, 26, 18, 18, 0);
@@ -799,7 +808,7 @@ static void draw_combat(void) {
     text_draw(36, 37, sbuf, TC_GOLD);
     text_draw(14, 50, "Fight with a style that suits you.", TC_DIM);
     draw_panel(6, 68, 228, 78, 5);
-    text_spaced(14, 72, "ATTACK STYLE", TC_CYAN, 2);
+    text_spaced(14, 72, "Attack style", TC_CYAN, 1);
     draw_rule(12, 83, 216);
     for (int i = 0; i < 4; i++) {
         int y = 88 + i * 14;
@@ -821,7 +830,7 @@ static void draw_combat(void) {
 
 static void draw_system(void) {
     static const char *const opts[3] = {"Save game", "Music", "Close menu"};
-    draw_header("System");
+    draw_header("Settings");
     draw_panel(6, 22, 140, 66, 6);
     for (int i = 0; i < 3; i++) {
         int y = 31 + i * 18;
@@ -833,7 +842,7 @@ static void draw_system(void) {
         if (i == 1) text_right(136, y, pl.music ? "ON" : "OFF", pl.music ? TC_GREEN : TC_RED);
     }
     draw_panel(150, 22, 84, 66, 6);
-    text_spaced(158, 27, "SAVE DATA", TC_CYAN, 1);
+    text_spaced(158, 27, "Save data", TC_CYAN, 1);
     draw_rule(156, 38, 72);
     text_draw(158, 44, save_exists() ? "Slot in use" : "No save yet", TC_GREY);
     if (sys_note) {
@@ -869,7 +878,7 @@ static void draw_quest_side(void) {
         if (quest_done(q)) done++;
         else if (quest_stage(q)) started++;
     }
-    text_spaced(153, 25, "QUEST POINTS", TC_CYAN, 1);
+    text_spaced(153, 25, "Quest points", TC_CYAN, 1);
     draw_rule(152, 36, 76);
     char *p = sadd_num(sbuf, quest_points());
     text_big(176, 40, sbuf);
@@ -903,7 +912,7 @@ static void draw_quest_side(void) {
 }
 
 static void draw_quest_list(void) {
-    draw_header("Quests");
+    draw_header("Quest List");
     draw_panel(6, 20, 136, 126, 5);
     for (int q = 0; q < QUEST_COUNT; q++) draw_quest_row(q);
     draw_panel(146, 20, 88, 126, 5);
@@ -999,23 +1008,27 @@ static void build_journal(int q) {
 static void draw_journal(void) {
     const QuestDef *d = &quest_defs[q_sel];
     draw_header("Journal");
-    draw_panel(6, 20, 228, 126, 5);
-    text_draw(14, 24, d->name, TC_GOLD);
-    text_right(226, 24, quest_done(q_sel) ? "Complete" : quest_stage(q_sel) ? "In progress" : "Not started", quest_colour(q_sel));
-    draw_rule(12, 35, 216);
+    // OSRS journal: a parchment scroll, current step in dark blue, finished ones struck through
+    draw_parchment(6, 20, 228, 126);
+    text_draw_ns(14, 24, d->name, TC_DKRED);
+    const char *st = quest_done(q_sel) ? "Complete" : quest_stage(q_sel) ? "In progress" : "Not started";
+    text_draw_ns(226 - text_width(st), 24, st, TC_BLACK);
+    cv_fill(&cv_panel, 12, 35, 216, 1, PC_PARCH_D);
     for (int i = 0; i < JL_VIS && q_scroll + i < jl_n; i++) {
         int k = q_scroll + i, y = 38 + i * 10;
-        text_draw(14, y, jl_text[k], jl_col[k]);
+        int c = jl_col[k];
+        c = c == TC_WHITE ? TC_DKBLUE : c == TC_GREEN ? TC_BLACK : c == TC_DIM ? TC_BLACK : TC_DKRED;
+        text_draw_ns(14, y, jl_text[k], c);
         if (jl_strike[k]) {
             int w = text_width(jl_text[k]);
             int x0 = 14;
             for (const char *c = jl_text[k]; *c == ' '; c++) x0 += font_width[0] + 1, w -= font_width[0] + 1;
-            cv_fill(&cv_text, x0, y + 4, w, 1, TC_GREY);
+            cv_fill(&cv_text, x0, y + 4, w, 1, TC_BLACK);
         }
     }
     if (jl_n > JL_VIS) {
-        cv_fill(&cv_panel, 229, 38, 2, 106, PC_BAR_BG);
-        cv_fill(&cv_panel, 229, 38 + q_scroll * 106 / jl_n, 2, JL_VIS * 106 / jl_n, PC_EDGE);
+        cv_fill(&cv_panel, 229, 38, 2, 106, PC_PARCH_D);
+        cv_fill(&cv_panel, 229, 38 + q_scroll * 106 / jl_n, 2, JL_VIS * 106 / jl_n, PC_EDGE_DIM);
     }
     draw_footer(jl_n > JL_VIS ? "Up/Down scroll" : 0, 0, "Back");
 }
@@ -1402,14 +1415,15 @@ void menu_update(void) {
 }
 
 // ---------------------------------------------------------------------------------------
-// Dialogue: a frosted box with a name tag and a 2x portrait of whoever speaks (NPC on the
-// left, the player on the right, none for narration), typewriter text, and an option list
-// for choices. Quest scripts (quests.c) feed it pages and choices; plain townsfolk use the
+// Dialogue: the OSRS chatbox - parchment, the speaker's chathead (NPC on the left, the
+// player on the right, none for narration), their name in dark red over centred black text,
+// "Press A to continue" in blue, and "Select an Option" lists for choices. Quest scripts (quests.c) feed it pages and choices; plain townsfolk use the
 // page list in their NpcDef.
 static const char *const *dlg_pages;
 static int dlg_page, dlg_chars, dlg_kind;
 static char dlg_lines[4][48];
 static int dlg_nlines, dlg_total, dlg_tx;
+static s16 dlg_lx[4];                   // start x of each centred line
 static u8 dlg_script, dlg_choice, dlg_sel;
 static DlgEvent dlg_ev;
 static s16 dlg_portrait = -1;           // NPC kind, SPK_PLAYER, or -1
@@ -1433,39 +1447,31 @@ static void dialog_layout_say(int speaker, const char *text, int prebroken) {
     cursor_hide();
     if (game_state == GS_DIALOG && !dlg_choice && speaker == dlg_last_speaker) {
         // same speaker as the page on screen: keep the box, only replace the text
-        cv_clear_rows(&cv_text, 14, 18);
+        cv_clear_rows(&cv_text, 14, 19);
         goto text;
     }
     dialog_clear();
     icons_clear();
     dlg_choice = 0;
     dlg_last_speaker = speaker;
-    draw_panel(6, DLG_Y, 228, 50, 6);
+    draw_parchment(4, DLG_Y, 232, 55);
     const char *name = 0;
     dlg_portrait = -1;
-    dlg_tx = 16;
+    dlg_tx = 120;                         // centre of the text area
     if (speaker == SPK_PLAYER) {
         name = "Adventurer";
-        draw_cell(194, DLG_Y + 6, 36, 38, 0);
         dlg_portrait = SPK_PLAYER;
-        dlg_px = 196;
-        dlg_py = DLG_Y + 9;
+        dlg_px = 198;
+        dlg_py = DLG_Y + 10;
+        dlg_tx = 104;
     } else if (speaker != SPK_NONE) {
         name = npc_defs[speaker].name;
-        draw_cell(10, DLG_Y + 6, 36, 38, 0);
         dlg_portrait = speaker;
-        dlg_px = 12;
-        dlg_py = DLG_Y + 9;
-        dlg_tx = 54;
-    } else {
-        dlg_tx = 34;
+        dlg_px = 10;
+        dlg_py = DLG_Y + 10;
+        dlg_tx = 138;
     }
-    if (name) {
-        int w = text_spaced_width(name, 1) + 16;
-        int x = speaker == SPK_PLAYER ? 226 - w : 14;
-        draw_panel(x, DLG_Y - 9, w, 14, 3);
-        text_spaced(x + 8, DLG_Y - 7, name, TC_GOLD, 1);
-    }
+    if (name) text_center_ns(dlg_tx, DLG_Y + 4, name, TC_DKRED);
 text:
     if (prebroken) {
         // quest pages are wrapped at build time, lines separated by '\n'
@@ -1483,21 +1489,19 @@ text:
     for (int i = 0; i < dlg_nlines; i++) {
         const char *p = dlg_lines[i];
         while (*p++) dlg_total++;
+        dlg_lx[i] = dlg_tx - text_width(dlg_lines[i]) / 2;
     }
     dlg_chars = 0;
     show_arrow = 0;
 }
 
 static void dialog_choice_row(int i, int y) {
-    int yy = y + 20 + i * 12;
-    if (i == dlg_sel) {
-        draw_highlight(10, yy - 1, 220, 12);
-        cursor_to(4, yy + 1);
-    }
-    text_draw(20, yy, dlg_ev.opt[i], i == dlg_sel ? TC_WHITE : TC_GREY);
+    int yy = y + 17 + i * 12;
+    if (i == dlg_sel) cursor_to(4, yy + 1);
+    text_center_ns(120, yy, dlg_ev.opt[i], i == dlg_sel ? TC_WHITE : TC_BLACK);
 }
 
-static int dialog_choice_y(void) { return 154 - (dlg_ev.nopt * 12 + 22); }
+static int dialog_choice_y(void) { return 158 - (dlg_ev.nopt * 12 + 20); }
 
 static void dialog_layout_choice(void) {
     dialog_clear();
@@ -1508,9 +1512,8 @@ static void dialog_layout_choice(void) {
     show_arrow = 0;
     int n = dlg_ev.nopt;
     int y = dialog_choice_y();
-    draw_panel(6, y, 228, n * 12 + 22, 6);
-    text_spaced(16, y + 5, "SELECT AN OPTION", TC_CYAN, 2);
-    draw_rule(14, y + 16, 212);
+    draw_parchment(4, y, 232, n * 12 + 20);
+    text_center_ns(120, y + 4, "Select an Option", TC_DKRED);
     dlg_choice = 2;   // the option rows follow next frame (keeps each frame's work small)
 }
 
@@ -1518,9 +1521,8 @@ static void dialog_layout_choice(void) {
 static void dialog_choice_move(int old) {
     int y = dialog_choice_y();
     for (int k = 0; k < 2; k++) {
-        int i = k ? dlg_sel : old, yy = y + 19 + i * 12;
-        cv_fill(&cv_text, 8, yy, 224, 12, 0);
-        cv_fill(&cv_panel, 8, yy, 224, 12, PC_FILL);
+        int i = k ? dlg_sel : old, yy = y + 17 + i * 12;
+        cv_fill(&cv_text, 6, yy, 228, 11, 0);
         dialog_choice_row(i, y);
     }
 }
@@ -1592,13 +1594,14 @@ void dialog_open(int kind, int index) {
 static void dialog_draw_chars(int from, int to) {
     int k = 0;
     for (int l = 0; l < dlg_nlines; l++) {
-        int x = dlg_tx;
+        int x = dlg_lx[l];
         for (const char *p = dlg_lines[l]; *p; p++, k++) {
             char c[2] = {*p, 0};
-            if (k >= from && k < to) text_draw(x, DLG_Y + 9 + l * 12, c, TC_WHITE);
+            if (k >= from && k < to) text_draw_ns(x, DLG_Y + 16 + l * 11, c, TC_BLACK);
             x += font_width[(u8)*p - 32] + 1;
         }
     }
+    if (to >= dlg_total) text_center_ns(dlg_tx, DLG_Y + 45, "Press A to continue", TC_BLUE);
 }
 
 void dialog_update(void) {
@@ -1696,18 +1699,17 @@ static void store_draw(void) {
     cv_clear(&cv_text);
     cv_clear(&cv_panel);
     icons_clear();
-    draw_header(store_is_bank ? "Bank" : "General Store");
+    draw_header(store_is_bank ? "The Bank of Gielinor" : "General Store");
     // tabs
-    const char *t0 = store_is_bank ? "BANK" : "STOCK";
+    // OSRS-style stone tabs; the open one is raised and lit
+    const char *t0 = store_is_bank ? "Bank" : "Stock";
     int x = 120;
     for (int i = 0; i < 2; i++) {
-        const char *t = i == 0 ? t0 : "INVENTORY";
-        int w = text_spaced_width(t, 1) + 12;
-        if (i == tab) {
-            cv_fill(&cv_panel, x, 19, w, 1, PC_EDGE);
-            cv_fill(&cv_panel, x, 20, w, 9, PC_HL3);
-        }
-        text_spaced(x + 6, 20, t, i == tab ? TC_WHITE : TC_DIM, 1);
+        const char *t = i == 0 ? t0 : "Inventory";
+        int w = text_width(t) + 12;
+        draw_stone_button(x, 18, w, 12, 0);
+        if (i == tab) cv_fill(&cv_panel, x + 2, 19, w - 4, 1, PC_GOLD);
+        text_draw(x + 6, 20, t, i == tab ? TC_ORANGE : TC_DIM);
         x += w + 4;
     }
     draw_button(98, 20, 'L');
@@ -1942,51 +1944,77 @@ void bank_update(void) { store_update(); }
 void shop_update(void) { store_update(); }
 
 // ---------------------------------------------------------------------------------------
-// Title screen
-static u8 title_sel, title_phase;
+// Title screen: the OSRS login screen - black, the gold logo between columns of flame, a
+// stone "Welcome to RuneScape" box with New User / Existing User, and the music toggle
+// bottom-right.
+enum { TS_NEW, TS_EXISTING, TS_MUSIC };
+static u8 title_sel, title_phase, title_mute, title_back;
 static s16 title_t;
+
+#define TB_Y 88   // login buttons
+static const u8 note_px[11] = {0x7C, 0x7C, 0x44, 0x44, 0x44, 0x44, 0x44, 0x66, 0xEE, 0xEE, 0x44};   // beamed quavers
+
+static void title_music_button(void) {
+    int x = 214, y = 134;
+    cv_fill(&cv_panel, x - 1, y - 1, 24, 24, 0);
+    draw_stone_button(x, y, 22, 22, title_sel == TS_MUSIC);
+    for (int r = 0; r < 11; r++)
+        for (int b = 0; b < 8; b++)
+            if (note_px[r] & (0x80 >> b)) cv_pset(&cv_panel, x + 7 + b, y + 5 + r, PC_GOLD);
+    if (title_mute)
+        for (int i = 0; i < 14; i++) {
+            cv_pset(&cv_panel, x + 4 + i, y + 4 + i, PC_RED);
+            cv_pset(&cv_panel, x + 5 + i, y + 4 + i, PC_RED);
+        }
+}
 
 static void title_draw(void) {
     cv_clear(&cv_text);
     cv_clear(&cv_panel);
     icons_clear();
-    text_big(120, 22, "RuneScape");
-    draw_rule(48, 46, 144);
-    text_spaced(120 - text_spaced_width("2007  DEMAKE", 3) / 2, 51, "2007  DEMAKE", TC_CYAN, 3);
-    text_center(120, 63, "Game Boy Advance Edition", TC_GREY);
-    draw_panel(72, 86, 96, 44, 6);
+    text_center(120, 8, "Old School", TC_GOLD);
+    text_big(120, 20, "RuneScape");
+    // welcome box
+    draw_panel(46, 62, 148, 54, 0);
+    text_center(120, 70, "Welcome to RuneScape", TC_YELLOW);
     int has = save_exists();
-    static const char *const opts[2] = {"New Game", "Continue"};
+    static const char *const opts[2] = {"New User", "Existing User"};
     for (int i = 0; i < 2; i++) {
-        int y = 94 + i * 16;
-        if (i == title_sel) {
-            draw_highlight(75, y - 3, 90, 14);
-            cursor_to(67, y);
-        }
-        int col = (i == 1 && !has) ? TC_DIM : i == title_sel ? TC_WHITE : TC_GREY;
-        text_draw(88, y, opts[i], col);
+        int x = i ? 122 : 54, w = i ? 64 : 60;
+        draw_stone_button(x, TB_Y, w, 20, title_sel == i);
+        text_center(x + w / 2, TB_Y + 6, opts[i], (i == TS_EXISTING && !has) ? TC_DIM : TC_WHITE);
     }
-    text_center(120, 146, "A fan-made tribute. Not affiliated with Jagex.", TC_DIM);
+    title_music_button();
+    text_center(120, 120, "A fan-made tribute. Not affiliated with Jagex.", TC_DIM);
 }
 
 void title_open(void) {
     game_state = GS_TITLE;
     music_play(MUS_TITLE);
-    title_sel = save_exists() ? 1 : 0;
+    title_sel = save_exists() ? TS_EXISTING : TS_NEW;
+    title_back = title_sel;
     title_phase = 0;
     title_t = 0;
     cursor_hide();
-    gfx_set_world_fade(6);
+    gfx_set_world_fade(0);
     gfx_set_mosaic(0);
-    gfx_set_ui_alpha(13, 0);
+    gfx_set_ui_alpha(16, 0);
     title_draw();
 }
 
+// the flames either side of the logo (OBJ fire frames at 2x)
+static void title_flames(void) {
+    if (game_state != GS_TITLE || title_phase) return;
+    for (int side = 0; side < 2; side++)
+        for (int k = 0; k < 2; k++) {
+            int x = side ? 190 + k * 18 : 18 - k * 18, y = k ? 14 : -2;
+            int f = ((frame / 6) + k * 2 + side) & 3;
+            obj_sprite(x, y, SPR_TFLAME0 + f * 8, 6, 1, 0, 1, OBJF_AFFINE2X | OBJF_TALL);
+        }
+}
+
 void title_update(void) {
-    // slow camera drift over Lumbridge
     title_t++;
-    cam_x = START_X * 16 - 280 + (title_t >> 2) % 400;
-    cam_y = START_Y * 16 - 120 + ((title_t >> 3) % 120);
     if (title_phase) {
         if (++title_phase > 12) {
             game_state = GS_WORLD;
@@ -1994,32 +2022,52 @@ void title_update(void) {
             gfx_set_ui_alpha(12, 0);
             ui_hud_reset();
             msg_col("Welcome to RuneScape.", TC_GOLD);
-            if (title_sel == 0) msg("Talk to the Lumbridge Guide east of the castle for tips.");
+            if (title_sel == TS_NEW) msg("Talk to the Lumbridge Guide east of the castle for tips.");
             music_enable(pl.music);
         } else {
-            gfx_set_world_fade(title_phase > 6 ? 6 + (title_phase - 6) * 10 / 6 : 6 - title_phase);
-            gfx_set_ui_alpha(13 - title_phase, 1);
+            gfx_set_world_fade(title_phase * 16 / 12);
+            gfx_set_ui_alpha(16 - title_phase * 16 / 12, 1);
         }
         return;
     }
+    int has = save_exists();
     int s = title_sel;
-    if (keys_repeat & (KEY_UP | KEY_DOWN)) s ^= 1;
-    if (s == 1 && !save_exists()) s = 0;
+    if (s == TS_MUSIC) {
+        if (keys_repeat & (KEY_UP | KEY_LEFT)) s = title_back;
+    } else {
+        if (keys_repeat & (KEY_LEFT | KEY_RIGHT)) s ^= 1;
+        if (s == TS_EXISTING && !has) s = TS_NEW;
+        if (keys_repeat & KEY_DOWN) {
+            title_back = s;
+            s = TS_MUSIC;
+        }
+    }
     if (s != title_sel) {
         title_sel = s;
         sfx(SFX_MOVE);
         title_draw();
     }
+    if ((keys_pressed & KEY_SELECT) || (title_sel == TS_MUSIC && (keys_pressed & (KEY_A | KEY_START)))) {
+        title_mute ^= 1;
+        music_enable(!title_mute);
+        sfx(SFX_OK);
+        title_music_button();
+        return;
+    }
     if (keys_pressed & (KEY_A | KEY_START)) {
+        if (title_sel == TS_MUSIC) return;
         sfx(SFX_LEVEL);
         world_init();
-        if (title_sel == 1 && load_game()) {
+        if (title_sel == TS_EXISTING && load_game()) {
             world_after_load();
         } else {
             world_new_game();
         }
+        if (title_mute) pl.music = 0;   // the login screen's music switch carries into the game
         cursor_hide();
         icons_clear();
+        cv_clear(&cv_text);
+        cv_clear(&cv_panel);
         title_phase = 1;
         // snap camera to the player for the fade in (without treating the A press as an
         // interaction with whatever the loaded player faces)
@@ -2041,17 +2089,11 @@ u8 ui_wait;
 void ui_draw_sprites(void) {
     ui_wait = game_state == GS_DIALOG ? (dlg_choice == 1 ? 2 : dlg_choice ? 0 : dlg_chars >= dlg_total ? 1 : 0)
             : game_state == GS_QUESTDONE ? 3 : game_state == GS_LEVELUP ? 4 : game_state == GS_WORLD ? 5 : 0;
-    // smooth cursor glide with a little horizontal bob
-    if (cursor_tx > -50) {
-        cursor_x += (cursor_tx - cursor_x + (cursor_tx > cursor_x ? 1 : 0)) / 2;
-        cursor_y += (cursor_ty - cursor_y + (cursor_ty > cursor_y ? 1 : 0)) / 2;
-        int bob = ((frame >> 3) & 3) == 1 ? 1 : ((frame >> 3) & 3) == 3 ? -1 : 0;
-        obj_sprite(cursor_x + bob + slide, cursor_y, SPR_CURSOR, 6, 0, 0, 0, OBJF_8x8);
-    }
+    // (no pointer sprite: like OSRS, the hovered row itself shows the selection)
     if (game_state == GS_WORLD)
         for (int i = 0; i < 3; i++)
             if (drop_icon_on[i] && drops[i].timer) obj_icon(drop_icon_x[i], drop_icon_y[i], skill_icons[drops[i].sk], 1);
-    if (show_arrow) obj_sprite(220, 142 + ((frame >> 4) & 1), SPR_ARROWD, 6, 0, 0, 0, OBJF_8x8);
+    if (game_state == GS_WORLD && orb_icon > 0) obj_icon(214, 135, skill_icons[SK_HITPOINTS], 1);
     for (int i = 0; i < ui_icon_n; i++) {
         int x = ui_icons[i].x + slide, y = ui_icons[i].y;
         if (pop.open && x + 16 > pop_rx && x < pop_rx + pop_rw && y + 16 > pop_ry && y < pop_ry + pop_rh) continue;
@@ -2059,6 +2101,7 @@ void ui_draw_sprites(void) {
     }
     if (show_portrait) avatar_draw_portrait(portrait_x + slide, portrait_y, 1);   // 2x composited player
     draw_dialog_portrait();
+    title_flames();
     gfx_set_hl_pulse((frame >> 1) & 63);
     if (slide) {
         slide = slide * 3 / 4;

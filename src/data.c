@@ -217,6 +217,7 @@ const NpcDef npc_defs[NPC_KIND_COUNT] = {
     [NPC_BARTENDER] = {"Bartender", SPR_KIND_HUMAN, 7, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_AMIK] = {"Sir Amik Varze", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_BK_GUARD] = {"Fortress guard", SPR_KIND_HUMAN, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
+    [NPC_BORDER_GUARD] = {"Border guard", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_ARIS] = {"Gypsy Aris", SPR_KIND_DRESS, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_PRYSIN] = {"Sir Prysin", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_ROVIN] = {"Captain Rovin", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},

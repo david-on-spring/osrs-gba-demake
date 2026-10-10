@@ -508,6 +508,31 @@ for f in range(3):
         return 0
     add_sprite('FIRE%d' % f, proc(16, 16, flame))
 
+# login screen flames: tall licking tongues, no logs (16x32, four frames)
+for f in range(4):
+    def tflame(x, y, f=f):
+        t = (31 - y) / 31.0                      # 0 at the base, 1 at the top
+        best = 0
+        for k, (ox, ph, top) in enumerate(((7.5, 0.0, 1.0), (4.5, 2.1, 0.62), (10.5, 4.2, 0.72))):
+            reach = top * (0.86 + 0.14 * math.sin(f * 1.57 + ph))
+            if t > reach:
+                continue
+            u = t / reach
+            cx = ox + math.sin(y * 0.33 + f * 1.57 + ph) * 1.6 * u
+            w = (4.2 if k == 0 else 2.6) * (1 - u) ** 0.6
+            d = abs(x - cx)
+            if d < w * 0.35 and u < 0.75:
+                best = max(best, 3)
+            elif d < w * 0.7:
+                best = max(best, 2)
+            elif d < w:
+                best = max(best, 1)
+        spark = hash((f, x, y)) % 97 == 0 and y < 14
+        if spark:
+            best = max(best, 2)
+        return [0, FX_MAP['r'], FX_MAP['f'], FX_MAP['y']][best]
+    add_sprite('TFLAME%d' % f, proc(16, 32, tflame), 16, 32)
+
 
 def splat(col, dark):
     def fn(x, y):
@@ -1694,7 +1719,7 @@ KINDS = ['COW', 'CHICKEN', 'GOBLIN', 'MAN', 'WOMAN', 'GUARD', 'BANKER', 'SHOPKEE
          'DUKE', 'FRED', 'SHEEP', 'DAIRY_COW', 'AERECK', 'URHNEY', 'GHOST', 'SKELETON', 'ROMEO', 'JULIET',
          'LAWRENCE', 'APOTHECARY', 'DORIC', 'SEDRIDOR', 'AUBURY', 'MIZGOG', 'TRAIBORN', 'IMP', 'HETTY', 'RAT',
          'AGGIE', 'WARTFACE', 'BENTNOZE', 'VERONICA', 'ODDENSTEIN', 'FRANK', 'BARTENDER', 'AMIK', 'BK_GUARD',
-         'ARIS', 'PRYSIN', 'ROVIN', 'DELRITH']
+         'ARIS', 'PRYSIN', 'ROVIN', 'DELRITH', 'BORDER_GUARD']
 for i, k in enumerate(KINDS):
     h.append('#define NPC_%s %d' % (k, i))
 h.append('#define NPC_KIND_COUNT %d' % len(KINDS))

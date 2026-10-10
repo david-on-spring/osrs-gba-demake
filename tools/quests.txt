@@ -1697,3 +1697,46 @@ event DELRITH
   narrate "Delrith shrieks as he is dragged back into the dark dimension from which he came!"
   npcoff
   complete DEMON
+
+# ============================================================================================
+# Al Kharid toll gate (world_gen.py: TOLLGATE). 10 coins each way, as before Prince Ali Rescue.
+# ============================================================================================
+obj TOLLGATE
+  say BORDER_GUARD "Halt! Nobody passes this gate without paying the toll of 10 gold coins."
+  choice
+    option "Okay, I'll pay. (10 coins)" pay
+    option "Who collects the money?" who
+    option "No thank you." end
+:pay
+  if not has COINS 10 goto poor
+  if not clear goto blocked
+  take COINS 10
+  sfx COINS
+  chat "You pay the guard and pass through the gate."
+  walkthrough
+  end
+:blocked
+  say BORDER_GUARD "Hold on, there's someone in the way. Wait a moment."
+  end
+:who
+  say BORDER_GUARD "The Emir of Al Kharid. Every coin goes to his treasury."
+  end
+:poor
+  player "I haven't got enough coins."
+  say BORDER_GUARD "Then you'll be staying on this side of the fence."
+
+talk BORDER_GUARD
+  npc "Ten gold coins to pass through to Al Kharid. Open the gate when you're ready to pay."
+  choice
+    option "I'll pay now. (10 coins)" pay
+    option "Maybe later." end
+:pay
+  if not has COINS 10 goto poor
+  take COINS 10
+  sfx COINS
+  chat "You pay the guard and pass through the gate."
+  tp 170 161 RIGHT
+  end
+:poor
+  player "I haven't got enough coins."
+  npc "No money, no entry."

@@ -177,6 +177,7 @@ void gfx_set_ui_scroll(int x);
 #define OBJF_WIDE 8                       // 16x8 instead of 16x16
 #define OBJF_8x8 16
 #define OBJF_32 32                        // 32x32
+#define OBJF_TALL 64                      // 16x32 (vertical)
 
 // canvas.c
 typedef struct {
@@ -207,13 +208,17 @@ void draw_bar(int x, int y, int w, int val, int max, int col, int dark);
 void draw_button(int x, int y, char label);
 void draw_rule(int x, int y, int w);
 void draw_cell(int x, int y, int w, int h, int sel);
+void draw_parchment(int x, int y, int w, int h);   // OSRS chatbox / scroll paper
+void draw_stone_button(int x, int y, int w, int h, int sel);
 
 // Canvas colours (panel canvas, BG palette 0)
+// (OSRS look: FILL stone, WELL dark inset, EDGE light bevel, EDGE_DIM outline, HL* hover shades)
 enum { PC_FILL = 1, PC_WELL, PC_EDGE, PC_EDGE_DIM, PC_HL1, PC_HL2, PC_HL3, PC_GOLD, PC_GREEN,
-       PC_GREEN_D, PC_BLUE, PC_BLUE_D, PC_BAR_BG, PC_WHITE, PC_RED };
+       PC_GREEN_D, PC_PARCH, PC_PARCH_D, PC_BAR_BG, PC_WHITE, PC_RED };
 // Text colours (text canvas, BG palette 1)
+// TC_GREY/TC_CYAN/TC_ORANGE are OSRS interface orange, TC_GOLD/TC_YELLOW its value yellow
 enum { TC_WHITE = 1, TC_GREY, TC_DIM, TC_SHADOW, TC_GOLD, TC_CYAN, TC_GREEN, TC_RED, TC_YELLOW,
-       TC_ORANGE, TC_BLUE, TC_BLACK };
+       TC_ORANGE, TC_BLUE, TC_BLACK, TC_DKRED, TC_DKBLUE };
 
 // world.c
 int world_type(int x, int y);           // cell type (T_*), including runtime changes
@@ -230,6 +235,7 @@ void player_stop(void);
 void player_respawn(void);
 void player_tp(int x, int y, int dir);
 int player_walk_through(void);          // step two cells ahead (through a door / past a guard)
+int player_can_walk_through(void);      // the cell two ahead is free
 void world_refresh_npcs(void);          // apply quest NPC visibility
 void npc_set_active(int i, int on);
 int npc_portrait_tile(int kind);        // first tile of a 16x16 frame for dialogue portraits
