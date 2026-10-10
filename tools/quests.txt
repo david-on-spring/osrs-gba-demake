@@ -216,6 +216,8 @@ obj WATER
   chat "You fill the bucket with water."
 :none
 
+obj VFOUNTAIN = FOUNTAIN
+
 obj FOUNTAIN
   if near MANOR_FOUNTAIN 2 goto manor
 :fill

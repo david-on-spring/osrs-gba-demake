@@ -1,8 +1,8 @@
 # Draynor Village at 1:1. Run by tools/world_gen.py in its namespace (see tools/zones/README.md).
 DRAYNOR = city('DRAYNOR', (3072, 3226, 3132, 3285), 162, ZONE_Y, 2)
 set_ctx(DRAYNOR.ctx)
-B = build_from_ref(load_ref('draynor'), dict(stone='WALL', wood='HWALL', road='COBBLE', fence='FENCE',
-                                             roof_stone='slate', roof_wood='thatch'))
+B = build_from_ref(load_ref('draynor'), dict(stone='WALL', wood='WALL', road='COBBLE', fence='FENCE',
+                                             roof_stone='slate', roof_wood='slate'))
 # Draynor bank: booths along the south wall, entered from the north
 bank(building_at(B, 3092, 3243), 'S')
 # market square stalls (2x2, striped awnings)

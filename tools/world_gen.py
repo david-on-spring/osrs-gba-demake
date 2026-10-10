@@ -148,7 +148,8 @@ BLOCK = ['WATER', 'WALL', 'HWALL', 'WWALL', 'SWALL', 'FENCE', 'TREE', 'OAK', 'WI
          # 1:1 zones: void between zones, edge/stair portals, castle and town furniture
          'VOID', 'PORTAL', 'STAIRS', 'TABLE', 'BED', 'STATUE', 'PEW', 'HEDGE', 'CRATE',
          'CHAIR', 'BOOKCASE', 'DRAWERS', 'FIREPLACE', 'BARREL', 'WARDROBE', 'POTPLANT', 'BIGSTALL', 'ANVIL',
-         'FURNACE', 'SHELF', 'THRONE', 'WELL', 'SACKS', 'FLOWERBED', 'PALM']
+         'FURNACE', 'SHELF', 'THRONE', 'WELL', 'SACKS', 'FLOWERBED', 'PALM', 'BENCH', 'SUNFLOWER', 'LOWWALL',
+         'VFOUNTAIN']
 TYPES = WALK + BLOCK
 T = {n: i for i, n in enumerate(TYPES)}
 WALKSET = set(WALK)
@@ -1512,15 +1513,15 @@ LUMB_COOK = zc(3208, 3213)
 HANS = zc(3219, 3223)
 START = zc(3222, 3218)
 # town buildings
-GS_LUMB = zbuild(3208, 3241, 3215, 3251, 'HWALL', 'WOODFLOOR', [(3215, 3245)], roof='red')
+GS_LUMB = zbuild(3208, 3241, 3215, 3251, 'WALL', 'WOODFLOOR', [(3215, 3245)], roof='red')
 for (X, Y) in ((3208, 3241), (3208, 3251)):
     zset(X, Y, 'GRASS', 'GRASS')
-BOB = zbuild(3227, 3200, 3233, 3205, 'HWALL', 'WOODFLOOR', [(3233, 3202)], roof='red')
-zbuild(3230, 3193, 3237, 3198, 'HWALL', 'WOODFLOOR', [(3235, 3198)], roof='thatch')
-zbuild(3226, 3235, 3233, 3242, 'HWALL', 'WOODFLOOR', [(3226, 3240)], roof='thatch')
+BOB = zbuild(3227, 3200, 3233, 3205, 'WALL', 'WOODFLOOR', [(3233, 3202)], roof='red')
+zbuild(3230, 3193, 3237, 3198, 'WALL', 'WOODFLOOR', [(3235, 3198)], roof='red')
+zbuild(3226, 3235, 3233, 3242, 'WALL', 'WOODFLOOR', [(3226, 3240)], roof='red')
 zbuild(3221, 3251, 3230, 3257, 'WALL', 'FLOOR', [(3225, 3251)], roof='slate')
-zbuild(3243, 3243, 3250, 3248, 'HWALL', 'WOODFLOOR', [(3246, 3243)], roof='thatch')     # goblin house
-zbuild(3191, 3229, 3194, 3232, 'HWALL', 'WOODFLOOR', [(3194, 3230)], roof='thatch')
+zbuild(3243, 3243, 3250, 3248, 'HWALL', 'WOODFLOOR', [(3246, 3243)], roof='thatch')     # goblin house (a shack)
+zbuild(3191, 3229, 3194, 3232, 'WALL', 'WOODFLOOR', [(3194, 3230)], roof='red')
 # church and its graveyard; the graveyard's south gate opens onto the swamp
 CHURCH_L = zbuild(3239, 3203, 3249, 3215, 'WALL', 'FLOOR', [(3239, 3209)], roof='slate')
 zput(3248, 3209, 'ALTAR')
@@ -1690,13 +1691,13 @@ def load_ref(name):
     return r
 
 
-def ensure_door(tiles):
+def ensure_door(tiles, force=False):
     """Give a building (OSRS tiles) a door if none of its doors joins its floor to the outside.
     Prefers the middle of a wall run on the south side, facing paving or a path."""
     T_ = lambda X, Y: TY[cy(Y)][cx(X)] if inc(cx(X), cy(Y)) else 'VOID'
     inside = lambda X, Y: (X, Y) in tiles
     good = lambda X, Y: T_(X, Y) in WALKSET and T_(X, Y) != 'DOOR' and not inside(X, Y)
-    for (X, Y) in tiles:
+    for (X, Y) in ([] if force else tiles):
         if T_(X, Y) == 'DOOR':
             for (u, v) in ((0, 1), (1, 0)):
                 a, b = (X - u, Y - v), (X + u, Y + v)
@@ -1829,6 +1830,21 @@ def build_from_ref(ref, style):
     is_wood = lambda t: t in room and bwood[bld_of(t)][0] * 2 > bwood[bld_of(t)][1]
     out = []        # buildings: dict(tiles, wood, roof, rect (OSRS), special)
     host = {}       # tile -> 'wall' / 'door' / 'fence' / 'gate'
+    wall_out = set()  # walls pushed onto the outdoor tile beside a narrow passage
+
+    def run_len(t, horizontal):
+        """Floor tiles in a straight line through t (across the room) without crossing an edge."""
+        n = 1
+        for sgn in (-1, 1):
+            a = t
+            while True:
+                b = (a[0] + sgn, a[1]) if horizontal else (a[0], a[1] + sgn)
+                e = (edgeW(max(a[0], b[0]), a[1]) if horizontal else edgeN(a[0], max(a[1], b[1])))
+                if not indoor(*b) or e != '.':
+                    break
+                n += 1
+                a = b
+        return n
 
     def place(t, kind):
         old = host.get(t)
@@ -1845,7 +1861,13 @@ def build_from_ref(ref, style):
                 door = e in 'do'
                 ia, ib = indoor(*a), indoor(*b)
                 if ia != ib:
-                    place(a if ia else b, 'door' if door else 'wall')
+                    t_in, t_out = (a, b) if ia else (b, a)
+                    vert = a[1] == b[1]                    # the edge runs north-south
+                    if not door and run_len(t_in, vert) <= 2 and 0 <= t_out[0] < Wd and 0 <= t_out[1] < Ht:
+                        place(t_out, 'wall')               # keep a narrow passage open
+                        wall_out.add(t_out)
+                    else:
+                        place(t_in, 'door' if door else 'wall')
                 elif ia and ib:
                     if find(room[a]) == find(room[b]) and not door:
                         continue                  # inside a merged room
@@ -1870,7 +1892,8 @@ def build_from_ref(ref, style):
         if kind == 'wall':
             t = (c, r) if (c, r) in room else next(((c + u, r + v) for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1))
                                                     if (c + u, r + v) in room), None)
-            zset(X, Y, style['wood'] if (t and is_wood(t)) else style['stone'])
+            zset(X, Y, style['wood'] if (t and is_wood(t)) else style['stone'],
+                 None if (c, r) in room else ('FLOOR' if not (t and is_wood(t)) else 'WOODFLOOR'))
         elif kind == 'door':
             zset(X, Y, 'DOOR')
         elif kind == 'fence':
@@ -1898,6 +1921,10 @@ def build_from_ref(ref, style):
     groups = {}
     for t in room:
         groups.setdefault(bld_of(t), []).append(t)
+    for t in wall_out:
+        nb = next(((t[0] + u, t[1] + v) for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)) if (t[0] + u, t[1] + v) in room), None)
+        if nb is not None and t not in room:
+            groups[bld_of(nb)].append(t)
     for comp in groups.values():
         if len(comp) < 4:
             continue
@@ -1982,6 +2009,9 @@ def zshop(name, b, npc):
                 dist[n] = dist[a] + 1
                 q.append(n)
     reach = [t for t in floor if t in dist]
+    if not reach:
+        ensure_door(b['tiles'], force=True)
+        return zshop(name, b, npc)
     K = max(reach, key=lambda t: (dist[t], -abs(t[0] - (b['rect'][0] + b['rect'][2]) / 2.0)))
     cand = sorted((n for n in ((K[0] + u, K[1] + v) for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1))) if n in dist),
                   key=lambda n: dist[n])
@@ -2005,6 +2035,23 @@ def zshop(name, b, npc):
         SHOP_OWNERS.add(npc)
     SPAWNS.append((npc,) + zc(*K))
     b['special'] = True
+
+
+def deco(X, Y, t, on=('GRASS', 'FLOWERS', 'FERN', 'PATH', 'COBBLE', 'DESERT', 'SAND')):
+    """Put a decoration on an open ground tile (skipped if something is already there)."""
+    x, y = cx(X), cy(Y)
+    if inc(x, y) and TY[y][x] in on and not ROOF[y][x]:
+        TY[y][x] = t
+        return True
+    return False
+
+
+def deco_near(X, Y, t, r=4, on=('GRASS', 'FLOWERS', 'FERN')):
+    for d in range(r + 1):
+        for (u, v) in [(u, v) for u in range(-d, d + 1) for v in range(-d, d + 1) if max(abs(u), abs(v)) == d]:
+            if deco(X + u, Y + v, t, on):
+                return (X + u, Y + v)
+    return None
 
 
 def clear_inside(b):
@@ -2035,20 +2082,26 @@ def furnish(b, kit=None, seed=0):
     r.shuffle(spots)
     spots.sort(key=lambda t: -walls(t))
 
-    def connected(free):
-        if not free:
-            return True
+    def ncomp(free):
         graph = free | set(doors)
-        start = next(iter(free))
-        seen, st = {start}, [start]
-        while st:
-            a = st.pop()
-            for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                n = (a[0] + u, a[1] + v)
-                if n in graph and n not in seen:
-                    seen.add(n)
-                    st.append(n)
-        return all(t in seen for t in free)
+        seen, n = set(), 0
+        for t0 in free:
+            if t0 in seen:
+                continue
+            n += 1
+            seen.add(t0)
+            st = [t0]
+            while st:
+                a = st.pop()
+                for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    q = (a[0] + u, a[1] + v)
+                    if q in graph and q not in seen:
+                        seen.add(q)
+                        st.append(q)
+        return n
+    comps0 = ncomp(fl)
+    connected = lambda free: ncomp(free) <= comps0
+    door_need = [d for d in doors if any((d[0] + u, d[1] + v) in fl for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
     budget = max(1, len(floor) // 5)
     placed = 0
     for item in kit:
@@ -2062,7 +2115,7 @@ def furnish(b, kit=None, seed=0):
             if item == 'TABLE' and walls(t) >= 2:
                 continue
             if connected(fl - {t}) and all(any((d[0] + u, d[1] + v) in fl - {t} for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)))
-                                           for d in doors):
+                                           for d in door_need):
                 zput(t[0], t[1], item)
                 fl.discard(t)
                 placed += 1
@@ -2534,7 +2587,7 @@ CHARS.update({'CHECKER': '#', 'VOID': ' ', 'PORTAL': 'p', 'STAIRS': '/', 'TABLE'
               'PEW': 'n', 'HEDGE': 'h', 'CRATE': 'x', 'FERN': '.', 'RUG': 'r', 'CHAIR': 'c', 'BOOKCASE': 'k',
               'DRAWERS': 'd', 'FIREPLACE': 'F', 'BARREL': 'o', 'WARDROBE': 'w', 'POTPLANT': 'p', 'BIGSTALL': 'L',
               'ANVIL': 'a', 'FURNACE': 'u', 'SHELF': 'k', 'THRONE': 'T', 'WELL': 'O', 'SACKS': 's', 'FLOWERBED': ',',
-              'PALM': 'P'})
+              'PALM': 'P', 'BENCH': 'n', 'SUNFLOWER': '*', 'LOWWALL': 'l', 'VFOUNTAIN': 'F'})
 
 
 def ascii_map():
@@ -3390,7 +3443,14 @@ def render(x, y):
 import hd_art  # noqa: E402
 
 
+def theme_of(x, y):
+    z = zone_of(x, y)
+    n = ZONES[z][0] if z is not None else 'LUMBRIDGE'
+    return 'LUMBRIDGE' if n.startswith('CASTLE') else n
+
+
 def render_hd(x, y):
+    hd_art.set_theme(theme_of(x, y))
     return hd_art.render(sys.modules[__name__], x, y, QUEST_ART)
 
 
@@ -3533,7 +3593,7 @@ def render_cached(x, y):
                           for dx in (-1, 0, 1) for dy in (-3, -2, 2, 3)) + \
             tuple(ROOF[y + dy][x + dx] if inb(x + dx, y + dy) else 0 for dx, dy in DIRS8 + [(0, 0)]) + \
             (hsh(x, y) % 6, x & 1, y & 1, hsh(53, x, y) % 6)
-        if TY[y][x] in ('FLOWERS', 'STAIRS', 'FERN', 'BIGSTALL', 'FLOWERBED'):
+        if TY[y][x] in ('FLOWERS', 'STAIRS', 'FERN', 'BIGSTALL', 'FLOWERBED', 'VFOUNTAIN', 'SUNFLOWER'):
             key = key + (x, y)
     if t in ('CLIFF',):
         key = key + (x, y)
@@ -3555,6 +3615,8 @@ for y in range(MH):
             map_over[y - 1][x] = o
 # roofs on the overlay layer (above sprites), one image per covered cell
 for g in range(1, len(ROOFS)):
+    if ROOFS[g][1]:
+        hd_art.set_theme(theme_of(*next(iter(ROOFS[g][1]))))
     for (x, y), img in hd_art.roof_images(sys.modules[__name__], g).items():
         map_over[y][x] = add_meta(img, pset_of(x, y))
 # upper castle floors: outside the keep the player looks down onto the ground floor

@@ -204,7 +204,7 @@ def extract(plane, X0, Y0, X1, Y1):
                     across[cls[n]] += 1
         mine = cls[comp[0]]
         indoor = per > 0 and walled >= per * 0.6 and len(comp) <= 400 and mine not in 'WK' and not (border and len(comp) > 40)
-        if indoor and mine in 'GTYM':
+        if indoor and mine in 'GM':
             # a green/tan/sand patch is a floor only if it differs from the ground outside its walls
             outside = Counter()
             for (c, r) in comp:

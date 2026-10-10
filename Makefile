@@ -19,7 +19,7 @@ LDFLAGS := $(ARCH) -nostartfiles -nostdlib -T src/gba.ld -Wl,--gc-sections -Wl,-
 all: $(TARGET).gba
 
 # pattern rule with two targets = one recipe run produces both (safe under make -j)
-$(BUILD)/assets%c $(BUILD)/assets%h $(BUILD)/quest_data%c $(BUILD)/quest_data%h: tools/gen_assets.py tools/world_gen.py tools/hd_art.py tools/gen_quests.py tools/gen_title.py tools/quests.txt
+$(BUILD)/assets%c $(BUILD)/assets%h $(BUILD)/quest_data%c $(BUILD)/quest_data%h: tools/gen_assets.py tools/world_gen.py tools/hd_art.py tools/gen_quests.py tools/gen_title.py tools/quests.txt $(wildcard tools/zones/*.py tools/zones/*.ref)
 	@mkdir -p $(BUILD)
 	$(PYTHON) tools/gen_assets.py $(BUILD)
 

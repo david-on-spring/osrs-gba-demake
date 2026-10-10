@@ -1,0 +1,38 @@
+wait 60
+newgame
+wait 120
+# run through each town (camera streaming + NPCs), then through doors (roof toggles) and portals
+tpz VARROCK 3212 3420 RIGHT
+wait 10
+poke16 @perf_max 0
+hold RIGHT+B 240
+hold DOWN+B 240
+dump @perf_max 1
+tpz FALADOR 2965 3372 RIGHT
+wait 10
+poke16 @perf_max 0
+hold RIGHT+B 300
+hold UP+B 200
+dump @perf_max 1
+tpz LUMBRIDGE 3222 3218 LEFT
+wait 10
+poke16 @perf_max 0
+hold LEFT 60
+dump @perf_max 1
+tpz LUMBRIDGE 3200 3245 LEFT
+wait 10
+poke16 @perf_max 0
+hold LEFT 80
+hold RIGHT 120
+dump @perf_max 1
+tpz DRAYNOR 3092 3249 DOWN
+wait 10
+poke16 @perf_max 0
+hold DOWN 80
+dump @perf_max 1
+tpz ALKHARID 3290 3200 DOWN
+wait 10
+poke16 @perf_max 0
+hold DOWN+B 200
+dump @perf_max 1
+dump @cache_misses 1

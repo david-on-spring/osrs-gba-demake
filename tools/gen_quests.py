@@ -16,6 +16,7 @@ quests.txt is line based ('#' starts a comment):
   end
 
   talk NPC | obj TYPE | item ITEM | event NAME     start a script (ends at the next block)
+  talk NPC = OTHER | obj TYPE = OTHER              share another NPC's / object's script
   show NPC QUEST MIN MAX [flag B]                  NPC only exists while MIN <= stage <= MAX
 
 Script statements:
@@ -74,6 +75,7 @@ class Compiler:
         self.event = {}
         self.show = []
         self.alias = {}
+        self.obj_alias = {}
         self.block = None
         self.block_id = 0
 
@@ -195,6 +197,10 @@ class Compiler:
             if kw == 'talk' and len(tok) == 4 and tok[2] == '=':
                 self.end_block()
                 self.alias[tok[1]] = tok[3]
+                continue
+            if kw == 'obj' and len(tok) == 4 and tok[2] == '=':
+                self.end_block()
+                self.obj_alias[tok[1]] = tok[3]
                 continue
             if kw in ('talk', 'obj', 'item', 'event'):
                 self.end_block()
@@ -400,6 +406,10 @@ class Compiler:
             if v not in self.talk:
                 raise QuestError('talk %s = %s: no such script' % (k, v))
             self.talk[k] = self.talk[v]
+        for k, v in self.obj_alias.items():
+            if v not in self.obj:
+                raise QuestError('obj %s = %s: no such script' % (k, v))
+            self.obj[k] = self.obj[v]
         for (idx, key, ln) in self.fixups:
             if key not in self.labels:
                 raise QuestError('line %d: undefined label %s' % (ln, key.split(':', 1)[1]))

@@ -1,0 +1,35 @@
+wait 60
+newgame
+wait 900
+tpz LUMBRIDGE 3224 3224 DOWN
+wait 6
+tpz LUMBRIDGE 3222 3221 DOWN
+wait 40
+shot docs/screenshots/lumbridge.png
+tpz VARROCK 3211 3424 DOWN
+wait 40
+shot docs/screenshots/varrock.png
+tpz DRAYNOR 3079 3251 DOWN
+wait 40
+shot docs/screenshots/draynor.png
+tpz ALKHARID 3293 3185 UP
+wait 40
+shot docs/screenshots/alkharid.png
+tpz FALADOR 3009 3385 DOWN
+wait 40
+shot docs/screenshots/falador.png
+tpz EDGEVILLE 3090 3502 DOWN
+wait 40
+shot docs/screenshots/edgeville.png
+tpz CASTLE_2 3206 3219 RIGHT
+wait 40
+shot docs/screenshots/castle_bank.png
+tpz CASTLE_1 3210 3220 DOWN
+wait 40
+shot docs/screenshots/castle_duke.png
+tpz LUMBRIDGE 3209 3214 DOWN
+wait 40
+shot docs/screenshots/castle_kitchen.png
+tpz VARROCK 3225 3398 DOWN
+wait 40
+shot docs/screenshots/varrock_inn.png

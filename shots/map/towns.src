@@ -1,0 +1,48 @@
+wait 60
+newgame
+wait 900
+tpz LUMBRIDGE 3222 3225 DOWN
+wait 20
+shot shots/remaster/t_lum_court.png
+tpz LUMBRIDGE 3240 3224 DOWN
+wait 20
+shot shots/remaster/t_lum_bridge.png
+tpz LUMBRIDGE 3220 3240 DOWN
+wait 20
+shot shots/remaster/t_lum_north.png
+tpz VARROCK 3212 3424 DOWN
+wait 20
+shot shots/remaster/t_var_square.png
+tpz VARROCK 3205 3410 DOWN
+wait 20
+shot shots/remaster/t_var_south.png
+tpz VARROCK 3252 3430 DOWN
+wait 20
+shot shots/remaster/t_var_east.png
+tpz FALADOR 2965 3372 DOWN
+wait 20
+shot shots/remaster/t_fal_west.png
+tpz FALADOR 3012 3378 DOWN
+wait 20
+shot shots/remaster/t_fal_park.png
+tpz FALADOR 2990 3362 DOWN
+wait 20
+shot shots/remaster/t_fal_centre.png
+tpz DRAYNOR 3080 3250 DOWN
+wait 20
+shot shots/remaster/t_dray_market.png
+tpz DRAYNOR 3095 3255 DOWN
+wait 20
+shot shots/remaster/t_dray_road.png
+tpz ALKHARID 3292 3185 DOWN
+wait 20
+shot shots/remaster/t_ak_palace.png
+tpz ALKHARID 3280 3175 DOWN
+wait 20
+shot shots/remaster/t_ak_bank.png
+tpz EDGEVILLE 3094 3503 DOWN
+wait 20
+shot shots/remaster/t_edge_road.png
+tpz EDGEVILLE 3090 3490 DOWN
+wait 20
+shot shots/remaster/t_edge_bank.png

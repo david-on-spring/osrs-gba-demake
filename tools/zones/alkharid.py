@@ -2,8 +2,9 @@
 # namespace (see tools/zones/README.md).
 ALKHARID = city('ALKHARID', (3262, 3142, 3330, 3235), 136, 300, 4)
 set_ctx(ALKHARID.ctx)
-B = build_from_ref(load_ref('alkharid'), dict(stone='SWALL', wood='SWALL', road='PATH', sand='DESERT', fence='FENCE',
-                                              roof_stone='flat', roof_wood='flat', tree='PALM', desert=True))
+B = build_from_ref(load_ref('alkharid'), dict(stone='WWALL', wood='WWALL', road='PATH', sand='DESERT', fence='FENCE',
+                                              roof_stone='slate', roof_wood='slate', tree='PALM', desert=True,
+                                              crops='DEADTREE'))
 # the toll gate: 10 coins each way (obj TOLLGATE / talk BORDER_GUARD in tools/quests.txt)
 for Y in (3227, 3228):
     zset(3267, Y, 'TOLLGATE')
@@ -21,6 +22,7 @@ karim = building_at(B, 3273, 3180)
 furnish(karim, ['RANGE', 'TABLE', 'BARREL', 'SACKS'])
 smelt = building_at(B, 3277, 3187)
 furnish(smelt, ['FURNACE', 'BARREL', 'CRATE'])
+deco_near(3293, 3189, 'WELL', on=('DESERT', 'SAND', 'PATH'))               # the well before the palace
 for b in B:
     if not b['special']:
         furnish(b, ['BED', 'TABLE', 'CHAIR', 'POTPLANT', 'SACKS', 'BARREL', 'DRAWERS', 'CHAIR'])
