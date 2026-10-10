@@ -84,7 +84,7 @@ typedef struct {
 } NpcDef;
 extern const NpcDef npc_defs[NPC_KIND_COUNT];
 
-#define MAX_NPCS 224
+#define MAX_NPCS 256
 typedef struct {
     u8 active, kind, dir, moving;
     s16 x, y;            // tile
@@ -174,6 +174,8 @@ void gfx_set_hl_pulse(int phase);
 void gfx_dyn_hitsplat(int slot, int dmg);
 void gfx_set_ui_scroll(int x);
 void gfx_set_title_palette(int on);
+void gfx_set_world_palette_set(int set);  // zones[].pal_set (marks the palettes for upload)
+void gfx_set_hidden_roof(int group);      // map_roof group not drawn (the one the player is under)
 #define OBJF_MOSAIC 1
 #define OBJF_SEMI 2
 #define OBJF_AFFINE2X 4
@@ -237,6 +239,10 @@ void player_start_firemaking(int slot);
 void player_stop(void);
 void player_respawn(void);
 void player_tp(int x, int y, int dir);
+void player_warp(int x, int y, int dir);  // fade out, move, fade in (staircases)
+int world_warping(void);
+int world_zone(int x, int y);           // zones[] index of a cell
+void world_camera(void);
 int player_walk_through(void);          // step two cells ahead (through a door / past a guard)
 int player_can_walk_through(void);      // the cell two ahead is free
 void world_refresh_npcs(void);          // apply quest NPC visibility

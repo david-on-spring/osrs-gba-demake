@@ -1,0 +1,59 @@
+wait 60
+newgame
+wait 900
+tpz LUMBRIDGE 3222 3218 0
+wait 16
+shot shots/remaster/lumbridge_courtyard.png
+dump @cache_misses 1
+tpz LUMBRIDGE 3210 3218 0
+wait 16
+shot shots/remaster/lumbridge_castle_keep.png
+dump @cache_misses 1
+tpz LUMBRIDGE 3238 3210 0
+wait 16
+shot shots/remaster/lumbridge_church.png
+dump @cache_misses 1
+tpz LUMBRIDGE 3244 3226 0
+wait 16
+shot shots/remaster/lumbridge_bridge.png
+dump @cache_misses 1
+tpz VARROCK 3212 3424 DOWN
+wait 16
+shot shots/remaster/varrock_square.png
+dump @cache_misses 1
+tpz VARROCK 3212 3460 DOWN
+wait 16
+shot shots/remaster/varrock_palace.png
+dump @cache_misses 1
+tpz FALADOR 2990 3362 DOWN
+wait 16
+shot shots/remaster/falador_centre.png
+dump @cache_misses 1
+tpz FALADOR 3006 3376 DOWN
+wait 16
+shot shots/remaster/falador_park.png
+dump @cache_misses 1
+tpz DRAYNOR 3092 3250 DOWN
+wait 16
+shot shots/remaster/draynor_village.png
+dump @cache_misses 1
+tpz DRAYNOR 3080 3250 DOWN
+wait 16
+shot shots/remaster/draynor_market.png
+dump @cache_misses 1
+tpz ALKHARID 3292 3186 DOWN
+wait 16
+shot shots/remaster/al_kharid_palace.png
+dump @cache_misses 1
+tpz ALKHARID 3280 3168 DOWN
+wait 16
+shot shots/remaster/al_kharid_bank.png
+dump @cache_misses 1
+tpz EDGEVILLE 3094 3484 DOWN
+wait 16
+shot shots/remaster/edgeville_bank.png
+dump @cache_misses 1
+tpz EDGEVILLE 3086 3500 DOWN
+wait 16
+shot shots/remaster/edgeville_village.png
+dump @cache_misses 1

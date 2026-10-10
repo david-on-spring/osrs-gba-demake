@@ -43,7 +43,9 @@ The main loop is in `src/main.c`. It switches on `game_state` (`GS_*` in `game.h
 
 ## Generators (`tools/`)
 
-- `world_gen.py`: the map in real OSRS coordinates (1 cell = 2×2 OSRS tiles, 208×208 cells). It places buildings, `shop(...)`/`service(...)`, `spawn(kind, X, Y)` and `spawn_area(...)`. It is imported by `gen_assets.py`.
+- `world_gen.py`: the map in real OSRS coordinates. The overworld is 1 cell = 2×2 OSRS tiles (cells 0..207); the 1:1 towns are zones below it in the same 256×560 grid (`ZONES`, `city()`, portal rings, `build_from_ref`, `migrate_ow_content`). See `docs/remaster.md`. It places buildings, `shop(...)`/`service(...)`, `spawn(kind, X, Y)` and `spawn_area(...)`. It is imported by `gen_assets.py`.
+- `hd_art.py`: art for the 1:1 zones (terrain field, walls, roofs, furniture), with per-town themes.
+- `zones/<town>.ref` (traced by `ref_extract.py` from the OSRS Wiki map) and `zones/<town>.py` (banks, shops, landmarks, run inside world_gen's namespace).
 - `gen_assets.py`: sprites, icons, font and tiles. The NPC kind list is `KINDS`, which becomes the `NPC_*` ids. A new kind also needs an entry in `npc_defs[]` in `src/data.c`.
 - `quests.txt` plus `gen_quests.py`: quest definitions and dialogue scripts. The syntax is in the `gen_quests.py` docstring. Dialogue is wrapped and paged at build time, and the build fails on bad fits or labels.
 - `midi2gba.py` plus `music/tracks.txt`: music. `gen_avatar.py`: player layers. `gen_title.py`: login art.
@@ -53,6 +55,7 @@ The main loop is in `src/main.c`. It switches on `game_state` (`GS_*` in `game.h
 - `shots/q/*.src` (quests) and `shots/t/*.src` (systems) are expanded by `tools/qtest.py`. Its docstring lists the commands: `tp`, `item`, `equip`, `xp`, `stage`, `talk`, `dlg`, `choose`, `world`, `untildead`, and the `expect*` checks. `tools/run_scenario.py` then resolves `@symbol+off` from the map and runs `build/harness`.
 - Scripts can only poke globals that appear in the map. Test-visible state must not be `static` (for example `ui_wait`, `occ_bits`, `pl`, `npcs`, `game_state`).
 - `ui_wait` is what scripts wait on: 1 page shown, 2 choice box, 3 quest scroll, 4 level-up, 5 free in the world.
+- Prefer `face THING DIR` and `tpz ZONE X Y DIR` (OSRS coordinates) over raw `tp` cells in scripts; `build/spawns.txt` lists spawns, objects, items, named places, portals and where to stand to face each thing.
 - To find cells, look up NPC positions in `build/spawns.txt`. For terrain, read `map_type[]` in `build/assets.c` (`T_*` in `assets.h`, index `y*208+x`).
 
 ## Invariants

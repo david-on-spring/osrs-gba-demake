@@ -3,7 +3,7 @@ newgame
 wait 40
 poke16 @perf_max 0
 # --- talk to the Cook in the castle kitchen
-tp 139 171 2
+face COOK LEFT
 talk
 until8 @ui_wait 1 300
 wait 4
@@ -18,10 +18,10 @@ dlg
 world
 expectq COOK 1
 # --- bucket and pot from the kitchen
-tp 137 171 1
+face item:BUCKET UP
 press A
 wait 10
-tp 140 171 1
+face item:POT UP
 press A
 wait 10
 expectitem 9 BUCKET
@@ -67,7 +67,7 @@ press B
 press START
 wait 20
 # --- hand everything in
-tp 139 171 2
+face COOK LEFT
 talk
 dlg
 done

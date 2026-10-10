@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 40
-tp 141 165 3
+face DUKE RIGHT
 talk
 dlg
 choose 0
@@ -20,7 +20,7 @@ dlg
 world
 expectq RUNE 2
 expectitem 9 PACKAGE
-tp 162 73 3
+face AUBURY RIGHT
 talk
 dlg
 world

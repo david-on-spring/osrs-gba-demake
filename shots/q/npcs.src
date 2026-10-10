@@ -17,7 +17,7 @@ dlg
 choose 1
 dlg
 world
-tp 156 171 3
+face AERECK RIGHT
 talk
 until8 @ui_wait 1 300
 wait 4

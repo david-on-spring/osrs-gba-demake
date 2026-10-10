@@ -11,3 +11,4 @@ shots/**/*.txt
 # private music overrides (see music/tracks.txt)
 music/local/
 .DS_Store
+tools/__pycache__/

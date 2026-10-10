@@ -2,7 +2,7 @@ wait 60
 newgame
 wait 40
 # Romeo in Varrock Square
-tp 141 65 1
+face ROMEO UP
 talk
 dlg
 choose 0
@@ -33,19 +33,19 @@ wait 4
 shot shots/q/rj_read.png
 dlg
 world
-tp 141 65 1
+face ROMEO UP
 talk
 dlg
 world
 expectq RJ 3
 # Father Lawrence
-tp 164 34 1
+face LAWRENCE UP
 talk
 dlg
 world
 expectq RJ 4
 # Apothecary
-tp 133 74 1
+face APOTHECARY UP
 talk
 dlg
 world
@@ -56,7 +56,7 @@ press A
 wait 10
 expectitem 9 CADAVA
 shot shots/q/rj_cadava.png
-tp 133 74 1
+face APOTHECARY UP
 talk
 dlg
 world
@@ -67,7 +67,7 @@ talk
 dlg
 world
 expectq RJ 7
-tp 141 65 1
+face ROMEO UP
 talk
 dlg
 done

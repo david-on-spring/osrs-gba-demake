@@ -11,7 +11,7 @@ on a 16.78 MHz handheld, with OSRS-style stone menus, a parchment chatbox and th
 
 ![Platform](https://img.shields.io/badge/platform-Game%20Boy%20Advance-6b5bd6)
 ![Language](https://img.shields.io/badge/language-C%20%2B%20ARM%20asm-00599c)
-![ROM](https://img.shields.io/badge/ROM-~560%20KB-2ea44f)
+![ROM](https://img.shields.io/badge/ROM-~2.3%20MB-2ea44f)
 ![Quests](https://img.shields.io/badge/quests-13-e0b838)
 ![No devkitPro](https://img.shields.io/badge/devkitPro-not%20required-lightgrey)
 
@@ -25,40 +25,70 @@ on a 16.78 MHz handheld, with OSRS-style stone menus, a parchment chatbox and th
 
 ## Features
 
-### The F2P mainland, at 1:2 scale
+### Towns at full scale, the countryside at 1:2
 
-A 208×208-cell recreation of the original free-to-play world, laid out in real OSRS coordinates:
-Lumbridge, Draynor Village and Manor, the Wizards' Tower, Port Sarim, Rimmington, Falador, Ice
-Mountain, Barbarian Village, Edgeville and the Wilderness ditch, Varrock and the Grand Exchange,
-and Al Kharid with its desert. 39 named areas, over 200 NPCs, 9 banks, 6 general stores and 11 specialty shops. The map is
-streamed tile by tile, so you can walk from one end to the other without a single loading screen.
+The six towns are rebuilt at OSRS's own scale, one tile per tile: Lumbridge, Varrock, Falador,
+Draynor Village, Al Kharid and Edgeville. Their streets, buildings, rooms, doors, fences, trees and
+water are traced from the OSRS world map, and each town has its own materials: Lumbridge's grey
+stone and red roofs, Varrock's brick and gilded slate around the Square's fountain, Falador's white
+stone, lattice fences and flower beds in the park, Draynor's market stalls, Al Kharid's whitewash
+and palms, Edgeville's thatch and well. Homes are furnished (beds, tables, chairs, drawers,
+bookcases, fireplaces, rugs) and roofs lift off while you are inside.
+
+Lumbridge Castle has all three floors: the kitchen and chequered great hall on the ground floor,
+Duke Horacio's bedroom and the spinning wheel on the first, and the bank on the second, linked by the
+spiral staircases in the north-west and south-west towers.
+
+Between the towns lies a 208×208-cell recreation of the free-to-play mainland at half scale: the
+Wizards' Tower, Port Sarim, Rimmington, Ice Mountain, Barbarian Village, the Wilderness ditch, the
+Grand Exchange and the desert. Walking off a town's edge carries you onto the big map and back; the
+map is streamed tile by tile, so there are no loading screens beyond a short fade.
 
 <table>
 <tr>
 <td><img src="docs/screenshots/varrock.png" alt="Varrock Square"></td>
-<td><img src="docs/screenshots/lumbridge.png" alt="Lumbridge Castle"></td>
+<td><img src="docs/screenshots/lumbridge.png" alt="Lumbridge Castle courtyard"></td>
 </tr>
 <tr>
-<td align="center"><sub>Varrock Square</sub></td>
-<td align="center"><sub>Lumbridge Castle</sub></td>
+<td align="center"><sub>Varrock Square and Gypsy Aris's tent</sub></td>
+<td align="center"><sub>Lumbridge Castle courtyard</sub></td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/draynor.png" alt="Draynor Village"></td>
 <td><img src="docs/screenshots/alkharid.png" alt="Al Kharid"></td>
 </tr>
 <tr>
-<td align="center"><sub>Draynor Village</sub></td>
+<td align="center"><sub>Draynor Village market</sub></td>
 <td align="center"><sub>Al Kharid</sub></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/falador.png" alt="Falador"></td>
+<td><img src="docs/screenshots/falador.png" alt="Falador Park"></td>
 <td><img src="docs/screenshots/edgeville.png" alt="Edgeville"></td>
 </tr>
 <tr>
-<td align="center"><sub>Falador</sub></td>
+<td align="center"><sub>Falador Park</sub></td>
 <td align="center"><sub>Edgeville</sub></td>
 </tr>
+<tr>
+<td><img src="docs/screenshots/castle_bank.png" alt="Lumbridge Castle bank"></td>
+<td><img src="docs/screenshots/castle_duke.png" alt="Duke Horacio's room"></td>
+</tr>
+<tr>
+<td align="center"><sub>The bank on the castle's top floor</sub></td>
+<td align="center"><sub>Duke Horacio's room, first floor</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/castle_kitchen.png" alt="Lumbridge Castle kitchen"></td>
+<td><img src="docs/screenshots/varrock_inn.png" alt="Inside a Varrock house"></td>
+</tr>
+<tr>
+<td align="center"><sub>The Cook's kitchen</sub></td>
+<td align="center"><sub>Inside the Blue Moon Inn</sub></td>
+</tr>
 </table>
+
+<p align="center"><img src="docs/screenshots/lumbridge_before_after.png" width="640" alt="Lumbridge before and after the remaster"><br>
+<sub>Lumbridge before (left, 1:2) and after (right, 1:1)</sub></p>
 
 ### A menu that stays out of the way
 
@@ -230,6 +260,7 @@ uploads the ROM as a build artifact. Pushing a `v*` tag builds, tests and attach
 
 | Piece | What it does |
 |---|---|
+| **Zones** | The towns are separate 1:1 maps placed below the overworld in one 256×560-cell grid, so collision, NPCs, items and quests need no special cases. A ring of portal cells around each town in both maps moves you between them with a short fade, and each zone loads its own world palette set. |
 | **World streaming** | The map stays in ROM. A reference-counted cache of 576 VRAM tiles is updated one row or column at a time as the camera moves, so the whole mainland fits in video memory with no seams. Stumps and depleted rocks live in a small override table. |
 | **UI canvases** | Two background layers give every screen cell its own tile. Panels and proportional text are drawn per pixel into RAM and streamed to VRAM. A per-scanline HBlank DMA paints the panel gradient, and hardware alpha blending fades the windows in and out. |
 | **Avatar compositing** | 137 layer graphics (bodies, armour, shields, weapons, tools) are stacked into a 32×32 sprite whenever your gear or pose changes, then recoloured by metal tier through the palette. |
@@ -254,7 +285,10 @@ uploads the ROM as a build artifact. Pushing a `v*` tag builds, tests and attach
 | `src/avatar.c` | Composited player sprite |
 | `src/sound.c`, `src/mixer.s` | Music synth and sequencer, sound effects |
 | `src/data.c`, `src/save.c` | Item and NPC tables, SRAM save |
-| `tools/world_gen.py` | The world map in OSRS coordinates, terrain art, tiles and palettes |
+| `tools/world_gen.py` | The world map in OSRS coordinates, the 1:1 zones, tiles and palettes |
+| `tools/hd_art.py` | Terrain, building, roof and furniture art for the 1:1 towns |
+| `tools/zones/` | Each town's traced layout (`*.ref`) and its banks, shops and landmarks (`*.py`) |
+| `tools/ref_extract.py` | Traces an OSRS world-map area into a `.ref` layout (only needed to re-trace a town) |
 | `tools/gen_assets.py`, `tools/gen_avatar.py` | Sprites, icons, font and avatar layers |
 | `tools/quests.txt`, `tools/gen_quests.py` | Quest scripts and their compiler |
 | `tools/midi2gba.py`, `music/` | MIDI converter, instrument bank and tracks |
@@ -268,6 +302,9 @@ uploads the ROM as a build artifact. Pushing a `v*` tag builds, tests and attach
 - There is no coal, and the Duel Arena is cut off by the map's east edge. The Al Kharid toll is always charged (no Prince Ali Rescue yet).
 - The synth plays up to 10 notes at once and ignores pitch bends.
 - Standing directly north of a tree hides your character behind its leaves.
+- Walls take a whole tile in the 1:1 towns where OSRS draws them on tile edges, so rooms are a
+  tile smaller on each side, and interiors are furnished from typical OSRS homes rather than
+  object by object. Only Lumbridge Castle has upper floors so far.
 
 ## Support
 
@@ -278,3 +315,4 @@ If you enjoy the demake, you can [buy me a coffee](https://buymeacoffee.com/osrs
 This is a non-commercial fan project made for fun. It is not affiliated with, endorsed by or
 connected to Jagex Ltd. RuneScape and Old School RuneScape are trademarks of Jagex Ltd. All art in
 this repository is generated procedurally, and the bundled music consists of original compositions.
+The 1:1 town layouts are traced from the [OSRS Wiki](https://oldschool.runescape.wiki) world map.

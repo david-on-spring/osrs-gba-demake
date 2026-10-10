@@ -15,7 +15,7 @@ dlg
 world
 expectq GOBLIN 1
 # Aggie's dyes
-tp 77 145 1
+face AGGIE UP
 talk
 dlg
 choose 0

@@ -2,7 +2,7 @@ wait 60
 newgame
 wait 40
 # too few quest points first
-tp 21 105 1
+face AMIK UP
 talk
 dlg
 choose 0
@@ -59,7 +59,7 @@ talk
 dlg
 world
 dump @pl 2
-tp 21 105 1
+face AMIK UP
 talk
 dlg
 done

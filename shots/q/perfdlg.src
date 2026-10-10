@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 40
-tp 139 171 2
+face COOK LEFT
 wait 30
 poke16 @perf_max 0
 talk

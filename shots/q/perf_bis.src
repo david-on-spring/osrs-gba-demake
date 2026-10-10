@@ -53,7 +53,7 @@ poke16 @perf_max 0
 #L16 # Aggie's dyes
 dump @perf_max 1
 poke16 @perf_max 0
-tp 77 145 1
+face AGGIE UP
 #L17 tp 77 145 1
 dump @perf_max 1
 poke16 @perf_max 0

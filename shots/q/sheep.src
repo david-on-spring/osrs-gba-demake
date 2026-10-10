@@ -30,7 +30,7 @@ press A
 wait 10
 expectitem 9 SHEARS
 # spin it at the castle wheel
-tp 138 166 2
+face obj:WHEEL LEFT
 press A
 wait 10
 expectitem 10 BALL_WOOL

@@ -16,6 +16,7 @@ quests.txt is line based ('#' starts a comment):
   end
 
   talk NPC | obj TYPE | item ITEM | event NAME     start a script (ends at the next block)
+  talk NPC = OTHER | obj TYPE = OTHER              share another NPC's / object's script
   show NPC QUEST MIN MAX [flag B]                  NPC only exists while MIN <= stage <= MAX
 
 Script statements:
@@ -30,7 +31,7 @@ Script statements:
             facing DIR | level SKILL >= N | npcstate | clear (walkthrough would succeed)
   stage Q N | flag Q B | unflag Q B | addvar Q N | setvar Q N
   give ITEM [N] | take ITEM [N] | xp SKILL N | sfx NAME | complete Q
-  tp X Y DIR | walkthrough | npcstate N | npcoff | npcheal | shop | bank
+  tp X Y DIR | warp POS DIR (named cell, with a fade) | walkthrough | npcstate N | npcoff | npcheal | shop | bank
   playtime                     the speaking NPC tells the player's time played (Hans)
 """
 import os
@@ -38,7 +39,7 @@ import re
 import shlex
 
 OPS = ['END', 'SAY', 'CHAT', 'CHOICE', 'GOTO', 'IF', 'STAGE', 'FLAG', 'UNFLAG', 'GIVE', 'TAKE', 'XP', 'SFX',
-       'COMPLETE', 'TP', 'ADDVAR', 'NPCSTATE', 'NPCOFF', 'NPCHEAL', 'WALKTHRU', 'SHOP', 'BANK', 'SETVAR', 'PLAYTIME']
+       'COMPLETE', 'TP', 'ADDVAR', 'NPCSTATE', 'NPCOFF', 'NPCHEAL', 'WALKTHRU', 'SHOP', 'BANK', 'SETVAR', 'PLAYTIME', 'WARP']
 OP = {n: i for i, n in enumerate(OPS)}
 CONDS = ['STAGE_EQ', 'STAGE_NE', 'STAGE_GE', 'STAGE_LE', 'STAGE_GT', 'STAGE_LT', 'HAS', 'WORN', 'FLAG', 'VAR_GE',
          'NEAR', 'QP_GE', 'FREE', 'CHANCE', 'DONE', 'FACING', 'LEVEL_GE', 'NPCSTATE', 'CLEAR']
@@ -74,6 +75,7 @@ class Compiler:
         self.event = {}
         self.show = []
         self.alias = {}
+        self.obj_alias = {}
         self.block = None
         self.block_id = 0
 
@@ -196,6 +198,10 @@ class Compiler:
                 self.end_block()
                 self.alias[tok[1]] = tok[3]
                 continue
+            if kw == 'obj' and len(tok) == 4 and tok[2] == '=':
+                self.end_block()
+                self.obj_alias[tok[1]] = tok[3]
+                continue
             if kw in ('talk', 'obj', 'item', 'event'):
                 self.end_block()
                 self.block_id += 1
@@ -314,6 +320,14 @@ class Compiler:
             self.emit('OP_COMPLETE', 'Q_' + t[1])
         elif kw == 'tp':
             self.emit('OP_TP', int(t[1]), int(t[2]), DIRS[t[3]])
+        elif kw == 'warp':       # warp POS DIR: fade out, move to a named cell, fade in
+            if t[1] not in self.world.QPOS:
+                raise QuestError('line %d: unknown position %s' % (ln, t[1]))
+            x, y = self.world.QPOS[t[1]]
+            self.emit('OP_WARP')
+            self.u16(x)
+            self.u16(y)
+            self.emit(DIRS[t[2]])
         elif kw == 'playtime':
             self.emit('OP_PLAYTIME')
         elif kw == 'walkthrough':
@@ -363,7 +377,8 @@ class Compiler:
             cond, a, b = 'VAR_GE', 'Q_' + c[1], int(c[3])
         elif k == 'near':
             x, y, r = self.pos(c[1:], ln)
-            cond, a, b = 'NEAR', x | (y << 8), r
+            assert y < 512 and r < 128, (x, y, r)
+            cond, a, b = 'NEAR', x, y | (r << 9)
         elif k == 'qp':
             cond, b = 'QP_GE', int(c[2])
         elif k == 'free':
@@ -391,6 +406,10 @@ class Compiler:
             if v not in self.talk:
                 raise QuestError('talk %s = %s: no such script' % (k, v))
             self.talk[k] = self.talk[v]
+        for k, v in self.obj_alias.items():
+            if v not in self.obj:
+                raise QuestError('obj %s = %s: no such script' % (k, v))
+            self.obj[k] = self.obj[v]
         for (idx, key, ln) in self.fixups:
             if key not in self.labels:
                 raise QuestError('line %d: undefined label %s' % (ln, key.split(':', 1)[1]))
@@ -434,7 +453,7 @@ typedef struct {
 } QuestDef;
 typedef struct { u16 key, entry; } QEntry;
 typedef struct { u8 kind, q, smin, smax, flag; } QShow;
-typedef struct { u16 item; u8 x, y; } ItemSpawn;
+typedef struct { u16 item, x, y; } ItemSpawn;
 extern const QuestDef quest_defs[QUEST_COUNT];
 extern const u8 quest_code[];
 extern const char *const quest_str[];
