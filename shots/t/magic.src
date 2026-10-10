@@ -98,3 +98,17 @@ expectitem 0 COINS
 expectqty 0 54
 expectitem 1 NONE
 expectxp MAGIC 2000650
+# --- dark wizards cast Water Strike (max 2) at the player: stand three cells from the stone
+#     circle's wizards (aggressive at this combat level) and lose some hitpoints
+press START
+wait 20
+clearinv
+xp MAGIC 0
+xp DEFENCE 0
+hp 10
+tp 154 90 2
+wait 300
+shot shots/t/magic_wizard.png
+wait 300
+expectstate WORLD
+expecthpbelow 10

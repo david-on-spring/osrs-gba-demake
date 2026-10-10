@@ -9,6 +9,8 @@ Adds to the harness commands:
   spell NAME             set the autocast spell (a src/spells.c name in capitals, e.g. WIND_STRIKE; NONE)
   expectammo NAME N      PASS/FAIL check of the ammo slot and its quantity
   expectspell NAME       PASS/FAIL check of the autocast spell
+  expectnpcat I|KIND X Y PASS/FAIL check of an NPC's cell
+  expecthpbelow N        PASS/FAIL check that current hitpoints are below N
   homecd TICKS           set the home teleport cooldown
   expecthomecd MIN       PASS/FAIL check that the home teleport cooldown is at least MIN ticks
   expecttarget I|KIND|NONE  PASS/FAIL check of the L target (lock_target)
@@ -165,6 +167,12 @@ for line in open(sys.argv[1]):
         x = int(re.search(r'#define %s_X (\d+)' % p[1], hdr_a).group(1))
         y = int(re.search(r'#define %s_Y (\d+)' % p[1], hdr_a).group(1))
         out += ['expect16 @pl %x %s_x' % (x, p[1]), 'expect16 @pl+2 %x %s_y' % (y, p[1])]
+    elif c == 'expectnpcat':
+        base = npc_index(p[1]) * NPC_SIZE
+        out += ['expect16 @npcs+0x%x %x %s_x' % (base + 4, int(p[2]), p[1]),
+                'expect16 @npcs+0x%x %x %s_y' % (base + 6, int(p[3]), p[1])]
+    elif c == 'expecthpbelow':
+        out.append('expectlt8 @pl+0x16 %x hp_below_%s' % (int(p[1]), p[1]))
     elif c == 'homecd':
         out.append('poke16 @pl+0x%x %x' % (OFF_HOMECD, int(p[1])))
     elif c == 'expecthomecd':

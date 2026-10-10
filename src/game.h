@@ -84,13 +84,19 @@ enum { NF_ATTACK = 1, NF_AGGRO = 2, NF_TALK = 4, NF_SHOP = 8, NF_BANK = 16 };
 enum { SPR_KIND_HUMAN, SPR_KIND_COW, SPR_KIND_CHICKEN, SPR_KIND_WIZARD, SPR_KIND_WITCH, SPR_KIND_PRIEST,
        SPR_KIND_DRESS, SPR_KIND_SKELETON, SPR_KIND_GHOST, SPR_KIND_SHEEP, SPR_KIND_IMP, SPR_KIND_RAT,
        SPR_KIND_DEMON };
+enum { ELEM_NONE, ELEM_AIR, ELEM_WATER, ELEM_EARTH, ELEM_FIRE };
 typedef struct {
     const char *name;
     u8 sprite, pal, level, hp;
     u8 att, str, def;
-    s8 atkb, strb, defb;
+    s8 atkb, strb, defb;          // defb: melee defence bonus
     u8 flags, wander, respawn;
     const char *const *dialog;
+    // OSRS Wiki stats for ranged and magic (monsters only; 0 elsewhere)
+    u8 mag;                       // Magic level: defends against spells (and powers magic attacks)
+    s8 mdef, rdef;                // magic defence, ranged (standard: arrows) defence bonuses
+    u8 weak, weakpct;             // elemental weakness: ELEM_*, % more accuracy and damage
+    u8 magic_max;                 // > 0: attacks with magic (Water Strike) up to this, instead of melee
 } NpcDef;
 extern const NpcDef npc_defs[NPC_KIND_COUNT];
 const char *npc_examine(int kind);

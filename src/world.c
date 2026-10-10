@@ -696,7 +696,10 @@ static void game_tick(void) {
                 foe_release(i);
                 continue;
             }
-            if (!adjacent(n->x, n->y, pl.x, pl.y)) {
+            // casters (dark wizards) fight from up to 7 cells away; everyone else walks up
+            int reach = adjacent(n->x, n->y, pl.x, pl.y) ||
+                        (d->magic_max && dist(n->x, n->y, pl.x, pl.y) <= 7 && clear_shot(n->x, n->y, pl.x, pl.y));
+            if (!reach) {
                 if (!n->bound && (!pl.moving || pl.action == ACT_COMBAT)) npc_step_toward(n, pl.x, pl.y);
                 continue;
             }

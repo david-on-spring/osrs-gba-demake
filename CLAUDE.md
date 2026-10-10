@@ -13,7 +13,7 @@ make test                  # or: sh tools/run_quest_tests.sh (exit status = fail
 - `build/` holds generated C (`assets.c/h`, `quest_data.c/h`, `music_data.c/h`, `avatar_art.c/h`), `spawns.txt` (NPC index, kind, cell) and `rs07demake.map`. Don't edit generated files. Change the generator instead.
 - After any gameplay change, run `make test`. It takes about 10 seconds and plays 13 quests, bank/shop/skilling/combat/ranged/magic/target tests and save/reload.
 - For refactors that should not change behaviour, run `python3 tools/snap.py build/snap_before` before the change and `python3 tools/snap.py build/snap_after --compare build/snap_before` after it. It runs every scenario and byte-compares about 120 screenshots.
-- To rebuild the harness: `tools/build_mgba.sh` (once, needs cmake), then `tools/build_harness.sh`. `make clean` deletes `build/harness`, and the fallback `.toolchain/harness` may be older and silently ignore newer checks such as `expectge32`.
+- To rebuild the harness: `tools/build_mgba.sh` (once, needs cmake), then `tools/build_harness.sh`. Newer checks (`expectge32`, `expectlt8`) need a harness built from the current `tools/harness.c`. `make clean` deletes `build/harness`, and the fallback `.toolchain/harness` may be older and silently ignore newer checks such as `expectge32`.
 - CI is in `.github/workflows/ci.yml` (build plus `make test` on PRs and `main`) and `release.yml` (a `v*` tag builds, tests and attaches `osrs-gba-demake.gba` to the release). Shared setup is in `.github/actions/setup`.
 
 ## Source map
@@ -48,7 +48,7 @@ The main loop is in `src/main.c`. It switches on `game_state` (`GS_*` in `game.h
 - `world_gen.py`: the map in real OSRS coordinates. The overworld is 1 cell = 2×2 OSRS tiles (cells 0..207); the 1:1 towns are zones below it in the same 256×560 grid (`ZONES`, `city()`, portal rings, `build_from_ref`, `migrate_ow_content`). See `docs/remaster.md`. It places buildings, `shop(...)`/`service(...)`, `spawn(kind, X, Y)` and `spawn_area(...)`. It is imported by `gen_assets.py`.
 - `hd_art.py`: art for the 1:1 zones (terrain field, walls, roofs, furniture), with per-town themes.
 - `zones/<town>.ref` (traced by `ref_extract.py` from the OSRS Wiki map) and `zones/<town>.py` (banks, shops, landmarks, run inside world_gen's namespace).
-- `gen_assets.py`: sprites, icons, font and tiles. The NPC kind list is `KINDS`, which becomes the `NPC_*` ids. A new kind also needs an entry in `npc_defs[]` in `src/data.c`.
+- `gen_assets.py`: sprites, icons, font and tiles. The NPC kind list is `KINDS`, which becomes the `NPC_*` ids. A new kind also needs an entry in `npc_defs[]` in `src/data.c`; a monster also takes its Magic level, magic and ranged (standard) defence and elemental weakness from the OSRS Wiki infobox (`MR`/`MRW`).
 - `quests.txt` plus `gen_quests.py`: quest definitions and dialogue scripts. The syntax is in the `gen_quests.py` docstring. Dialogue is wrapped and paged at build time, and the build fails on bad fits or labels.
 - `midi2gba.py` plus `music/tracks.txt`: music. `gen_avatar.py`: player layers. `gen_title.py`: login art.
 

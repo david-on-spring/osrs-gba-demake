@@ -190,10 +190,13 @@ void proj_clear(void) {
     for (int k = 0; k < MAX_PROJ; k++) projs[k].active = 0;
 }
 
-static int npc_def_roll(int i) {
+// OSRS defence rolls: Defence level with the melee or ranged bonus; spells are defended with
+// the Magic level and the magic bonus (curses lower Defence, not Magic)
+static int npc_def_roll(int i, int cb) {
     const Npc *n = &npcs[i];
     const NpcDef *d = &npc_defs[n->kind];
-    return (cursed(n, d->def, CU_DEF5, CU_DEF10) + 9) * (d->defb + 64);
+    if (cb == CB_MAGIC) return ((d->mag ? d->mag : 1) + 9) * (d->mdef + 64);
+    return (cursed(n, d->def, CU_DEF5, CU_DEF10) + 9) * ((cb == CB_RANGED ? d->rdef : d->defb) + 64);
 }
 
 static void engage(int i) {
@@ -227,7 +230,7 @@ static int player_shoot(int i) {
     int a = eff * (equip_bonus(3) + 64);
     int maxhit = (eff * (equip_bonus(4) + 64) + 320) / 640;
     if (maxhit < 1) maxhit = 1;
-    int dmg = demon_guard(i, roll(hit_chance256(a, npc_def_roll(i))) ? rnd_range(maxhit + 1) : 0);
+    int dmg = demon_guard(i, roll(hit_chance256(a, npc_def_roll(i, CB_RANGED))) ? rnd_range(maxhit + 1) : 0);
     if (!--pl.ammo_qty) pl.equip[EQ_AMMO] = 0;
     sfx(SFX_BOW);
     proj_launch(i, dmg, CB_RANGED, 0, ICON_PROJ_ARROW_H, arrow, 1);
@@ -287,9 +290,17 @@ static int player_cast(int i) {
         return 2;   // a look, not an attack
     }
     int a = (skill_level(SK_MAGIC) + 8) * (equip_bonus(5) + 64);
-    int hit = roll(hit_chance256(a, npc_def_roll(i)));
+    int maxhit = spell_maxhit(s);
+    // elemental weakness: that much more accuracy and damage for the matching Strike..Surge
+    int el = !sp->group ? ELEM_NONE : sp->icon == ICON_PROJ_WIND ? ELEM_AIR : sp->icon == ICON_PROJ_WATER ? ELEM_WATER
+           : sp->icon == ICON_PROJ_EARTH ? ELEM_EARTH : ELEM_FIRE;
+    if (el && el == d->weak) {
+        a = a * (100 + d->weakpct) / 100;
+        maxhit += maxhit * d->weakpct / 100;
+    }
+    int hit = roll(hit_chance256(a, npc_def_roll(i, CB_MAGIC)));
     int dmg = 0;
-    if (sp->kind == SPK_COMBAT || sp->kind == SPK_BIND) dmg = hit ? rnd_range(spell_maxhit(s) + 1) : 0;
+    if (sp->kind == SPK_COMBAT || sp->kind == SPK_BIND) dmg = hit ? rnd_range(maxhit + 1) : 0;
     dmg = demon_guard(i, dmg);
     proj_launch(i, dmg, CB_MAGIC, s, sp->icon, 0, hit);
     return 1;
@@ -308,7 +319,7 @@ int player_attack(int i) {
     int a = eff_a * (equip_bonus(0) + 64);
     int maxhit = (eff_s * (equip_bonus(1) + 64) + 320) / 640;
     if (maxhit < 1) maxhit = 1;
-    int dmg = demon_guard(i, roll(hit_chance256(a, npc_def_roll(i))) ? rnd_range(maxhit + 1) : 0);
+    int dmg = demon_guard(i, roll(hit_chance256(a, npc_def_roll(i, CB_MELEE))) ? rnd_range(maxhit + 1) : 0);
     engage(i);
     pl.lunge = 8;
     land_hit(i, dmg, CB_MELEE, 0);
@@ -318,11 +329,20 @@ int player_attack(int i) {
 void npc_attack(int i) {
     Npc *n = &npcs[i];
     const NpcDef *d = &npc_defs[n->kind];
-    int a = (cursed(n, d->att, CU_ATK5, CU_ATK10) + 9) * (d->atkb + 64);
-    int eff_d = skill_level(SK_DEFENCE) + style_bonus(SK_DEFENCE) + 8;
-    int def = eff_d * (equip_bonus(2) + 64);
-    int maxhit = ((cursed(n, d->str, CU_STR5, CU_STR10) + 9) * (d->strb + 64) + 320) / 640;
-    if (maxhit < 1) maxhit = 1;
+    int a, def, maxhit;
+    if (d->magic_max) {
+        // a spell: the NPC's Magic level against 70% of the player's Magic and 30% of their Defence
+        a = (d->mag + 9) * 64;
+        int eff = (skill_level(SK_MAGIC) * 7 + (skill_level(SK_DEFENCE) + style_bonus(SK_DEFENCE)) * 3) / 10 + 8;
+        def = eff * 64;
+        maxhit = d->magic_max;
+    } else {
+        a = (cursed(n, d->att, CU_ATK5, CU_ATK10) + 9) * (d->atkb + 64);
+        int eff_d = skill_level(SK_DEFENCE) + style_bonus(SK_DEFENCE) + 8;
+        def = eff_d * (equip_bonus(2) + 64);
+        maxhit = ((cursed(n, d->str, CU_STR5, CU_STR10) + 9) * (d->strb + 64) + 320) / 640;
+        if (maxhit < 1) maxhit = 1;
+    }
     int dmg = roll(hit_chance256(a, def)) ? rnd_range(maxhit + 1) : 0;
     if (dmg > pl.hp) dmg = pl.hp;
     foe_engage(i);
@@ -330,7 +350,7 @@ void npc_attack(int i) {
     n->lunge = 8;
     pl.hpbar_timer = 200;
     splat_spawn(pl.px, pl.py, dmg);
-    sfx(dmg ? SFX_HIT : SFX_MISS);
+    sfx(d->magic_max ? SFX_CAST : dmg ? SFX_HIT : SFX_MISS);
     pl.hp -= dmg;
     if (pl.action != ACT_COMBAT && pl.autoret && !pl.moving) {
         pl.action = ACT_COMBAT;
