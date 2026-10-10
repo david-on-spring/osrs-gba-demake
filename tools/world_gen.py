@@ -3285,3 +3285,102 @@ if WINDOW_WORST[0] > CACHE_SLOTS:
 assert len(SPAWNS) <= 256, len(SPAWNS)   # MAX_NPCS in src/game.h
 assert len(meta_out) < 65536, ('map_meta is u16', len(meta_out))
 assert MW <= 65535 and MH <= 65535
+
+# ----------------------------------------------------------------------------------------
+# C emission
+# ----------------------------------------------------------------------------------------
+# The game works in absolute OSRS tiles (X east, Y north, plane); the cell grid above is only how
+# the generator lays the map out. osrs_of() maps a cell to its tile, through the zone it lies in.
+WORLD_X0, WORLD_Y1 = OW.OX, OW.OY       # pixel origin: px = (X - WORLD_X0) * 16, py = (WORLD_Y1 - Y) * 16
+
+
+def osrs_of(x, y):
+    """Grid cell -> absolute OSRS tile (X, Y, plane)."""
+    for (n, z, ps, p) in ZONES:
+        if z.X0 <= x <= z.X1 and z.Y0 <= y <= z.Y1:
+            return (z.OX + (x - z.CX0) * z.S, z.OY - (y - z.CY0) * z.S, p)
+    raise ValueError('cell %d,%d lies in no zone' % (x, y))
+
+
+def osrs_rect(x0, y0, x1, y1):
+    """Cell rect -> OSRS (X0, Y0, X1, Y1, plane), with Y0 the south edge."""
+    a, b = osrs_of(x0, y1), osrs_of(x1, y0)
+    assert a[2] == b[2], ('rect spans planes', x0, y0, x1, y1)
+    return (a[0], a[1], b[0], b[1], a[2])
+
+
+# the grid rows each plane occupies (one zone per plane; the cell grid is still the map storage)
+PLANE_GRID = {}
+for (_n, _z, _ps, _p) in ZONES:
+    assert _z.S == 1 and _p not in PLANE_GRID, ('one 1:1 zone per plane', _n)
+    PLANE_GRID[_p] = (_z.CX0 - _z.OX, _z.CY0 + _z.OY)    # cell = (X + gx, gy - Y)
+NPLANES = max(PLANE_GRID) + 1
+
+
+# ----------------------------------------------------------------------------------------
+# Regions: the map as OSRS map squares (64x64 tiles, per plane). Each region holds sixteen
+# 16x16-tile blocks, each block LZ77-compressed in the GBA BIOS format (tools/lz77.py) with
+# its cells as meta u16[256], over u16[256], type u8[256], roof u8[256] (index (y & 15) * 16 +
+# (x & 15)), plus an uncompressed walkability bitmap so NPCs can move anywhere without
+# decompressing. Blocks wholly outside the playable bounds are not stored; neither are
+# regions outside them.
+import lz77  # noqa: E402
+
+REGION, BLOCK = 64, 16
+BOUNDS = {}         # plane -> OSRS (X0, Y0, X1, Y1): the zone of that floor
+for (_n, _z, _ps, _p) in ZONES:
+    BOUNDS[_p] = osrs_rect(_z.X0, _z.Y0, _z.X1, _z.Y1)[:4]
+RF_EDGE, RF_ROOFS, RF_OVERLAY = 1, 2, 4
+
+
+def cell_of(X, Y, p):
+    """OSRS tile -> grid cell, or None outside the floor's bounds."""
+    X0, Y0, X1, Y1 = BOUNDS[p]
+    if not (X0 <= X <= X1 and Y0 <= Y <= Y1):
+        return None
+    gx, gy = X + PLANE_GRID[p][0], PLANE_GRID[p][1] - Y
+    return (gx, gy) if 0 <= gx < MW and 0 <= gy < MH else None
+
+
+def build_regions():
+    """-> list of (plane, rx, ry, pal_set, flags, [block stream or None] * 16, walk words)."""
+    from collections import Counter
+    regs = []
+    for p in sorted(BOUNDS):
+        X0, Y0, X1, Y1 = BOUNDS[p]
+        for rx in range(X0 // REGION, X1 // REGION + 1):
+            for ry in range(Y0 // REGION, Y1 // REGION + 1):
+                blocks, walk = [], [0] * (REGION * REGION // 32)
+                psets, flags = Counter(), 0
+                for b in range(16):
+                    bx0, by0 = rx * REGION + (b & 3) * BLOCK, ry * REGION + (b >> 2) * BLOCK
+                    meta, over, typ, roof = [0] * 256, [0] * 256, [T['WATER']] * 256, [0] * 256
+                    inside = 0
+                    for ly in range(BLOCK):
+                        for lx in range(BLOCK):
+                            c = cell_of(bx0 + lx, by0 + ly, p)
+                            if c is None:
+                                flags |= RF_EDGE
+                                continue
+                            gx, gy = c
+                            i = ly * BLOCK + lx
+                            inside += 1
+                            meta[i], over[i], typ[i], roof[i] = map_meta[gy][gx], map_over[gy][gx], T[TY[gy][gx]], ROOF[gy][gx]
+                            psets[pset_of(gx, gy)] += 1
+                            flags |= (RF_ROOFS if roof[i] else 0) | (RF_OVERLAY if over[i] else 0)
+                            if typ[i] <= T['DOOR']:      # T_WALKABLE_MAX
+                                rl, rr = (b >> 2) * BLOCK + ly, (b & 3) * BLOCK + lx
+                                walk[rl * 2 + (rr >> 5)] |= 1 << (rr & 31)
+                    if not inside:
+                        blocks.append(None)
+                        continue
+                    raw = b''.join(v.to_bytes(2, 'little') for v in meta) + b''.join(v.to_bytes(2, 'little') for v in over) + \
+                        bytes(typ) + bytes(roof)
+                    blocks.append(lz77.compress(raw))
+                if any(blocks):
+                    regs.append((p, rx, ry, psets.most_common(1)[0][0], flags, blocks, walk))
+    return regs
+
+
+MAP_REGIONS = build_regions()
+assert all(rx < 256 and ry < 256 for (_, rx, ry, *_r) in MAP_REGIONS)

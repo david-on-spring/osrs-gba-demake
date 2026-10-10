@@ -21,13 +21,13 @@ static int cheb(int i) {
 // NPCs on screen in the player's zone, nearest first; the one after the current target
 void target_cycle(void) {
     s16 cand[32];
-    int n = 0, zone = world_zone(pl.x, pl.y);
+    int n = 0, zone = world_zone(pl.x, pl.y, pl.plane);
     for (int i = 0; i < MAX_NPCS && n < 32; i++) {
         Npc *np = &npcs[i];
-        if (!np->active) continue;
+        if (!np->active || np->plane != pl.plane) continue;
         int sx = np->px - cam_x, sy = np->py - cam_y;
         if (sx < -8 || sx > SCREEN_W - 8 || sy < -8 || sy > SCREEN_H - 8) continue;
-        if (world_zone(np->x, np->y) != zone) continue;
+        if (world_zone(np->x, np->y, np->plane) != zone) continue;
         const NpcDef *d = &npc_defs[np->kind];
         if (!(d->flags & NF_ATTACK) && !npc_talkable(i)) continue;
         // insertion sort by distance (stable, so ties keep spawn order)

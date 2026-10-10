@@ -158,8 +158,8 @@ void shops_tick(void) {
 int shop_nearest(void) {
     int best = 0, bd = 0x7FFF;
     for (int s = 0; s < SHOP_COUNT; s++) {
-        int dx = pl.x - shop_pos[s][0], dy = pl.y - shop_pos[s][1];
-        int d = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+        int dx = pl.x - shop_pos[s].x, dy = pl.y - shop_pos[s].y;
+        int d = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy) + (shop_pos[s].plane != pl.plane ? 0x1000 : 0);
         if (d < bd) bd = d, best = s;
     }
     return best;

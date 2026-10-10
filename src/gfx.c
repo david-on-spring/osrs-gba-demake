@@ -1,5 +1,6 @@
 // Video setup, palettes (fades, water shimmer, gradient), world tilemap streaming and OAM.
 #include "game.h"
+#include "map.h"
 
 // VRAM layout
 //   0x0000-0x4B1F  text canvas tiles (600 + blank)            BG0, char base 0
@@ -44,6 +45,8 @@ static u8 n_dirty_cells;
 static EWRAM_BSS u16 wpal[14 * 16];   // world palette (with water shimmer applied)
 static u8 wpal_set;                    // world_pal[] set in wpal (one per zone kind)
 static u8 hidden_roof;                 // map_roof group left off the overlay layer
+// the cell draw_tile() looked up last: the two tiles of a cell in a row share one lookup
+static struct { s16 x, y; s8 p; u8 in; u16 meta, over; u8 roof; } memo = {0, 0, -1, 0, 0, 0, 0};
 static EWRAM_BSS u16 opal[8 * 16];    // actor palettes (player palette is dynamic)
 static u8 pal_pending;
 static u8 fade_level = 16;
@@ -191,15 +194,20 @@ void gfx_set_ui_alpha(int eva, int text_too) {
     ui_eva = eva;
     ui_text_blend = text_too;
 }
-void gfx_mark_world_dirty(void) { world_dirty = 1; }
+void gfx_mark_world_dirty(void) {
+    world_dirty = 1;
+    memo.p = -1;
+}
 
-void gfx_mark_cell_dirty(int x, int y) {
+void gfx_mark_cell_dirty(int x, int y, int p) {
+    memo.p = -1;
+    if (p != pl.plane) return;   // only the player's floor is drawn
     if (n_dirty_cells >= MAX_CELL_DIRTY) {
         world_dirty = 1;
         return;
     }
-    dirty_cells[n_dirty_cells][0] = x;
-    dirty_cells[n_dirty_cells][1] = y;
+    dirty_cells[n_dirty_cells][0] = x - WORLD_X0;   // cell column / row in pixel space
+    dirty_cells[n_dirty_cells][1] = WORLD_Y1 - y;
     n_dirty_cells++;
 }
 
@@ -263,14 +271,24 @@ static inline void cache_put(u16 entry) {
     if (s > 0 && --sref[s] == 0) sfreed[s] = upd_serial;
 }
 
+// tx, ty: 8x8 tile in pixel space (two per cell); the player's floor is drawn
 static void draw_tile(int tx, int ty) {
     int i = (ty & 31) * 32 + (tx & 31);
     u32 ge = 0, oe = 0;
-    int cx = tx >> 1, cy = ty >> 1;
-    if (tx >= 0 && ty >= 0 && cx < MAP_W && cy < MAP_H) {
+    int x = WORLD_X0 + (tx >> 1), y = WORLD_Y1 - (ty >> 1), p = pl.plane;
+    if (x != memo.x || y != memo.y || p != memo.p) {
+        memo.x = x, memo.y = y, memo.p = p;
+        memo.in = tx >= 0 && ty >= 0 && map_in(x, y, p);
+        if (memo.in) {
+            int meta, over, roof;
+            world_cell_gfx(x, y, p, &meta, &over, &roof);
+            memo.meta = meta, memo.over = over, memo.roof = roof;
+        }
+    }
+    if (memo.in) {
         int k = ((ty & 1) << 1) | (tx & 1);
-        ge = meta_tiles[world_meta(cx, cy)][k];
-        if (!hidden_roof || map_roof[cy * MAP_W + cx] != hidden_roof) oe = meta_tiles[world_over(cx, cy)][k];
+        ge = meta_tiles[memo.meta][k];
+        if (!hidden_roof || memo.roof != hidden_roof) oe = meta_tiles[memo.over][k];
     }
     u16 g = (CACHE_BASE + cache_get(ge & 0xFFFF)) | (ge >> 16);
     u16 o = (CACHE_BASE + cache_get(oe & 0xFFFF)) | (oe >> 16);

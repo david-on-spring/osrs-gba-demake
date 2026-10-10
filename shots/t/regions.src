@@ -1,0 +1,26 @@
+# Regions: the map streams in as the camera moves. Walking (running) across OSRS map-square
+# boundaries (every 64 tiles) must not drop a frame or decompress a block on demand: the blocks
+# ahead are prefetched in spare scanlines. East along Falador's north side from (2974, 3406)
+# crosses x = 3008; north from (3070, 3294) to Barbarian Village crosses y = 3328 and 3392.
+wait 60
+newgame
+world
+tpz OVERWORLD 2974 3406 RIGHT
+wait 30
+poke16 @perf_max 0
+poke16 @map_sync_loads 0
+hold RIGHT+B 300
+expectlt16 @perf_max e4 no_dropped_frame_east
+expect16 @map_sync_loads 0 no_load_on_demand_east
+expectat OVERWORLD 3047 3406
+tpz OVERWORLD 3070 3294 UP
+wait 30
+poke16 @perf_max 0
+poke16 @map_sync_loads 0
+hold UP+B 400
+expectlt16 @perf_max e4 no_dropped_frame_north
+expect16 @map_sync_loads 0 no_load_on_demand_north
+expectat OVERWORLD 3070 3394
+dump @map_loads 1
+dump @map_load_lines 1
+dump @perf_max 1

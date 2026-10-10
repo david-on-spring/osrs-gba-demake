@@ -7,7 +7,7 @@ static void lunge_offset(int dir, int lunge, int *ox, int *oy) {
     int amt = lunge > 4 ? 8 - lunge : lunge;
     if (amt > 3) amt = 3;
     *ox = DX[dir] * amt;
-    *oy = DY[dir] * amt;
+    *oy = SDY[dir] * amt;
 }
 
 // human-shaped sprite sets: six consecutive 16x16 frames D0 D1 U0 U1 S0 S1
@@ -132,9 +132,10 @@ void world_draw_sprites(int unused) {
     int ne = 0;
     ents[ne].y = pl.py;
     ents[ne++].who = -1;
+    int plane = pl.plane;   // floors share pixel space: draw the player's
     for (int i = 0; i < npc_hi; i++) {
         Npc *n = &npcs[i];
-        if (!n->active) continue;
+        if (!n->active || n->plane != plane) continue;
         int sx = n->px - cam_x, sy = n->py - cam_y;
         if (sx < -16 || sx > SCREEN_W || sy < -24 || sy > SCREEN_H) continue;
         ents[ne].y = n->py;
@@ -153,7 +154,7 @@ void world_draw_sprites(int unused) {
     if (pl.hpbar_timer && fx) draw_hpbar(pl.px - cam_x, pl.py - cam_y, pl.hp, skill_level(SK_HITPOINTS));
     for (int i = 0; i < npc_hi; i++) {
         Npc *n = &npcs[i];
-        if (n->active && n->hpbar_timer && fx) draw_hpbar(n->px - cam_x, n->py - cam_y, n->hp, npc_defs[n->kind].hp);
+        if (n->active && n->hpbar_timer && fx && n->plane == pl.plane) draw_hpbar(n->px - cam_x, n->py - cam_y, n->hp, npc_defs[n->kind].hp);
     }
     for (int k = 0; k < ne; k++) {
         int ox, oy;
@@ -220,9 +221,9 @@ void world_draw_sprites(int unused) {
     }
     if (!fx) return;
     for (int i = 0; i < MAX_FIRES; i++)
-        if (fires[i].active) obj_sprite(fires[i].x * 16 - cam_x, fires[i].y * 16 - cam_y, SPR_FIRE0 + ((frame >> 3) % 3) * 4, 6, 2, (frame >> 4) & 1, 1, OBJF_MOSAIC);
+        if (fires[i].active && fires[i].plane == pl.plane) obj_sprite(TILE_PX(fires[i].x) - cam_x, TILE_PY(fires[i].y) - cam_y, SPR_FIRE0 + ((frame >> 3) % 3) * 4, 6, 2, (frame >> 4) & 1, 1, OBJF_MOSAIC);
     for (int i = 0; i < FISHSPOT_COUNT; i++)
-        obj_sprite(fish_spots[i].x * 16 - cam_x, fish_spots[i].y * 16 - cam_y, SPR_SPOT0 + ((frame / 12 + i) % 3) * 4, 6, 2, 0, 1, OBJF_MOSAIC);
+        if (fish_spots[i].plane == pl.plane) obj_sprite(TILE_PX(fish_spots[i].x) - cam_x, TILE_PY(fish_spots[i].y) - cam_y, SPR_SPOT0 + ((frame / 12 + i) % 3) * 4, 6, 2, 0, 1, OBJF_MOSAIC);
     for (int i = 0; i < MAX_GROUND; i++)
-        if (ground[i].id) obj_icon(ground[i].x * 16 - cam_x, ground[i].y * 16 - cam_y, items[ground[i].id].icon, 2);
+        if (ground[i].id && ground[i].plane == pl.plane) obj_icon(TILE_PX(ground[i].x) - cam_x, TILE_PY(ground[i].y) - cam_y, items[ground[i].id].icon, 2);
 }

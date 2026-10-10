@@ -19,7 +19,7 @@ LDFLAGS := $(ARCH) -nostartfiles -nostdlib -T src/gba.ld -Wl,--gc-sections -Wl,-
 all: $(TARGET).gba
 
 # pattern rule with two targets = one recipe run produces both (safe under make -j)
-$(BUILD)/assets%c $(BUILD)/assets%h $(BUILD)/quest_data%c $(BUILD)/quest_data%h: tools/gen_assets.py tools/world_gen.py tools/world_cache.py tools/world_emit.py tools/hd_art.py tools/gen_quests.py tools/gen_title.py tools/quests.txt $(wildcard tools/zones/*.py tools/zones/*.ref)
+$(BUILD)/assets%c $(BUILD)/assets%h $(BUILD)/quest_data%c $(BUILD)/quest_data%h: tools/gen_assets.py tools/world_gen.py tools/world_cache.py tools/world_emit.py tools/hd_art.py tools/lz77.py tools/gen_quests.py tools/gen_title.py tools/quests.txt $(wildcard tools/zones/*.py tools/zones/*.ref)
 	@mkdir -p $(BUILD)
 	$(PYTHON) tools/gen_assets.py $(BUILD)
 
@@ -38,7 +38,7 @@ $(BUILD)/avatar_art.c: tools/gen_avatar.py
 
 $(BUILD)/avatar_art.h: $(BUILD)/avatar_art.c
 
-$(BUILD)/%.o: src/%.c src/game.h src/gba.h src/ui_internal.h src/world_internal.h $(BUILD)/assets.h $(BUILD)/music_data.h $(BUILD)/avatar_art.h $(BUILD)/quest_data.h
+$(BUILD)/%.o: src/%.c src/game.h src/gba.h src/ui_internal.h src/world_internal.h src/map.h $(BUILD)/assets.h $(BUILD)/music_data.h $(BUILD)/avatar_art.h $(BUILD)/quest_data.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # version.h: the git tag (or tag-commits-hash between releases) and the commit date. Rewritten

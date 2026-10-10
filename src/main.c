@@ -1,10 +1,13 @@
 // Entry point and main loop.
 #include "game.h"
+#include "map.h"
+
+extern volatile u32 snd_play_frame;   // VBlanks since power-on (crt0.s, sound.c)
 
 u8 game_state;
 u32 frame;
 u16 keys, keys_pressed, keys_repeat;
-u16 perf_lines, perf_max;   // scanlines of work per frame (VBlank starts at 160; >= 228 = dropped frame)
+u16 perf_lines, perf_max;   // scanlines of work per frame from VBlank (>= 228: a VBlank was missed)
 
 static void read_keys(void) {
     static u16 prev, held;
@@ -30,6 +33,7 @@ int main(void) {
 
     for (;;) {
         vblank_wait();
+        u32 vb0 = snd_play_frame;
         gfx_vblank();
         sound_update();
         read_keys();
@@ -61,8 +65,13 @@ int main(void) {
         world_draw_sprites(0);
         obj_hide_rest();
         gfx_world_update();
+        if (game_state != GS_TITLE) {   // spare scanlines: decompress the map around the camera
+            int x, y, p;
+            world_focus(&x, &y, &p);
+            map_prefetch(x, y, p, vb0);
+        }
         u16 v = REG_VCOUNT;
-        perf_lines = v >= 160 ? v - 160 : v + 68;
+        perf_lines = (snd_play_frame - vb0) * 228 + (v >= 160 ? v - 160 : v + 68);
         if (perf_lines > perf_max) perf_max = perf_lines;
     }
 }

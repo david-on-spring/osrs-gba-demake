@@ -93,11 +93,12 @@ int weapon_speed(void) {
 int npc_in_reach(int i) {
     Npc *n = &npcs[i];
     int r = attack_range();
+    if (n->plane != pl.plane) return 0;
     if (r <= 1) return adjacent(pl.x, pl.y, n->x, n->y);
     int dx = n->x - pl.x, dy = n->y - pl.y;
     if (dx < 0) dx = -dx;
     if (dy < 0) dy = -dy;
-    return (dx > dy ? dx : dy) <= r && clear_shot(pl.x, pl.y, n->x, n->y);
+    return (dx > dy ? dx : dy) <= r && clear_shot(pl.x, pl.y, n->x, n->y, pl.plane);
 }
 
 // Confuse/Weaken/Curse lower a stat by 5%, Vulnerability/Enfeeble/Stun by 10%
@@ -166,7 +167,7 @@ void proj_update(void) {
         Npc *n = &npcs[p->npc];
         if (!n->active) continue;
         // most arrows can be picked up again under the target
-        if (p->drop && rnd_range(100) < 80) drop_item(n->x, n->y, p->drop, 1);
+        if (p->drop && rnd_range(100) < 80) drop_item(n->x, n->y, n->plane, p->drop, 1);
         const SpellDef *sp = &spells[p->spell];
         if (p->cb == CB_MAGIC && (sp->kind == SPK_CURSE || sp->kind == SPK_BIND)) {
             // dmg holds hit (1) or splash (0) for curses; binds also deal a little damage
@@ -393,8 +394,9 @@ void player_respawn(void) {
     target_set(-1);
     pl.x = START_X;
     pl.y = START_Y;
-    pl.px = pl.x * 16;
-    pl.py = pl.y * 16;
+    pl.plane = START_P;
+    pl.px = TILE_PX(pl.x);
+    pl.py = TILE_PY(pl.y);
     pl.moving = 0;
     pl.dir = DIR_DOWN;
     pl.hp = skill_level(SK_HITPOINTS);
@@ -402,96 +404,96 @@ void player_respawn(void) {
 }
 
 static void npc_drops(Npc *n) {
-    int x = n->x, y = n->y;
+    int x = n->x, y = n->y, p = n->plane;
     switch (n->kind) {
     case NPC_COW:
-        drop_item(x, y, I_BONES, 1);
-        drop_item(x, y, I_RAW_BEEF, 1);
-        drop_item(x, y, I_COWHIDE, 1);
+        drop_item(x, y, p, I_BONES, 1);
+        drop_item(x, y, p, I_RAW_BEEF, 1);
+        drop_item(x, y, p, I_COWHIDE, 1);
         break;
     case NPC_CHICKEN:
-        drop_item(x, y, I_BONES, 1);
-        drop_item(x, y, I_RAW_CHICKEN, 1);
-        drop_item(x, y, I_FEATHER, 5 + rnd_range(11));
+        drop_item(x, y, p, I_BONES, 1);
+        drop_item(x, y, p, I_RAW_CHICKEN, 1);
+        drop_item(x, y, p, I_FEATHER, 5 + rnd_range(11));
         break;
     case NPC_GOBLIN: {
-        drop_item(x, y, I_BONES, 1);
+        drop_item(x, y, p, I_BONES, 1);
         int r = rnd_range(100);
-        if (r < 55) drop_item(x, y, I_COINS, 1 + rnd_range(15));
-        else if (r < 63) drop_item(x, y, I_BRONZE_HELM, 1);
-        else if (r < 70) drop_item(x, y, I_BRONZE_SHIELD, 1);
-        else if (r < 75) drop_item(x, y, I_BRONZE_LEGS, 1);
-        else if (r < 78) drop_item(x, y, I_LEATHER_BODY, 1);
-        else if (r < 81) drop_item(x, y, I_BRONZE_DAGGER, 1);
-        else if (r < 84) drop_item(x, y, I_BRONZE_FULL_HELM, 1);
-        else if (r < 86) drop_item(x, y, I_BRONZE_CHAINBODY, 1);
-        else if (r < 88) drop_item(x, y, I_BRONZE_SKIRT, 1);
-        else if (r < 98) drop_item(x, y, I_GOBLIN_MAIL, 1);
+        if (r < 55) drop_item(x, y, p, I_COINS, 1 + rnd_range(15));
+        else if (r < 63) drop_item(x, y, p, I_BRONZE_HELM, 1);
+        else if (r < 70) drop_item(x, y, p, I_BRONZE_SHIELD, 1);
+        else if (r < 75) drop_item(x, y, p, I_BRONZE_LEGS, 1);
+        else if (r < 78) drop_item(x, y, p, I_LEATHER_BODY, 1);
+        else if (r < 81) drop_item(x, y, p, I_BRONZE_DAGGER, 1);
+        else if (r < 84) drop_item(x, y, p, I_BRONZE_FULL_HELM, 1);
+        else if (r < 86) drop_item(x, y, p, I_BRONZE_CHAINBODY, 1);
+        else if (r < 88) drop_item(x, y, p, I_BRONZE_SKIRT, 1);
+        else if (r < 98) drop_item(x, y, p, I_GOBLIN_MAIL, 1);
         break;
     }
     case NPC_IMP: {
         static const u8 beads[4] = {I_RED_BEAD, I_YELLOW_BEAD, I_BLACK_BEAD, I_WHITE_BEAD};
-        if (rnd_range(100) < 60) drop_item(x, y, beads[rnd_range(4)], 1);
+        if (rnd_range(100) < 60) drop_item(x, y, p, beads[rnd_range(4)], 1);
         break;
     }
     case NPC_RAT:
-        drop_item(x, y, I_BONES, 1);
+        drop_item(x, y, p, I_BONES, 1);
         // the tail only drops while Hetty needs one (as in OSRS)
-        if (quest_stage(Q_WITCH) == 1 && !has_item(I_RAT_TAIL)) drop_item(x, y, I_RAT_TAIL, 1);
+        if (quest_stage(Q_WITCH) == 1 && !has_item(I_RAT_TAIL)) drop_item(x, y, p, I_RAT_TAIL, 1);
         break;
     case NPC_SKELETON:
-        drop_item(x, y, I_BONES, 1);
+        drop_item(x, y, p, I_BONES, 1);
         break;
     case NPC_MAN:
     case NPC_WOMAN:
-        drop_item(x, y, I_BONES, 1);
-        if (rnd_range(100) < 70) drop_item(x, y, I_COINS, 3 + rnd_range(20));
+        drop_item(x, y, p, I_BONES, 1);
+        if (rnd_range(100) < 70) drop_item(x, y, p, I_COINS, 3 + rnd_range(20));
         break;
     case NPC_DARK_WIZARD: {
         // OSRS dark wizards carry runes
         static const u8 runes[] = {I_AIR_RUNE, I_WATER_RUNE, I_EARTH_RUNE, I_FIRE_RUNE, I_MIND_RUNE, I_BODY_RUNE,
                                    I_CHAOS_RUNE, I_NATURE_RUNE, I_COSMIC_RUNE, I_LAW_RUNE, I_DEATH_RUNE, I_BLOOD_RUNE};
         static const u8 qty[] = {10, 10, 10, 10, 10, 8, 4, 3, 2, 2, 2, 1};
-        drop_item(x, y, I_BONES, 1);
+        drop_item(x, y, p, I_BONES, 1);
         int r = rnd_range(100);
         if (r < 60) {
             int k = rnd_range(sizeof(runes));
-            drop_item(x, y, runes[k], qty[k] + rnd_range(qty[k] + 1));
+            drop_item(x, y, p, runes[k], qty[k] + rnd_range(qty[k] + 1));
         } else if (r < 80) {
-            drop_item(x, y, I_COINS, 5 + rnd_range(25));
+            drop_item(x, y, p, I_COINS, 5 + rnd_range(25));
         }
         break;
     }
     case NPC_WARRIOR:
     case NPC_BARBARIAN: {
-        drop_item(x, y, I_BONES, 1);
+        drop_item(x, y, p, I_BONES, 1);
         int r = rnd_range(100);
-        if (r < 50) drop_item(x, y, I_COINS, 5 + rnd_range(25));
-        else if (r < 58) drop_item(x, y, I_BRONZE_SWORD, 1);
-        else if (r < 64) drop_item(x, y, I_IRON_HELM, 1);
-        else if (r < 68) drop_item(x, y, I_IRON_SWORD, 1);
+        if (r < 50) drop_item(x, y, p, I_COINS, 5 + rnd_range(25));
+        else if (r < 58) drop_item(x, y, p, I_BRONZE_SWORD, 1);
+        else if (r < 64) drop_item(x, y, p, I_IRON_HELM, 1);
+        else if (r < 68) drop_item(x, y, p, I_IRON_SWORD, 1);
         break;
     }
     case NPC_GUARD: {
-        drop_item(x, y, I_BONES, 1);
+        drop_item(x, y, p, I_BONES, 1);
         int r = rnd_range(100);
-        if (r < 60) drop_item(x, y, I_COINS, 10 + rnd_range(50));
-        else if (r < 70) drop_item(x, y, I_IRON_HELM, 1);
-        else if (r < 78) drop_item(x, y, I_IRON_SWORD, 1);
-        else if (r < 84) drop_item(x, y, I_IRON_LEGS, 1);
-        else if (r < 88) drop_item(x, y, I_STEEL_SWORD, 1);
-        else if (r < 91) drop_item(x, y, I_IRON_BODY, 1);
-        else if (r < 93) drop_item(x, y, I_IRON_SCIMITAR, 1);
-        else if (r < 95) drop_item(x, y, I_IRON_KITE, 1);
-        else if (r < 96) drop_item(x, y, I_IRON_FULL_HELM, 1);
-        else if (r < 97) drop_item(x, y, I_IRON_CHAINBODY, 1);
-        else if (r < 98) drop_item(x, y, I_STEEL_LONGSWORD, 1);
+        if (r < 60) drop_item(x, y, p, I_COINS, 10 + rnd_range(50));
+        else if (r < 70) drop_item(x, y, p, I_IRON_HELM, 1);
+        else if (r < 78) drop_item(x, y, p, I_IRON_SWORD, 1);
+        else if (r < 84) drop_item(x, y, p, I_IRON_LEGS, 1);
+        else if (r < 88) drop_item(x, y, p, I_STEEL_SWORD, 1);
+        else if (r < 91) drop_item(x, y, p, I_IRON_BODY, 1);
+        else if (r < 93) drop_item(x, y, p, I_IRON_SCIMITAR, 1);
+        else if (r < 95) drop_item(x, y, p, I_IRON_KITE, 1);
+        else if (r < 96) drop_item(x, y, p, I_IRON_FULL_HELM, 1);
+        else if (r < 97) drop_item(x, y, p, I_IRON_CHAINBODY, 1);
+        else if (r < 98) drop_item(x, y, p, I_STEEL_LONGSWORD, 1);
         else if (r < 99) {
             // rare table: a taste of the higher tiers
             static const u8 rare[] = {I_MITHRIL_SCIMITAR, I_MITHRIL_FULL_HELM, I_MITHRIL_KITE,
                                       I_STEEL_BODY, I_STEEL_LEGS, I_ADAMANT_SCIMITAR, I_MITHRIL_BODY,
                                       I_RUNE_SCIMITAR};
-            drop_item(x, y, rare[rnd_range(sizeof(rare))], 1);
+            drop_item(x, y, p, rare[rnd_range(sizeof(rare))], 1);
         }
         break;
     }
@@ -504,7 +506,7 @@ static void npc_die(int i) {
     npc_drops(n);
     n->active = 0;
     n->curse = n->bound = 0;
-    occ_clear(n->x, n->y);
+    occ_clear(n->x, n->y, n->plane);
     n->in_combat = 0;
     foe_release(i);
     n->respawn = npc_defs[n->kind].respawn;

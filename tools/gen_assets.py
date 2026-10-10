@@ -2108,16 +2108,18 @@ with open(os.path.join(OUT, 'assets.h'), 'w') as f:
 with open(os.path.join(OUT, 'assets.c'), 'w') as f:
     f.write('\n'.join(c) + '\n')
 
-# spawn list for test scripts (npc index, kind, cell)
+# spawn list for test scripts: npc index, kind and OSRS tile (X Y plane); objects, items, named
+# places, where to stand facing each thing, and the zones
+O = world.osrs_of
 with open(os.path.join(OUT, 'spawns.txt'), 'w') as f:
     for i, (k, x, y) in enumerate(world.SPAWNS):
-        f.write('%d %s %d %d\n' % (i, k, x, y))
+        f.write('%d %s %d %d %d\n' % ((i, k) + O(x, y)))
     for (t, x, y) in world.QUEST_OBJS:
-        f.write('obj %s %d %d\n' % (t, x, y))
+        f.write('obj %s %d %d %d\n' % ((t,) + O(x, y)))
     for (it, x, y) in world.ITEM_SPAWNS:
-        f.write('item %s %d %d\n' % (it, x, y))
+        f.write('item %s %d %d %d\n' % ((it,) + O(x, y)))
     for n, (x, y) in sorted(world.QPOS.items()):
-        f.write('place %s %d %d\n' % (n, x, y))
+        f.write('place %s %d %d %d\n' % ((n,) + O(x, y)))
     # where the player can stand to face each NPC / object / item (DIR the player faces)
     wk = lambda x, y: 0 <= x < world.MW and 0 <= y < world.MH and world.TY[y][x] in world.WALKSET
     done = set()
@@ -2129,13 +2131,12 @@ with open(os.path.join(OUT, 'spawns.txt'), 'w') as f:
         for d, (dx, dy) in enumerate(((0, 1), (0, -1), (-1, 0), (1, 0))):
             sx, sy = x - dx, y - dy
             if wk(sx, sy) and world.TY[sy][sx] != 'DOOR':
-                f.write('stand %s %d %d %d\n' % (name, sx, sy, d))
-    f.write('mapw %d\n' % world.MW)
-    for n, z, ps, plane in world.ZONES:     # OSRS (X, Y) -> cell: CX0 + (X - OX) // S, CY0 + (OY - Y) // S
-        f.write('zone %s %d %d %d %d %d\n' % (n, z.OX, z.OY, z.S, z.CX0, z.CY0))
+                f.write('stand %s %d %d %d %d\n' % ((name,) + O(sx, sy) + (d,)))
+    f.write('world %d %d\n' % (world.WORLD_X0, world.WORLD_Y1))   # px = (X - X0) * 16, py = (Y1 - Y) * 16
+    for n, z, ps, plane in world.ZONES:
+        f.write('zone %s %d\n' % (n, plane))
     for c in world.CITIES:                  # towns lie in the overworld: their names are aliases
-        z = c.ctx
-        f.write('zone %s %d %d %d %d %d\n' % (c.name, z.OX, z.OY, z.S, z.CX0, z.CY0))
+        f.write('zone %s 0\n' % c.name)
 import gen_quests  # noqa: E402
 gen_quests.emit(OUT, font_w, world, KINDS)
 
