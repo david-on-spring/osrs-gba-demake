@@ -33,7 +33,7 @@ typedef struct { u32 cell; u16 meta, over; u8 type, mask; } Override;
 static Override ovr[MAX_OVR];
 int n_ovr;
 
-static const Override *ovr_find(u32 cell) {
+static inline __attribute__((always_inline)) const Override *ovr_find(u32 cell) {
     if (!ovr_marked(cell)) return 0;
     for (int i = 0; i < n_ovr; i++)
         if (ovr[i].cell == cell) return &ovr[i];
@@ -97,6 +97,29 @@ void world_cell_gfx(int x, int y, int p, int *meta, int *over, int *roof) {
     if (o) {
         if (o->mask & OV_META) *meta = o->meta;
         if (o->mask & OV_OVER) *over = o->over;
+    }
+}
+
+// world_cell_gfx() for n cells eastwards from (x, y), all map_in: one block lookup per 16 cells
+IWRAM_CODE void world_row_gfx(int x, int y, int p, int n, u16 *meta, u16 *over, u8 *roof) {
+    for (int k0 = 0; k0 < n;) {
+        const MapBlock *b = map_block(x + k0, y, p);
+        int i = map_cell(x + k0, y), end = k0 + 16 - ((x + k0) & 15);
+        if (end > n) end = n;
+        for (int k = k0; k < end; k++, i++) {
+            meta[k] = b->meta[i];
+            over[k] = b->over[i];
+            roof[k] = b->roof[i];
+        }
+        k0 = end;
+    }
+    if (!n_ovr) return;
+    for (int k = 0; k < n; k++) {
+        const Override *o = ovr_find(map_key(x + k, y, p));
+        if (o) {
+            if (o->mask & OV_META) meta[k] = o->meta;
+            if (o->mask & OV_OVER) over[k] = o->over;
+        }
     }
 }
 
