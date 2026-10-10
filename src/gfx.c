@@ -23,17 +23,19 @@ ObjAttr oam_buf[128];
 int oam_n;
 static void icon_cache_reset(void);
 
-static EWRAM_BSS u16 map_ground[32 * 32];
-static EWRAM_BSS u16 map_overlay[32 * 32];
+static EWRAM_BSS u16 map_ground[32 * 32] __attribute__((aligned(4)));
+static EWRAM_BSS u16 map_overlay[32 * 32] __attribute__((aligned(4)));
 static u8 maps_pending;
 static s16 drawn_tx = -999, drawn_ty = -999;
+static s8 drawn_plane = -1;
 static u8 world_dirty = 1;
+static u8 world_hidden;   // world layers off this frame: a teleport's redraw waits for the next one
 
 #define CACHE_BASE 448        // char index of slot 0 (VRAM 0xB800 with char base 2)
 #define CACHE_SLOTS 576
 static EWRAM_BSS u16 gslot[WORLD_TILE_COUNT];   // cache slot + 1 holding each ROM tile, 0 = none
 static EWRAM_BSS u16 sowner[CACHE_SLOTS];       // ROM tile held by each slot
-static EWRAM_BSS u16 sref[CACHE_SLOTS];         // screen entries referencing each slot
+static u16 sref[CACHE_SLOTS] __attribute__((aligned(4)));   // screen entries referencing each slot (IWRAM: hot)
 static EWRAM_BSS u16 sfreed[CACHE_SLOTS];       // update serial when the slot became unused
 static u16 upd_serial = 1, clock_hand = 1;
 static u8 cache_retry;
@@ -239,13 +241,12 @@ void gfx_set_player_palette(void) {
 }
 
 // ---------------------------------------------------------------------------------------
-// Returns the cache slot holding ROM tile gt, loading it into a free slot if needed.
-static int cache_get(u32 gt) {
-    int s = gslot[gt];
-    if (s) {
-        sref[s - 1]++;
-        return s - 1;
-    }
+// The tile cache and the window redraw run for every on-screen tile, so they are ARM code in
+// IWRAM. A full redraw (teleport, staircase, roof change) must fit in a frame with the rest of it.
+
+// Loads ROM tile gt into a free slot and returns the slot (0 when the cache is full: retried
+// with a full redraw next update)
+IWRAM_CODE __attribute__((noinline)) static int cache_load(u32 gt) {
     for (int n = 1; n < CACHE_SLOTS; n++) {
         int k = clock_hand;
         if (++clock_hand >= CACHE_SLOTS) clock_hand = 1;
@@ -255,9 +256,8 @@ static int cache_get(u32 gt) {
         gslot[gt] = k + 1;
         sref[k] = 1;
         // the slot is not on screen (nor in the screenblock DMA'd last vblank): copy directly
-        const u32 *src = &world_tiles[gt * 8];
-        vu32 *dst = (vu32 *)(0x06008000 + (CACHE_BASE + k) * 32);
-        for (int i = 0; i < 8; i++) dst[i] = src[i];
+        typedef struct { u32 w[8]; } Tile;   // copied with ldm/stm
+        *(Tile *)(0x06008000 + (CACHE_BASE + k) * 32) = *(const Tile *)&world_tiles[gt * 8];
         cache_loads++;
         return k;
     }
@@ -266,9 +266,26 @@ static int cache_get(u32 gt) {
     return 0;
 }
 
-static inline void cache_put(u16 entry) {
+// Returns the cache slot holding ROM tile gt, loading it into a free slot if needed. Slot 0 is
+// the permanent blank tile (ROM tile 0) and is not counted.
+static inline __attribute__((always_inline)) int cache_get(u32 gt) {
+    if (!gt) return 0;
+    int s = gslot[gt];
+    if (s) {
+        sref[s - 1]++;
+        return s - 1;
+    }
+    return cache_load(gt);
+}
+
+static inline __attribute__((always_inline)) void cache_put(u32 entry) {
     int s = (entry & 0x3FF) - CACHE_BASE;
     if (s > 0 && --sref[s] == 0) sfreed[s] = upd_serial;
+}
+
+// screen entry for metatile entry e (low 16: ROM tile, high 16: flip/palette attributes)
+static inline __attribute__((always_inline)) u32 cache_entry(u32 e) {
+    return (CACHE_BASE + cache_get(e & 0xFFFF)) | (e >> 16);
 }
 
 // tx, ty: 8x8 tile in pixel space (two per cell); the player's floor is drawn
@@ -290,15 +307,15 @@ static void draw_tile(int tx, int ty) {
         ge = meta_tiles[memo.meta][k];
         if (!hidden_roof || memo.roof != hidden_roof) oe = meta_tiles[memo.over][k];
     }
-    u16 g = (CACHE_BASE + cache_get(ge & 0xFFFF)) | (ge >> 16);
-    u16 o = (CACHE_BASE + cache_get(oe & 0xFFFF)) | (oe >> 16);
+    u16 g = cache_entry(ge);
+    u16 o = cache_entry(oe);
     cache_put(map_ground[i]);
     cache_put(map_overlay[i]);
     map_ground[i] = g;
     map_overlay[i] = o;
 }
 
-static void clear_tile(int tx, int ty) {
+static inline __attribute__((always_inline)) void clear_tile(int tx, int ty) {
     int i = (ty & 31) * 32 + (tx & 31);
     cache_put(map_ground[i]);
     cache_put(map_overlay[i]);
@@ -308,22 +325,88 @@ static void clear_tile(int tx, int ty) {
 #define WIN_W 31
 #define WIN_H 21
 
+static const u32 no_tiles[4];   // blank, as draw_tile() leaves a cell off the map or a hidden roof
+
+// one 8x8 tile of the window: the screen entry for metatile entry e, counted in its slot
+#define REDRAW_ENTRY(dst, e) do { \
+    u32 e_ = (e), t_ = e_ & 0xFFFF, s_; \
+    if (!t_) s_ = 0; \
+    else if ((s_ = gslot[t_]) != 0) sref[--s_]++; \
+    else s_ = cache_load(t_); \
+    (dst) = (CACHE_BASE + s_) | (e_ >> 16); \
+} while (0)
+
+// The whole window at tile tx0, ty0. Releasing the old window entry by entry and drawing the
+// new one with draw_tile() took two to three frames, so instead every slot the old window used
+// is freed at once (as a release would: not reused before the next update), and the new window
+// is drawn a row at a time, with one map lookup per row of cells.
+IWRAM_CODE __attribute__((noinline)) static void redraw_window(int tx0, int ty0) {
+    u16 serial = upd_serial;
+    u32 *ref2 = (u32 *)sref;   // two slots at a time: most are not on screen
+    for (int s = 0; s < CACHE_SLOTS; s += 2) {
+        u32 r = ref2[s >> 1];
+        if (!r) continue;
+        if (s && (r & 0xFFFF)) sfreed[s] = serial;   // slot 0 (the blank tile) is never released
+        if (r >> 16) sfreed[s + 1] = serial;
+        ref2[s >> 1] = s ? 0 : (r & 0xFFFF);
+    }
+    // entries outside the window stay blank
+    for (int ty = ty0 + WIN_H; ty < ty0 + 32; ty++) {
+        u32 *g = (u32 *)&map_ground[(ty & 31) * 32], *o = (u32 *)&map_overlay[(ty & 31) * 32];
+        for (int n = 0; n < 16; n++) g[n] = o[n] = CACHE_BASE | CACHE_BASE << 16;
+    }
+    int p = pl.plane, hide = hidden_roof;
+    int cx0 = tx0 >> 1, ncell = ((tx0 + WIN_W - 1) >> 1) - cx0 + 1;
+    const u32 *gm[WIN_W / 2 + 2], *om[WIN_W / 2 + 2];   // the metatiles of one row of cells
+    for (int ty = ty0; ty < ty0 + WIN_H; ty++) {
+        if (ty == ty0 || !(ty & 1)) {
+            int cy = ty >> 1, y = WORLD_Y1 - cy;
+            for (int c = 0; c < ncell; c++) gm[c] = om[c] = no_tiles;
+            const u16 *b = map_bounds[p];
+            int xa = WORLD_X0 + (cx0 < 0 ? 0 : cx0), xb = WORLD_X0 + cx0 + ncell - 1;
+            if (xa < b[0]) xa = b[0];
+            if (xb > b[2]) xb = b[2];
+            if (cy >= 0 && y >= b[1] && y <= b[3] && xa <= xb) {
+                u16 meta[WIN_W / 2 + 2], over[WIN_W / 2 + 2];
+                u8 roof[WIN_W / 2 + 2];
+                world_row_gfx(xa, y, p, xb - xa + 1, meta, over, roof);
+                for (int n = 0, c = xa - WORLD_X0 - cx0; n <= xb - xa; n++, c++) {
+                    gm[c] = meta_tiles[meta[n]];
+                    if (!hide || roof[n] != hide) om[c] = meta_tiles[over[n]];
+                }
+            }
+        }
+        u16 *g = &map_ground[(ty & 31) * 32], *o = &map_overlay[(ty & 31) * 32];
+        int k = (ty & 1) << 1, tx = tx0;
+        for (; tx < tx0 + WIN_W; tx++) {
+            int c = (tx >> 1) - cx0, kk = k | (tx & 1);
+            REDRAW_ENTRY(g[tx & 31], gm[c][kk]);
+            REDRAW_ENTRY(o[tx & 31], om[c][kk]);
+        }
+        g[tx & 31] = o[tx & 31] = CACHE_BASE;   // the 32nd column
+    }
+}
+
 void gfx_world_update(void) {
     int tx0 = cam_x >> 3, ty0 = cam_y >> 3;
     if (++upd_serial == 0) upd_serial = 1;
     int dx = tx0 - drawn_tx, dy = ty0 - drawn_ty;
-    if (world_dirty || cache_retry || dx > 4 || dx < -4 || dy > 4 || dy < -4) {
+    int jump = dx > 4 || dx < -4 || dy > 4 || dy < -4 || pl.plane != drawn_plane;
+    if (world_dirty || cache_retry || jump) {
+        // A teleport or a staircase: the frame that moves the player also redraws the HUD and
+        // decompresses map blocks, and together with the redraw it would drop a frame. Show
+        // the world black for this frame (as the warp fade already has it) and redraw next.
+        if (jump && !world_hidden) {
+            world_hidden = 1;
+            return;
+        }
+        world_hidden = 0;
+        drawn_plane = pl.plane;
         world_dirty = cache_retry = 0;
         n_dirty_cells = 0;
-        for (int i = 0; i < 32 * 32; i++) {
-            cache_put(map_ground[i]);
-            cache_put(map_overlay[i]);
-            map_ground[i] = map_overlay[i] = CACHE_BASE;
-        }
         drawn_tx = tx0;
         drawn_ty = ty0;
-        for (int ty = ty0; ty < ty0 + WIN_H; ty++)
-            for (int tx = tx0; tx < tx0 + WIN_W; tx++) draw_tile(tx, ty);
+        redraw_window(tx0, ty0);
         maps_pending = 1;
         return;
     }
@@ -477,6 +560,7 @@ void gfx_vblank(void) {
     dma3_copy32((void *)OAM_MEM, oam_buf, 256);
     avatar_vblank();
 
+    REG_DISPCNT = world_hidden ? 0x1340 : 0x1F40;   // BG2/BG3: the world
     REG_BGHOFS(0) = ui_scroll;
     REG_BGHOFS(1) = ui_scroll;
     REG_BGHOFS(2) = cam_x;

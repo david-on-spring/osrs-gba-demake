@@ -61,11 +61,29 @@ int map_walk_at(int x, int y, int p) {
 // (map_tidx), so the blocks around the camera never share an entry; a slot whose entry was
 // taken over by another block is dropped.
 
-// BIOS LZ77UnCompWram: the stream format tools/lz77.py writes
-static inline void lz77_wram(const void *src, void *dst) {
-    register const void *r0 __asm__("r0") = src;
-    register void *r1 __asm__("r1") = dst;
-    __asm__ volatile("swi 0x11" : "+r"(r0), "+r"(r1) : : "r2", "r3", "memory");
+// LZ77 in the BIOS format tools/lz77.py writes (what SWI 0x11 LZ77UnCompWram reads). ARM code in
+// IWRAM decoding into an IWRAM buffer: a block takes at most 22 scanlines instead of the BIOS's 29.
+IWRAM_CODE __attribute__((noinline)) static void lz77_wram(const void *src_, void *dst_) {
+    u32 buf[sizeof(MapBlock) / 4];   // decoded in IWRAM, then copied out: EWRAM bytes are slow
+    const u8 *src = src_;
+    u32 size = src[1] | src[2] << 8 | src[3] << 16;
+    u8 *dst = (u8 *)buf, *end = dst + size;
+    src += 4;
+    while (dst < end) {
+        u32 flags = *src++ | 0x100;   // the marker bit leaves the byte after its eighth item
+        for (; flags < 0x10000 && dst < end; flags <<= 1) {
+            if (flags & 0x80) {
+                u32 b0 = src[0], b1 = src[1];
+                src += 2;
+                const u8 *from = dst - (((b0 & 15) << 8 | b1) + 1);
+                u32 len = (b0 >> 4) + 3;
+                do *dst++ = *from++; while (--len);
+            } else {
+                *dst++ = *src++;
+            }
+        }
+    }
+    dma3_copy32(dst_, buf, (size + 3) / 4);
 }
 
 static int block_dist(u32 key) {

@@ -96,6 +96,41 @@ two to three VBlanks before this change. A test script's direct teleport also de
 one to three blocks under the new view on the spot; an in-game teleport or staircase does not,
 because the fade loads the destination first.
 
+### Full-window redraw
+
+Measured with a TM2/TM3 cascaded cycle counter, the old redraw (Thumb code in ROM, tables in
+EWRAM) spent its time evenly: releasing all 2,048 screen entries (56 lines), 330 cell lookups
+(112, most of it decompressing blocks on demand), 1,302 `cache_get` calls (105) and
+`draw_tile` itself (about 270). What changed (`src/gfx.c`, `src/map.c`):
+
+- `redraw_window()` is ARM code in IWRAM. It frees every slot the old window used in one pass
+  over `sref` (they stay unusable until the next update, as a release would leave them)
+  instead of releasing 2,048 entries one by one, and it draws a row at a time, with one
+  `world_row_gfx()` call (one block lookup per 16 cells) per row of cells. The blank tile is
+  not counted. `sref` moved to IWRAM.
+- Blocks are decompressed by an ARM LZ77 decoder in IWRAM into a stack buffer and copied out
+  by DMA: at most 22 lines per block instead of the BIOS's 29.
+- A redraw caused by a camera jump or a floor change (a teleport, a staircase) waits one frame
+  with the world layers off. The frame that moves the player also repaints the HUD and may
+  decompress blocks, so together the two would still drop a frame. Behind a warp fade the
+  world is black anyway; a test script's direct teleport shows one black frame. A roof change
+  still redraws at once, in a walking frame that has room for it.
+
+The redraw itself now takes about 70 lines (staircase, no tiles to load) to 100 (a teleport
+loading 230 tiles and a block). Most scanlines in a frame (`perf_max`):
+
+| | Before | After |
+|---|---|---|
+| Teleport (`perf.src`) | 675 | 203 |
+| Castle staircase up to the first floor (`castle.src`) | 622 | 207 |
+| Varrock segment with a roof change (`perf.src`) | 583 | 201 |
+| Walking segments (`perf.src`) | 199 / 208 / 203 | 188 / 189 / 201 |
+
+The castle's other staircases go through a climb-up/climb-down choice. The frame that opens
+the chatbox (296 lines) and the frame that closes it (355, 253 of them in `ui_hud_update`)
+are UI repaints, not map redraws, and this change does not touch them (the staircase frames
+themselves went from 629 and 635 lines to under 228).
+
 Block size, measured on this map (whole map, LZ77): 8×8 tiles 1.91×, 16×16 2.08×, 32×32 2.20×,
 64×64 2.27×. 16×16 keeps a teleport's on-demand work to a few small blocks and the cache small.
 
