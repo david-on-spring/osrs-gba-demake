@@ -164,7 +164,7 @@ quest WITCH "Witch's Potion"
   done 3
   icon EYE_NEWT
   start "I can start this quest by speaking to Hetty in her house in Rimmington."
-  step 1 "Hetty needs an eye of newt, an onion, a rat's tail and a piece of burnt meat for her potion. General stores sell eyes of newt, onions grow in Fred's field north-west of Lumbridge, rats live north of Rimmington, and meat burns nicely on any fire."
+  step 1 "Hetty needs an eye of newt, an onion, a rat's tail and a piece of burnt meat for her potion. Betty sells eyes of newt at her Magic Emporium in Port Sarim, onions grow in Fred's field north-west of Lumbridge, rats live north of Rimmington, and meat burns nicely on any fire."
   need 1 EYE_NEWT 1
   need 1 ONION 1
   need 1 RAT_TAIL 1
@@ -1055,7 +1055,7 @@ talk HETTY
   npc "Ok, I'm going to make a potion to help bring out your darker self. You will need certain ingredients."
   player "What do I need?"
   npc "You need an eye of newt, a rat's tail, an onion... Oh, and a piece of burnt meat."
-  npc "The general stores sell eyes of newt. Rats scurry about north of the village, onions grow in Fred's field near Lumbridge, and you can burn meat on any fire."
+  npc "Betty sells eyes of newt in Port Sarim. Rats scurry about north of the village, onions grow in Fred's field near Lumbridge, and you can burn meat on any fire."
   stage WITCH 1
   end
 :progress
@@ -1740,3 +1740,27 @@ talk BORDER_GUARD
 :poor
   player "I haven't got enough coins."
   npc "No money, no entry."
+
+# ============================================================================================
+# Hans, Lumbridge Castle: tells you how long you've played (as in OSRS)
+# ============================================================================================
+talk HANS
+  npc "Hello. What are you doing here?"
+  choice
+    option "I'm looking for whoever is in charge." charge
+    option "I have come to kill everyone here!" kill
+    option "I don't know. I'm lost. Where am I?" lost
+    option "Can you tell me how long I've been here?" time
+    option "Nothing." end
+:charge
+  npc "Who, the Duke? He's in his study, on the first floor."
+  end
+:kill
+  npc "Help! Help!"
+  end
+:lost
+  npc "You are in Lumbridge Castle."
+  end
+:time
+  npc "Ahh, I see all the newcomers arriving in Lumbridge, fresh-faced and eager for adventure. I remember you..."
+  playtime

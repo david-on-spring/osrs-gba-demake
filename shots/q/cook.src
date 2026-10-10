@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 40
 # --- talk to the Cook in the castle kitchen
 tp 139 171 2

@@ -279,6 +279,27 @@ def wall_line(x0, y0, x1, y1, wall='WALL', doors=()):
 
 
 SPAWNS = []
+SHOPS = []          # (SHOP_ id, cell x, cell y): building centre, used to pick the shop by position
+
+
+def shop(name, r, side, npc):
+    """A shop plus its entry in the shop table. General stores get a counter with staff behind
+    it (see service); a specialty shop has one keeper, behind a counter if the room is deep
+    enough for staff, counter and customers, else just standing at the back wall."""
+    SHOPS.append((name, (r[0] + r[2]) // 2, (r[1] + r[3]) // 2))
+    if npc == 'SHOPKEEPER':
+        service(r, side, 'COUNTER', npc)
+        return
+    x0, y0, x1, y1 = r
+    ix0, iy0, ix1, iy1 = x0 + 1, y0 + 1, x1 - 1, y1 - 1
+    depth = iy1 - iy0 + 1 if side in 'NS' else ix1 - ix0 + 1
+    if side in 'NS':
+        sx, sy, ox, oy = (ix0 + ix1) // 2, iy0 if side == 'N' else iy1, 0, 1 if side == 'N' else -1
+    else:
+        sx, sy, ox, oy = ix0 if side == 'W' else ix1, (iy0 + iy1) // 2, 1 if side == 'W' else -1, 0
+    if depth >= 3:
+        TY[sy + oy][sx + ox] = 'COUNTER'
+    SPAWNS.append((npc, sx, sy))
 
 
 def service(r, side, obj, npc):
@@ -637,10 +658,11 @@ START = (cx(3222), cy(3218))
 
 # general store
 GS_LUMB = building(3209, 3242, 3219, 3252, 'HWALL', 'WOODFLOOR', [('S', 3214)])
-service(GS_LUMB, 'N', 'COUNTER', 'SHOPKEEPER')
+shop('LUMBRIDGE', GS_LUMB, 'N', 'SHOPKEEPER')
 # Sheared Ram pub, Bob's axes, other houses
 building(3226, 3238, 3235, 3246, 'HWALL', 'WOODFLOOR', [('W', 3241)])
 BOB = building(3228, 3195, 3236, 3201, 'HWALL', 'WOODFLOOR', [('N', 3232)])
+shop('BOB', BOB, 'S', 'BOB')
 building(3200, 3238, 3207, 3245, 'HWALL', 'WOODFLOOR', [('E', 3241)])
 building(3232, 3250, 3239, 3257, 'HWALL', 'WOODFLOOR', [('W', 3253)])
 # church with altar + graveyard
@@ -748,14 +770,14 @@ for y in range(cy(3200), cy(3186) + 1):
             setg(x, y, 'BRIDGE')
 ofill(3027, 3200, 3031, 3240, 'WOODFLOOR')                                  # quay
 GS_SARIM = building(3036, 3250, 3044, 3258, 'HWALL', 'WOODFLOOR', [('S', 3040)])   # food store
-building(3046, 3250, 3054, 3258, 'HWALL', 'WOODFLOOR', [('S', 3050)])       # Betty's
+shop('BETTY', building(3046, 3250, 3054, 3258, 'HWALL', 'WOODFLOOR', [('S', 3050)]), 'N', 'BETTY')
 building(3040, 3232, 3050, 3240, 'HWALL', 'WOODFLOOR', [('N', 3044)])       # Rusty Anchor
-building(3034, 3206, 3042, 3214, 'HWALL', 'WOODFLOOR', [('W', 3210)])       # Gerrant's
+shop('GERRANT', building(3034, 3206, 3042, 3214, 'HWALL', 'WOODFLOOR', [('W', 3210)]), 'E', 'GERRANT')
 building(3046, 3214, 3054, 3222, 'WALL', 'FLOOR', [('N', 3050)])            # jail
 # Rimmington
 building(2950, 3204, 2958, 3211, 'HWALL', 'WOODFLOOR', [('N', 2954)])
 building(2962, 3208, 2970, 3215, 'HWALL', 'WOODFLOOR', [('W', 3211)])
-building(2946, 3216, 2954, 3223, 'HWALL', 'WOODFLOOR', [('E', 3220)])
+shop('RIMMINGTON', building(2946, 3216, 2954, 3223, 'HWALL', 'WOODFLOOR', [('E', 3220)]), 'W', 'SHOPKEEPER')
 building(2958, 3226, 2965, 3233, 'HWALL', 'WOODFLOOR', [('S', 2961)])
 building(2935, 3205, 2942, 3212, 'HWALL', 'WOODFLOOR', [('E', 3208)])
 mine(2968, 3232, 2990, 3250, [('COPPER', 4), ('TIN', 4), ('IRON', 4), ('CLAY', 3)], 'PATH', 2)
@@ -818,8 +840,8 @@ BANK_FALW = building(2941, 3362, 2951, 3375, 'WALL', 'FLOOR', [('E', 3367)])
 service(BANK_FALW, 'W', 'BOOTH', 'BANKER')
 # shops and houses
 GS_FAL = building(2952, 3382, 2962, 3391, 'HWALL', 'WOODFLOOR', [('E', 3386)])
-service(GS_FAL, 'N', 'COUNTER', 'SHOPKEEPER')
-building(2970, 3380, 2980, 3390, 'HWALL', 'WOODFLOOR', [('W', 3385)])       # Cassie's shields
+shop('FALADOR', GS_FAL, 'N', 'SHOPKEEPER')
+shop('CASSIE', building(2970, 3380, 2980, 3390, 'HWALL', 'WOODFLOOR', [('W', 3385)]), 'E', 'CASSIE')
 building(2943, 3350, 2951, 3358, 'HWALL', 'WOODFLOOR', [('E', 3354)])       # Herquin's gems
 building(2970, 3360, 2980, 3368, 'WALL', 'FLOOR', [('S', 2975)])            # furnace
 building(2954, 3373, 2963, 3380, 'HWALL', 'WOODFLOOR', [('S', 2958)])       # Rising Sun Inn
@@ -828,7 +850,7 @@ building(3016, 3333, 3024, 3343, 'WALL', 'FLOOR', [('W', 3338)])            # Mi
 building(3032, 3330, 3042, 3340, 'HWALL', 'WOODFLOOR', [('N', 3037)])
 building(2992, 3328, 3000, 3338, 'HWALL', 'WOODFLOOR', [('E', 3333)])
 building(3042, 3348, 3052, 3358, 'HWALL', 'WOODFLOOR', [('W', 3353)])
-building(2968, 3312, 2978, 3320, 'HWALL', 'WOODFLOOR', [('N', 2973)])       # Wayne's chains
+shop('WAYNE', building(2968, 3312, 2978, 3320, 'HWALL', 'WOODFLOOR', [('N', 2973)]), 'S', 'WAYNE')
 infill(2936, 3310, 3065, 3394, 14, 'WWALL', 'FLOOR', seed=34)
 scatter(2936, 3310, 3065, 3394, 0.03, [('TREE', 2), ('FLOWERS', 3), ('BUSH', 1)], seed=33)
 
@@ -840,7 +862,7 @@ DORIC_POS = (DORIC[0] + 2, DORIC[1] + 2)
 for (X, Y) in ((2950, 3504), (2958, 3500), (2963, 3508), (2950, 3493)):
     building(X - 3, Y - 3, X + 3, Y + 3, 'HWALL', 'WOODFLOOR', [('S', X)])
 ofill(2952, 3496, 2962, 3504, 'PATH')
-building(3028, 3448, 3036, 3455, 'WALL', 'FLOOR', [('S', 3032)])            # Dwarven Mine entrance
+shop('NURMOF', building(3028, 3448, 3036, 3455, 'WALL', 'FLOOR', [('S', 3032)]), 'N', 'NURMOF')   # Dwarven Mine entrance
 road([(3010, 3426), (3020, 3440), (3032, 3447)], 1)
 BKF = building(3008, 3504, 3032, 3518, 'WALL', 'FLOOR', [('W', 3510)])      # Black Knights' Fortress (the south side faces the cliffs)
 wall_line(BKF[0] + 4, BKF[1], BKF[0] + 4, BKF[3], doors=[(BKF[0] + 4, BKF[1] + 3)])
@@ -854,7 +876,7 @@ put(MONASTERY[0] + 2, MONASTERY[1] + 4, 'ALTAR')
 LONGHALL = building(3072, 3434, 3086, 3448, 'HWALL', 'WOODFLOOR', [('S', 3079)])
 put(LONGHALL[0] + 3, LONGHALL[1] + 3, 'FIREPIT')
 put(LONGHALL[2] - 3, LONGHALL[1] + 3, 'FIREPIT')
-building(3068, 3426, 3075, 3432, 'HWALL', 'WOODFLOOR', [('E', 3429)])       # Peksa's helmets
+shop('PEKSA', building(3068, 3426, 3075, 3432, 'HWALL', 'WOODFLOOR', [('E', 3429)]), 'W', 'PEKSA')
 building(3082, 3426, 3088, 3432, 'HWALL', 'WOODFLOOR', [('W', 3429)])       # spinning hut
 mine(3074, 3412, 3088, 3424, [('TIN', 5), ('COPPER', 3)], 'PATH', 1)
 oput(3098, 3428, 'FIREPIT')                                                 # never-ending fire
@@ -870,7 +892,7 @@ building(3132, 3414, 3136, 3418, 'WALL', 'FLOOR', [('N', 3134)])
 BANK_EDGE = building(3090, 3487, 3100, 3500, 'WALL', 'FLOOR', [('S', 3094)])
 service(BANK_EDGE, 'N', 'BOOTH', 'BANKER')
 GS_EDGE = building(3076, 3505, 3085, 3514, 'HWALL', 'WOODFLOOR', [('S', 3080)])
-service(GS_EDGE, 'N', 'COUNTER', 'SHOPKEEPER')
+shop('EDGEVILLE', GS_EDGE, 'N', 'SHOPKEEPER')
 DAVE = building(3077, 3489, 3086, 3497, 'HWALL', 'WOODFLOOR', [('E', 3493)])  # Evil Dave's house
 put(DAVE[0] + 1, DAVE[1] + 1, 'RANGE')
 building(3104, 3495, 3112, 3501, 'WALL', 'FLOOR', [('W', 3498)])             # furnace
@@ -947,10 +969,12 @@ BANK_VE = building(3249, 3416, 3259, 3425, 'WALL', 'FLOOR', [('N', 3253)])
 service(BANK_VE, 'S', 'BOOTH', 'BANKER')
 # shops
 GS_VAR = building(3214, 3406, 3224, 3416, 'HWALL', 'WOODFLOOR', [('N', 3218)])
-service(GS_VAR, 'S', 'COUNTER', 'SHOPKEEPER')
+shop('VARROCK', GS_VAR, 'S', 'SHOPKEEPER')
 SWORD = building(3198, 3392, 3207, 3398, 'HWALL', 'WOODFLOOR', [('N', 3202)])
+shop('SWORDSHOP', SWORD, 'S', 'SWORD_KEEPER')
 AUBURY = building(3250, 3402, 3258, 3408, 'HWALL', 'WOODFLOOR', [('W', 3405)])
 HORVIK = building(3226, 3434, 3234, 3442, 'HWALL', 'WOODFLOOR', [('S', 3230)])
+shop('HORVIK', HORVIK, 'N', 'HORVIK')
 ZAFF = building(3198, 3432, 3206, 3440, 'HWALL', 'WOODFLOOR', [('S', 3202)])
 THESSALIA = building(3200, 3406, 3208, 3415, 'HWALL', 'WOODFLOOR', [('N', 3204)])
 LOWE = building(3228, 3418, 3236, 3425, 'HWALL', 'WOODFLOOR', [('N', 3232)])
@@ -1024,9 +1048,9 @@ KARIM = building(3270, 3177, 3278, 3184, 'SWALL', 'FLOOR', [('E', 3180)])
 put(KARIM[0] + 1, KARIM[1] + 1, 'RANGE')
 building(3274, 3186, 3281, 3193, 'SWALL', 'FLOOR', [('E', 3189)])           # furnace
 GS_AK = building(3310, 3174, 3320, 3184, 'SWALL', 'FLOOR', [('W', 3178)])
-service(GS_AK, 'E', 'COUNTER', 'SHOPKEEPER')
-building(3284, 3186, 3291, 3193, 'SWALL', 'FLOOR', [('S', 3287)])           # Zeke's scimitars
-building(3310, 3162, 3318, 3170, 'SWALL', 'FLOOR', [('W', 3166)])           # Louie's legs
+shop('ALKHARID', GS_AK, 'E', 'SHOPKEEPER')
+shop('ZEKE', building(3284, 3186, 3291, 3193, 'SWALL', 'FLOOR', [('S', 3287)]), 'N', 'ZEKE')
+shop('LOUIE', building(3310, 3162, 3318, 3170, 'SWALL', 'FLOOR', [('W', 3166)]), 'E', 'LOUIE')
 building(3282, 3206, 3290, 3213, 'SWALL', 'FLOOR', [('S', 3286)])           # gem trader
 building(3294, 3190, 3302, 3197, 'SWALL', 'FLOOR', [('W', 3193)])           # Ellis the tanner
 building(3300, 3200, 3308, 3207, 'SWALL', 'FLOOR', [('W', 3203)])           # Ali Morrisane
@@ -2530,6 +2554,8 @@ def emit_header(h):
     h.append('#define SPAWN_COUNT %d' % len(SPAWNS))
     h.append('#define FISHSPOT_COUNT %d' % len(FISH_SPOTS))
     h.append('#define REGION_COUNT %d' % len(REGIONS))
+    h.append('enum { %s };' % ', '.join('SHOP_' + n for n, _, _ in SHOPS))
+    h.append('#define SHOP_COUNT %d' % len(SHOPS))
     h.append('#define START_X %d' % START[0])
     h.append('#define START_Y %d' % START[1])
     h.append('''
@@ -2548,6 +2574,7 @@ extern const u16 water_slots[];
 extern const Spawn spawns[SPAWN_COUNT];
 extern const FishSpotDef fish_spots[FISHSPOT_COUNT];
 extern const Region regions[REGION_COUNT];
+extern const u8 shop_pos[SHOP_COUNT][2];      // cell at the centre of each shop's building
 ''')
 
 
@@ -2576,6 +2603,10 @@ def emit_source(c, arr, tile_words, npc_kinds):
     c.append('const FishSpotDef fish_spots[FISHSPOT_COUNT] = {')
     for k, x, y in FISH_SPOTS:
         c.append('  {%d, %d, %d},' % (0 if k == 'NET' else 1, x, y))
+    c.append('};')
+    c.append('const u8 shop_pos[SHOP_COUNT][2] = {')
+    for n, x, y in SHOPS:
+        c.append('  {%d, %d},   // %s' % (x, y, n))
     c.append('};')
     c.append('const Region regions[REGION_COUNT] = {')
     for n, x0, y0, x1, y1 in REGIONS:

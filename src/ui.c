@@ -392,7 +392,8 @@ static void draw_clock(void) {
 // OSRS window title: orange, centred over an engraved rule, on a stone strip
 static void draw_header(const char *title) {
     draw_panel(4, 1, 232, 16, 0);
-    text_center(120, 4, title, TC_ORANGE);
+    int w = text_width(title);
+    text_draw(w > 92 ? 10 : 120 - w / 2, 4, title, TC_ORANGE);   // long shop names start left of the clock
     draw_clock();
 }
 
@@ -617,7 +618,7 @@ static void draw_main(void) {
     show_portrait = 1;
     portrait_x = 104;
     portrait_y = 30;
-    text_draw(144, 27, "Adventurer", TC_WHITE);
+    text_draw(144, 27, player_name, TC_WHITE);
     char *p = sadd(sbuf, "Combat Lv ");
     sadd_num(p, combat_level());
     text_draw(144, 38, sbuf, TC_GOLD);
@@ -829,10 +830,10 @@ static void draw_combat(void) {
 }
 
 static void draw_system(void) {
-    static const char *const opts[3] = {"Save game", "Music", "Close menu"};
+    static const char *const opts[4] = {"Save game", "Music", "Logout", "Close menu"};
     draw_header("Settings");
-    draw_panel(6, 22, 140, 66, 6);
-    for (int i = 0; i < 3; i++) {
+    draw_panel(6, 22, 140, 84, 6);
+    for (int i = 0; i < 4; i++) {
         int y = 31 + i * 18;
         if (i == sys_sel) {
             draw_highlight(9, y - 3, 134, 15);
@@ -844,13 +845,15 @@ static void draw_system(void) {
     draw_panel(150, 22, 84, 66, 6);
     text_spaced(158, 27, "Save data", TC_CYAN, 1);
     draw_rule(156, 38, 72);
-    text_draw(158, 44, save_exists() ? "Slot in use" : "No save yet", TC_GREY);
+    char *sp = sadd(sbuf, "Slot ");
+    sadd_num(sp, save_slot() + 1);
+    text_draw(158, 44, sbuf, TC_GREY);
     if (sys_note) {
         char lines[2][48];
         int n = text_wrap(sys_note, 70, lines, 2);
         for (int i = 0; i < n; i++) text_draw(158, 58 + i * 10, lines[i], TC_GREEN);
     }
-    draw_footer("Saved to cartridge SRAM.", "Select", "Back");
+    draw_footer(sys_sel == 2 ? "Saves, then logs out." : "Saved to cartridge SRAM.", "Select", "Back");
 }
 
 static void set_page(int p);
@@ -1373,8 +1376,8 @@ void menu_update(void) {
     }
     case P_SYSTEM: {
         int s = sys_sel;
-        if (keys_repeat & KEY_UP) s = (s + 2) % 3;
-        if (keys_repeat & KEY_DOWN) s = (s + 1) % 3;
+        if (keys_repeat & KEY_UP) s = (s + 3) % 4;
+        if (keys_repeat & KEY_DOWN) s = (s + 1) % 4;
         if (s != sys_sel) {
             sys_sel = s;
             sfx(SFX_MOVE);
@@ -1389,6 +1392,13 @@ void menu_update(void) {
                 pl.music ^= 1;
                 music_enable(pl.music);
                 sfx(SFX_OK);
+            } else if (sys_sel == 2) {
+                // OSRS logout: progress is kept, back to the login screen
+                save_game();
+                menu_close_now();
+                ui_hud_reset();
+                title_open();
+                return;
             } else {
                 menu_close();
                 return;
@@ -1447,7 +1457,7 @@ static void dialog_layout_say(int speaker, const char *text, int prebroken) {
     cursor_hide();
     if (game_state == GS_DIALOG && !dlg_choice && speaker == dlg_last_speaker) {
         // same speaker as the page on screen: keep the box, only replace the text
-        cv_clear_rows(&cv_text, 14, 19);
+        cv_fill(&cv_text, 6, DLG_Y + 13, 228, 41, 0);   // text only: keep the name
         goto text;
     }
     dialog_clear();
@@ -1459,7 +1469,7 @@ static void dialog_layout_say(int speaker, const char *text, int prebroken) {
     dlg_portrait = -1;
     dlg_tx = 120;                         // centre of the text area
     if (speaker == SPK_PLAYER) {
-        name = "Adventurer";
+        name = player_name;
         dlg_portrait = SPK_PLAYER;
         dlg_px = 198;
         dlg_py = DLG_Y + 10;
@@ -1471,7 +1481,7 @@ static void dialog_layout_say(int speaker, const char *text, int prebroken) {
         dlg_py = DLG_Y + 10;
         dlg_tx = 138;
     }
-    if (name) text_center_ns(dlg_tx, DLG_Y + 4, name, TC_DKRED);
+    if (name) text_center_ns(dlg_tx, DLG_Y + 3, name, TC_DKRED);
 text:
     if (prebroken) {
         // quest pages are wrapped at build time, lines separated by '\n'
@@ -1597,11 +1607,11 @@ static void dialog_draw_chars(int from, int to) {
         int x = dlg_lx[l];
         for (const char *p = dlg_lines[l]; *p; p++, k++) {
             char c[2] = {*p, 0};
-            if (k >= from && k < to) text_draw_ns(x, DLG_Y + 16 + l * 11, c, TC_BLACK);
+            if (k >= from && k < to) text_draw_ns(x, DLG_Y + 14 + l * 10, c, TC_BLACK);
             x += font_width[(u8)*p - 32] + 1;
         }
     }
-    if (to >= dlg_total) text_center_ns(dlg_tx, DLG_Y + 45, "Press A to continue", TC_BLUE);
+    if (to >= dlg_total) text_center_ns(dlg_tx, DLG_Y + 45, "Press A to continue", TC_BLUE);   // below line 3 (ends +43)
 }
 
 void dialog_update(void) {
@@ -1683,23 +1693,16 @@ static void draw_dialog_portrait(void) {
 static u8 tab, store_sel, store_scroll, inv_sel2, store_is_bank;
 static const char *store_note;
 
-typedef struct { u16 id, qty; } StockItem;
-static const u16 shop_stock[] = {
-    I_TINDERBOX, I_NET, I_ROD, I_FEATHER, I_BRONZE_AXE, I_IRON_AXE, I_STEEL_AXE, I_BRONZE_PICK,
-    I_IRON_PICK, I_BRONZE_SWORD, I_IRON_SWORD, I_WOODEN_SHIELD, I_BRONZE_HELM, I_LEATHER_BODY,
-    I_LEATHER_CHAPS, I_BOOTS, I_SHRIMP, I_COOKED_MEAT, I_STEEL_PICK, I_BRONZE_DAGGER, I_IRON_MACE,
-    I_BRONZE_FULL_HELM, I_BRONZE_CHAINBODY, I_IRON_BOOTS, I_BUCKET, I_POT, I_SHEARS, I_EYE_NEWT,
-};
-#define SHOP_N (int)(sizeof(shop_stock) / sizeof(shop_stock[0]))
-static Slot shop_slots[28];
-
-static int sell_price(int id) { return items[id].value * 2 / 5; }
+static u8 cur_shop;
+static Slot shop_slots[SHOP_SLOTS];     // view of the current shop's stock, refreshed per draw
+#define SHOP_N (store_is_bank ? 96 : shop_count(cur_shop))
 
 static void store_draw(void) {
     cv_clear(&cv_text);
     cv_clear(&cv_panel);
     icons_clear();
-    draw_header(store_is_bank ? "The Bank of Gielinor" : "General Store");
+    if (!store_is_bank) shop_view(cur_shop, shop_slots);
+    draw_header(store_is_bank ? "The Bank of Gielinor" : shop_name(cur_shop));
     // tabs
     // OSRS-style stone tabs; the open one is raised and lit
     const char *t0 = store_is_bank ? "Bank" : "Stock";
@@ -1720,7 +1723,7 @@ static void store_draw(void) {
     int count, sel, first = 0;
     if (tab == 0) {
         slots = store_is_bank ? pl.bank : shop_slots;
-        count = store_is_bank ? 96 : SHOP_N;
+        count = SHOP_N;
         sel = store_sel;
         first = store_scroll * 7;
     } else {
@@ -1735,12 +1738,17 @@ static void store_draw(void) {
         draw_cell(cx, cy, 19, 20, i == sel);
         if (i >= count || !slots[i].id) continue;
         icon_at(cx + 2, cy + 2, items[slots[i].id].icon);
-        if ((tab == 0 && store_is_bank) || slots[i].qty > 1 || (items[slots[i].id].flags & IF_STACK)) {
-            if (!(tab == 0 && !store_is_bank)) {
-                char n[12];
+        if (tab == 0 || slots[i].qty > 1 || (items[slots[i].id].flags & IF_STACK)) {
+            // shop stock always shows its count, even 0 (as in OSRS); 1000+ as "1K"
+            char n[12];
+            if (slots[i].qty >= 1000) {
+                char *e = sadd_num(n, slots[i].qty / 1000);
+                e[0] = 'K';
+                e[1] = 0;
+            } else {
                 fmt_int(n, slots[i].qty);
-                text_draw(cx + 1, cy, n, TC_YELLOW);
             }
+            text_draw(cx + 1, cy, n, TC_YELLOW);
         }
     }
     if (sel >= first && sel < first + 28) {
@@ -1757,7 +1765,11 @@ static void store_draw(void) {
     const Slot *s = (sel < count) ? &slots[sel] : 0;
     int id = s ? s->id : 0;
     int pm = store_is_bank ? 0 : (tab == 0 ? 1 : 2);
-    int price = !id ? 0 : pm == 1 ? items[id].value : sell_price(id);
+    int price = !id || store_is_bank ? 0 : pm == 1 ? shop_buy_price(cur_shop, sel) : shop_sell_price(cur_shop, id);
+    if (price < 0) {
+        pm = 0;                           // this shop won't take it
+        if (!store_note && id != I_COINS) store_note = "The shop won't buy that.";
+    }
     draw_item_detail(id, (tab == 0 && !store_is_bank) ? 1 : (s ? s->qty : 0), 162, 31, 72, pm, price);
     draw_panel(6, 125, 228, 21, 4);
     char *p = sadd(sbuf, "Coins: ");
@@ -1790,10 +1802,7 @@ static void store_open_common(int bank) {
 
 void bank_open(void) { store_open_common(1); }
 void shop_open(void) {
-    for (int i = 0; i < 28; i++) {
-        shop_slots[i].id = i < SHOP_N ? shop_stock[i] : 0;
-        shop_slots[i].qty = shop_slots[i].id == I_FEATHER ? 10 : 1;
-    }
+    cur_shop = shop_nearest();
     store_open_common(0);
 }
 
@@ -1835,35 +1844,55 @@ static void store_transact(int amount) {
         sfx(SFX_PICKUP);
     } else {
         if (tab == 0) {
+            shop_view(cur_shop, shop_slots);
             int id = shop_slots[store_sel].id;
             if (!id) return;
+            int got = 0;
             for (int k = 0; k < amount; k++) {
-                int qty = id == I_FEATHER ? 10 : 1;
-                int cost = items[id].value * qty;
+                // each item is priced at the stock left, so big buys get dearer
+                if (!shop_slots[store_sel].qty || shop_slots[store_sel].id != id) {
+                    store_note = "The shop has run out of stock.";
+                    break;
+                }
+                int cost = shop_buy_price(cur_shop, store_sel);
                 if (inv_count(I_COINS) < cost) {
                     store_note = "You don't have enough coins.";
-                    sfx(SFX_ERR);
-                    return;
+                    break;
                 }
-                if (!inv_free() && !((items[id].flags & IF_STACK) && inv_count(id))) {
+                // paying with the whole coin stack frees its slot
+                if (!inv_free() && !((items[id].flags & IF_STACK) && inv_count(id)) && inv_count(I_COINS) != cost) {
                     store_note = "You don't have enough inventory space.";
-                    sfx(SFX_ERR);
-                    return;
+                    break;
                 }
                 inv_remove(I_COINS, cost);
-                inv_add(id, qty);
+                shop_take(cur_shop, store_sel);
+                inv_add(id, 1);
+                got++;
+                shop_view(cur_shop, shop_slots);
             }
-            sfx(SFX_COINS);
+            sfx(got ? SFX_COINS : SFX_ERR);
         } else {
             Slot *s = &pl.inv[inv_sel2];
             int id = s->id;
             if (!id || id == I_COINS) return;
             int n = inv_count(id);
             if (n > amount) n = amount;
-            int gain = sell_price(id) * n;
-            inv_remove(id, n);
-            if (gain) inv_add(I_COINS, gain);
-            sfx(SFX_COINS);
+            int sold = 0;
+            for (int k = 0; k < n; k++) {
+                int gain = shop_sell_price(cur_shop, id);
+                if (gain < 0) {
+                    store_note = "The shop won't buy that.";
+                    break;
+                }
+                if (!shop_put(cur_shop, id)) {
+                    store_note = "The shop is full.";
+                    break;
+                }
+                inv_remove(id, 1);
+                if (gain) inv_add(I_COINS, gain);
+                sold++;
+            }
+            sfx(sold ? SFX_COINS : SFX_ERR);
         }
     }
 }
@@ -1924,9 +1953,11 @@ static void store_update(void) {
                 pop_add(tab == 0 ? "Withdraw 5" : "Deposit 5", 5);
                 pop_add(tab == 0 ? "Withdraw All" : "Deposit All", 99);
             } else {
+                // OSRS amounts: 1, 5, 10, 50
                 pop_add(tab == 0 ? "Buy 1" : "Sell 1", 1);
                 pop_add(tab == 0 ? "Buy 5" : "Sell 5", 5);
-                pop_add(tab == 0 ? "Buy 10" : "Sell All", tab == 0 ? 10 : 99);
+                pop_add(tab == 0 ? "Buy 10" : "Sell 10", 10);
+                pop_add(tab == 0 ? "Buy 50" : "Sell 50", 50);
             }
             pop_add("Cancel", 200);
             sfx(SFX_OK);
@@ -1946,18 +1977,29 @@ void shop_update(void) { store_update(); }
 // ---------------------------------------------------------------------------------------
 // Title screen: the OSRS login screen - black, the gold logo between columns of flame, a
 // stone "Welcome to RuneScape" box with New User / Existing User, and the music toggle
-// bottom-right.
+// bottom-right. New User asks for a display name on an on-screen keyboard, then a save slot;
+// Existing User picks one of the three saved characters.
 enum { TS_NEW, TS_EXISTING, TS_MUSIC };
-static u8 title_sel, title_phase, title_mute, title_back;
+enum { TM_MAIN, TM_NAME, TM_SLOTS };
+static u8 title_sel, title_phase, title_mute, title_back, title_mode;
 static s16 title_t;
+static char name_buf[NAME_MAX + 1];
+static u8 name_len, kb_r, kb_c, slot_sel, slot_confirm;
+static const char *title_note;
 
-#define TB_Y 88   // login buttons
+#define TB_Y 91   // login buttons
 static const u8 note_px[11] = {0x7C, 0x7C, 0x44, 0x44, 0x44, 0x44, 0x44, 0x66, 0xEE, 0xEE, 0x44};   // beamed quavers
+
+// display names: letters, digits, spaces, hyphens and underscores, up to 12 (as in OSRS)
+#define KB_COLS 13
+#define KB_ROWS 5
+static const char kb_keys[KB_ROWS][KB_COLS + 1] = {
+    "ABCDEFGHIJKLM", "NOPQRSTUVWXYZ", "abcdefghijklm", "nopqrstuvwxyz", "0123456789 -_",
+};
 
 static void title_music_button(void) {
     int x = 214, y = 134;
-    cv_fill(&cv_panel, x - 1, y - 1, 24, 24, 0);
-    draw_stone_button(x, y, 22, 22, title_sel == TS_MUSIC);
+    draw_stone_button(x, y, 22, 22, title_mode == TM_MAIN && title_sel == TS_MUSIC);
     for (int r = 0; r < 11; r++)
         for (int b = 0; b < 8; b++)
             if (note_px[r] & (0x80 >> b)) cv_pset(&cv_panel, x + 7 + b, y + 5 + r, PC_GOLD);
@@ -1968,15 +2010,74 @@ static void title_music_button(void) {
         }
 }
 
+static void title_draw_name(void) {
+    draw_panel(42, 58, 156, 100, 0);
+    text_center(120, 62, "Choose a display name", TC_YELLOW);
+    draw_cell(60, 74, 120, 14, 0);
+    char shown[NAME_MAX + 2];
+    int k = 0;
+    for (; k < name_len; k++) shown[k] = name_buf[k];
+    if (name_len < NAME_MAX) shown[k++] = '_';
+    shown[k] = 0;
+    text_center(120, 76, shown, TC_WHITE);
+    for (int r = 0; r < KB_ROWS; r++)
+        for (int c = 0; c < KB_COLS; c++) {
+            int x = 49 + c * 11, y = 92 + r * 11;
+            if (r == kb_r && c == kb_c) draw_stone_button(x, y, 10, 10, 1);
+            char ch[2] = {kb_keys[r][c], 0};
+            if (ch[0] == ' ') ch[0] = '.';   // the space key
+            text_draw(x + 5 - text_width(ch) / 2, y + 1, ch, r == kb_r && c == kb_c ? TC_YELLOW : TC_WHITE);
+        }
+    text_center(120, 147, title_note ? title_note : "A type  B delete  START done", title_note ? TC_RED : TC_DIM);
+}
+
+static void title_draw_slots(void) {
+    draw_panel(30, 58, 180, 92, 0);
+    text_center(120, 62, title_back == TS_NEW ? "Choose a save slot" : "Choose your character", TC_YELLOW);
+    for (int k = 0; k < SAVE_SLOTS; k++) {
+        int y = 76 + k * 22;
+        char nm[NAME_MAX + 1];
+        int total;
+        u32 t;
+        int used = save_slot_summary(k, nm, &total, &t);
+        int dim = !used && title_back == TS_EXISTING;
+        draw_stone_button(38, y, 164, 19, k == slot_sel);
+        char *p = sadd_num(sbuf, k + 1);
+        sadd(p, ".");
+        text_draw(44, y + 5, sbuf, TC_DIM);
+        if (used) {
+            text_draw(56, y + 1, nm, TC_WHITE);
+            p = sadd(sbuf, "Total level ");
+            sadd_num(p, total);
+            text_draw(56, y + 10, sbuf, TC_ORANGE);
+            (void)t;   // time played is Hans's to tell (Lumbridge Castle), as in OSRS
+        } else {
+            text_draw(56, y + 5, "Empty slot", dim ? TC_DIM : TC_GREY);
+        }
+    }
+    const char *hint = slot_confirm ? "Press A again to overwrite" : title_note ? title_note : "A select  B back";
+    text_center(120, 141, hint, slot_confirm || title_note ? TC_RED : TC_DIM);
+}
+
 static void title_draw(void) {
     cv_clear(&cv_text);
-    cv_clear(&cv_panel);
+    dma3_copy32(cv_panel.tiles, title_bg, 600 * 8);   // the stone hall (tools/gen_title.py)
+    cv_panel.dmin = 0;
+    cv_panel.dmax = 19;
     icons_clear();
-    text_center(120, 8, "Old School", TC_GOLD);
-    text_big(120, 20, "RuneScape");
+    title_music_button();
+    if (title_mode == TM_NAME) {
+        title_draw_name();
+        return;
+    }
+    if (title_mode == TM_SLOTS) {
+        title_draw_slots();
+        return;
+    }
+    text_center(120, 54, "Game Boy Advance Edition", TC_WHITE);
     // welcome box
-    draw_panel(46, 62, 148, 54, 0);
-    text_center(120, 70, "Welcome to RuneScape", TC_YELLOW);
+    draw_panel(46, 66, 148, 52, 0);
+    text_center(120, 74, "Welcome to RuneScape", TC_YELLOW);
     int has = save_exists();
     static const char *const opts[2] = {"New User", "Existing User"};
     for (int i = 0; i < 2; i++) {
@@ -1984,17 +2085,23 @@ static void title_draw(void) {
         draw_stone_button(x, TB_Y, w, 20, title_sel == i);
         text_center(x + w / 2, TB_Y + 6, opts[i], (i == TS_EXISTING && !has) ? TC_DIM : TC_WHITE);
     }
-    title_music_button();
-    text_center(120, 120, "A fan-made tribute. Not affiliated with Jagex.", TC_DIM);
+    text_center(120, 124, "A fan-made tribute. Not affiliated with Jagex.", TC_WHITE);
 }
 
 void title_open(void) {
     game_state = GS_TITLE;
+    gfx_set_title_palette(1);
+    for (int i = 0; i < 2; i++) msgs[i].timer = 0;   // a fresh chatbox after logging out
+    for (int i = 0; i < 3; i++) drops[i].timer = 0;
+    target_npc = -1;
     music_play(MUS_TITLE);
+    save_migrate();
+    title_mode = TM_MAIN;
     title_sel = save_exists() ? TS_EXISTING : TS_NEW;
     title_back = title_sel;
     title_phase = 0;
     title_t = 0;
+    title_note = 0;
     cursor_hide();
     gfx_set_world_fade(0);
     gfx_set_mosaic(0);
@@ -2002,32 +2109,167 @@ void title_open(void) {
     title_draw();
 }
 
-// the flames either side of the logo (OBJ fire frames at 2x)
+// the flames either side of the logo (OBJ fire frames at 2x), behind the login boxes
 static void title_flames(void) {
     if (game_state != GS_TITLE || title_phase) return;
+    // flames rising from the braziers' bowls (tools/gen_title.py draws them at x 22 and 218)
     for (int side = 0; side < 2; side++)
         for (int k = 0; k < 2; k++) {
-            int x = side ? 190 + k * 18 : 18 - k * 18, y = k ? 14 : -2;
+            int x = (side ? 218 : 22) - 16 + (k ? 7 : -7), y = 97 - 64 + (k ? 6 : 0);
             int f = ((frame / 6) + k * 2 + side) & 3;
-            obj_sprite(x, y, SPR_TFLAME0 + f * 8, 6, 1, 0, 1, OBJF_AFFINE2X | OBJF_TALL);
+            obj_sprite(x, y, SPR_TFLAME0 + f * 8, 6, 1, k, 1, OBJF_AFFINE2X | OBJF_TALL);
         }
+}
+
+static void title_start(int is_new) {
+    sfx(SFX_LEVEL);
+    world_init();
+    save_set_slot(slot_sel);
+    if (!is_new && load_game()) {
+        world_after_load();
+    } else {
+        world_new_game();
+        for (int i = 0; i <= NAME_MAX; i++) player_name[i] = name_buf[i];
+        if (title_mute) pl.music = 0;
+        save_game();   // the new character claims its slot right away
+    }
+    if (title_mute) pl.music = 0;   // the login screen's music switch carries into the game
+    cursor_hide();
+    icons_clear();
+    cv_clear(&cv_text);
+    cv_clear(&cv_panel);
+    title_phase = 1;
+    // snap camera to the player for the fade in (without treating the A press as an
+    // interaction with whatever the loaded player faces)
+    keys_pressed = 0;
+    world_update();
+}
+
+static void title_name_input(void) {
+    int r = kb_r, c = kb_c;
+    if (keys_repeat & KEY_LEFT) c = (c + KB_COLS - 1) % KB_COLS;
+    if (keys_repeat & KEY_RIGHT) c = (c + 1) % KB_COLS;
+    if (keys_repeat & KEY_UP) r = (r + KB_ROWS - 1) % KB_ROWS;
+    if (keys_repeat & KEY_DOWN) r = (r + 1) % KB_ROWS;
+    int dirty = 0;
+    if (r != kb_r || c != kb_c) {
+        kb_r = r, kb_c = c;
+        sfx(SFX_MOVE);
+        dirty = 1;
+    }
+    if (keys_pressed & KEY_A) {
+        char ch = kb_keys[kb_r][kb_c];
+        // no leading space, no double spaces (OSRS name rules)
+        if (name_len < NAME_MAX && !(ch == ' ' && (!name_len || name_buf[name_len - 1] == ' '))) {
+            name_buf[name_len++] = ch;
+            name_buf[name_len] = 0;
+            sfx(SFX_OK);
+        } else {
+            sfx(SFX_ERR);
+        }
+        title_note = 0;
+        dirty = 1;
+    }
+    if (keys_pressed & KEY_B) {
+        if (name_len) {
+            name_buf[--name_len] = 0;
+            sfx(SFX_BACK);
+        } else {
+            title_mode = TM_MAIN;   // back out of an empty name
+            sfx(SFX_BACK);
+        }
+        title_note = 0;
+        dirty = 1;
+    }
+    if (keys_pressed & KEY_START) {
+        while (name_len && name_buf[name_len - 1] == ' ') name_buf[--name_len] = 0;
+        if (!name_len) {
+            title_note = "Please enter a name.";
+            sfx(SFX_ERR);
+        } else {
+            title_mode = TM_SLOTS;
+            slot_confirm = 0;
+            slot_sel = 0;
+            for (int k = SAVE_SLOTS - 1; k >= 0; k--)
+                if (!save_slot_used(k)) slot_sel = k;   // first empty slot
+            title_note = 0;
+            sfx(SFX_OK);
+        }
+        dirty = 1;
+    }
+    if (dirty) title_draw();
+}
+
+static void title_slots_input(void) {
+    int s = slot_sel, dirty = 0;
+    if (keys_repeat & KEY_UP) s = (s + SAVE_SLOTS - 1) % SAVE_SLOTS;
+    if (keys_repeat & KEY_DOWN) s = (s + 1) % SAVE_SLOTS;
+    if (s != slot_sel) {
+        slot_sel = s;
+        slot_confirm = 0;
+        title_note = 0;
+        sfx(SFX_MOVE);
+        dirty = 1;
+    }
+    if (keys_pressed & (KEY_A | KEY_START)) {
+        int used = save_slot_used(slot_sel);
+        if (title_back == TS_EXISTING) {
+            if (used) {
+                title_start(0);
+                return;
+            }
+            title_note = "That slot is empty.";
+            sfx(SFX_ERR);
+        } else if (used && !slot_confirm) {
+            slot_confirm = 1;
+            sfx(SFX_ERR);
+        } else {
+            title_start(1);
+            return;
+        }
+        dirty = 1;
+    }
+    if (keys_pressed & KEY_B) {
+        title_mode = title_back == TS_NEW ? TM_NAME : TM_MAIN;
+        slot_confirm = 0;
+        title_note = 0;
+        sfx(SFX_BACK);
+        dirty = 1;
+    }
+    if (dirty) title_draw();
 }
 
 void title_update(void) {
     title_t++;
     if (title_phase) {
         if (++title_phase > 12) {
+            gfx_set_title_palette(0);
             game_state = GS_WORLD;
             gfx_set_world_fade(16);
             gfx_set_ui_alpha(12, 0);
             ui_hud_reset();
             msg_col("Welcome to RuneScape.", TC_GOLD);
-            if (title_sel == TS_NEW) msg("Talk to the Lumbridge Guide east of the castle for tips.");
+            if (title_back == TS_NEW) msg("Talk to the Lumbridge Guide east of the castle for tips.");
             music_enable(pl.music);
         } else {
             gfx_set_world_fade(title_phase * 16 / 12);
             gfx_set_ui_alpha(16 - title_phase * 16 / 12, 1);
         }
+        return;
+    }
+    if (keys_pressed & KEY_SELECT) {
+        title_mute ^= 1;
+        music_enable(!title_mute);
+        sfx(SFX_OK);
+        title_music_button();
+        return;
+    }
+    if (title_mode == TM_NAME) {
+        title_name_input();
+        return;
+    }
+    if (title_mode == TM_SLOTS) {
+        title_slots_input();
         return;
     }
     int has = save_exists();
@@ -2047,7 +2289,7 @@ void title_update(void) {
         sfx(SFX_MOVE);
         title_draw();
     }
-    if ((keys_pressed & KEY_SELECT) || (title_sel == TS_MUSIC && (keys_pressed & (KEY_A | KEY_START)))) {
+    if (title_sel == TS_MUSIC && (keys_pressed & (KEY_A | KEY_START))) {
         title_mute ^= 1;
         music_enable(!title_mute);
         sfx(SFX_OK);
@@ -2055,24 +2297,22 @@ void title_update(void) {
         return;
     }
     if (keys_pressed & (KEY_A | KEY_START)) {
-        if (title_sel == TS_MUSIC) return;
-        sfx(SFX_LEVEL);
-        world_init();
-        if (title_sel == TS_EXISTING && load_game()) {
-            world_after_load();
+        title_back = title_sel;
+        title_note = 0;
+        if (title_sel == TS_NEW) {
+            title_mode = TM_NAME;
+            name_len = 0;
+            name_buf[0] = 0;
+            kb_r = kb_c = 0;
         } else {
-            world_new_game();
+            title_mode = TM_SLOTS;
+            slot_confirm = 0;
+            slot_sel = 0;
+            for (int k = SAVE_SLOTS - 1; k >= 0; k--)
+                if (save_slot_used(k)) slot_sel = k;   // first used slot
         }
-        if (title_mute) pl.music = 0;   // the login screen's music switch carries into the game
-        cursor_hide();
-        icons_clear();
-        cv_clear(&cv_text);
-        cv_clear(&cv_panel);
-        title_phase = 1;
-        // snap camera to the player for the fade in (without treating the A press as an
-        // interaction with whatever the loaded player faces)
-        keys_pressed = 0;
-        world_update();
+        sfx(SFX_OK);
+        title_draw();
     }
 }
 

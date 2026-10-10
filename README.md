@@ -28,7 +28,7 @@ on a 16.78 MHz handheld, with OSRS-style stone menus, a parchment chatbox and th
 A 208×208-cell recreation of the original free-to-play world, laid out in real OSRS coordinates:
 Lumbridge, Draynor Village and Manor, the Wizards' Tower, Port Sarim, Rimmington, Falador, Ice
 Mountain, Barbarian Village, Edgeville and the Wilderness ditch, Varrock and the Grand Exchange,
-and Al Kharid with its desert. 39 named areas, 200 NPCs, 9 banks and 5 general stores. The map is
+and Al Kharid with its desert. 39 named areas, over 200 NPCs, 9 banks, 6 general stores and 11 specialty shops. The map is
 streamed tile by tile, so you can walk from one end to the other without a single loading screen.
 
 <table>
@@ -98,33 +98,6 @@ depending on your weapon.
 13 classic free-to-play quests, driven by a scripted dialogue system with branching choices, a
 journal that strikes off finished steps, and an OSRS-style quest-complete scroll.
 
-<table>
-<tr>
-<td><img src="docs/screenshots/smoke_quests.png" alt="Quest list"></td>
-<td><img src="docs/screenshots/cook_journal.png" alt="Quest journal"></td>
-</tr>
-<tr>
-<td align="center"><sub>Quest list and quest points</sub></td>
-<td align="center"><sub>Journal with a live item checklist</sub></td>
-</tr>
-<tr>
-<td><img src="docs/screenshots/cook_choice.png" alt="Dialogue choices"></td>
-<td><img src="docs/screenshots/cook_done.png" alt="Quest complete"></td>
-</tr>
-<tr>
-<td align="center"><sub>Branching dialogue</sub></td>
-<td align="center"><sub>Quest complete!</sub></td>
-</tr>
-<tr>
-<td><img src="docs/screenshots/demon_delrith.png" alt="Demon Slayer"></td>
-<td><img src="docs/screenshots/npc_juliet.png" alt="Romeo and Juliet"></td>
-</tr>
-<tr>
-<td align="center"><sub>Demon Slayer: Delrith at the stone circle</sub></td>
-<td align="center"><sub>Speaker portraits in dialogue</sub></td>
-</tr>
-</table>
-
 | Quest | QP | Highlights |
 |---|:-:|---|
 | Cook's Assistant | 1 | Eggs, the dairy cow, and the windmill hopper |
@@ -153,10 +126,20 @@ Magic XP becomes Prayer XP.
 - **Skilling**: normal, oak, willow and yew trees that turn to stumps and regrow; copper, tin, clay
   and iron rocks; net and fly-fishing spots; fires and ranges with burn chances that fall as you level.
 - **Gear** across bronze, iron, steel, mithril, adamant and rune, each item with its own icon.
-- **Banks** (96 slots) in every city and **general stores** to buy and sell.
+- **Banks** (96 slots) in every city.
+- **Shops stocked like OSRS:** general stores in Lumbridge, Varrock, Falador, Edgeville, Al Kharid and
+  Rimmington (pots, buckets, tinderboxes, hammers...) that buy anything, and the specialty shops that sell
+  tools and gear: Bob's axes, Gerrant's fishing supplies, Betty's eye of newt, Nurmof's pickaxes, Varrock's
+  swords and Horvik's armour, Peksa's helmets, Cassie's shields, Wayne's chains, Zeke's scimitars and
+  Louie's legs. Prices move with stock as in OSRS: general stores sell at 130% of value minus 3% per item
+  in stock and pay 40%; specialty shops sell at 100% (2% per item off normal stock) and pay 60% for what
+  they stock. Sold-out items come back over time, and anything you sell drains away at one a minute.
 - **Music** from a 10-voice software wavetable synth playing a different track in each region,
   plus PSG sound effects.
-- **Battery save** to cartridge SRAM.
+- **Three characters per cartridge:** New User asks for a display name (up to 12 characters, on an
+  on-screen keyboard) and a save slot; Existing User lists the saved characters. Logout from Settings
+  saves and returns to the login screen. Saves from v1.0.x move into slot 1 automatically.
+- **Hans** in Lumbridge Castle tells you how long you've played, as in OSRS.
 
 ---
 
@@ -254,6 +237,7 @@ tools/run_quest_tests.sh        # plays all 13 quests end to end, plus save/relo
 | `src/canvas.c` | UI drawing: font, panels, bars and highlights |
 | `src/world.c` | Map, movement, NPC AI, combat, skilling, ground items and fires |
 | `src/ui.c` | HUD, START menu, dialogue, bank, shops, level-ups and the title screen |
+| `src/shops.c` | Shop stock lists, OSRS pricing, restocking |
 | `src/quests.c` | Quest script VM, journal and rewards |
 | `src/avatar.c` | Composited player sprite |
 | `src/sound.c`, `src/mixer.s` | Music synth and sequencer, sound effects |
@@ -268,7 +252,7 @@ tools/run_quest_tests.sh        # plays all 13 quests end to end, plus save/relo
 ## Known limitations
 
 - Dragon Slayer and members' content are not included.
-- The Wilderness has scenery but no monsters yet, and Varrock's specialty shops are empty buildings.
+- The Wilderness has scenery but no monsters yet, and some OSRS shops (runes, food, archery, clothes) are not in yet. Shops only stock items the demake has (no battleaxes, black or adamant weapons, harpoons, lobster pots or bait).
 - There is no coal, and the Duel Arena is cut off by the map's east edge. The Al Kharid toll is always charged (no Prince Ali Rescue yet).
 - The synth plays up to 10 notes at once and ignores pitch bends.
 - Standing directly north of a tree hides your character behind its leaves.

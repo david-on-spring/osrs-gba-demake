@@ -1,7 +1,8 @@
 // Battery-backed SRAM save. The "SRAM_V" marker lets emulators pick the right save type.
 //
-// Layout: magic (4) | version (2) | pad (2) | size (2) | pad (2) | Player | checksum (4).
-// Version 2 added the neck slot and quest progress; version 1 saves are migrated on load.
+// Legacy layout at offset 0: magic (4) | version (2) | pad (2) | size (2) | pad (2) | Player |
+// checksum (4). Version 2 added the neck slot and quest progress over version 1. Current saves
+// use three character slots (version 3, below).
 #include "game.h"
 
 __attribute__((used, aligned(4))) static const char sram_tag[] = "SRAM_V113";
@@ -40,6 +41,108 @@ static u32 checksum(const u8 *p, int n) {
     return h;
 }
 
+// ---------------------------------------------------------------------------------------
+// Version 3: three character slots, each with the player's display name.
+// Slot k at SLOT_BASE(k): magic (4) | version (2) | pad (2) | size (2) | pad (2) | name (16) |
+// Player | checksum (4, over name + Player). The old single save at offset 0 (versions 1-2)
+// is copied into slot 1 the first time the login screen sees it (and left in place).
+#define SLOT_VERSION 3
+#define SLOT_BASE(k) (0x1000 * ((k) + 1))
+#define SLOT_NAME 12
+#define SLOT_PLAYER 28
+
+char player_name[NAME_MAX + 1] = "Adventurer";
+static int cur_slot;
+
+void save_set_slot(int k) { cur_slot = k; }
+int save_slot(void) { return cur_slot; }
+
+static u32 slot_sum(const char *name, const Player *p) {
+    u32 h = checksum((const u8 *)name, 16);
+    const u8 *b = (const u8 *)p;
+    for (unsigned i = 0; i < sizeof(Player); i++) h = (h ^ b[i]) * 16777619u;
+    return h;
+}
+
+static EWRAM_BSS Player slot_tmp;
+static char slot_name_tmp[16];
+
+// reads slot k into slot_tmp / slot_name_tmp; 1 if it holds a valid character
+static int slot_read(int k) {
+    int b = SLOT_BASE(k);
+    u32 magic, sum;
+    u16 ver, size;
+    sram_read(b, &magic, 4);
+    sram_read(b + 4, &ver, 2);
+    sram_read(b + 8, &size, 2);
+    if (magic != SAVE_MAGIC || ver != SLOT_VERSION || size != sizeof(Player)) return 0;
+    sram_read(b + SLOT_NAME, slot_name_tmp, 16);
+    sram_read(b + SLOT_PLAYER, &slot_tmp, sizeof(Player));
+    sram_read(b + SLOT_PLAYER + sizeof(Player), &sum, 4);
+    slot_name_tmp[15] = 0;
+    return sum == slot_sum(slot_name_tmp, &slot_tmp);
+}
+
+static void slot_write(int k) {
+    int b = SLOT_BASE(k);
+    char name[16] = {0};
+    for (int i = 0; i < NAME_MAX && player_name[i]; i++) name[i] = player_name[i];
+    u32 magic = SAVE_MAGIC, sum = slot_sum(name, &pl);
+    u16 ver = SLOT_VERSION, size = sizeof(Player);
+    u32 zero = 0;
+    sram_write(b, &zero, 4);                 // invalid while half written
+    sram_write(b + 8, &size, 2);
+    sram_write(b + SLOT_NAME, name, 16);
+    sram_write(b + SLOT_PLAYER, &pl, sizeof(Player));
+    sram_write(b + SLOT_PLAYER + sizeof(Player), &sum, 4);
+    sram_write(b + 4, &ver, 2);
+    sram_write(b, &magic, 4);
+}
+
+int save_slot_used(int k) { return slot_read(k); }
+
+int save_slot_summary(int k, char *name, int *total, u32 *playtime) {
+    if (!slot_read(k)) return 0;
+    for (int i = 0; i <= NAME_MAX; i++) name[i] = slot_name_tmp[i];
+    name[NAME_MAX] = 0;
+    int t = 0;
+    for (int i = 0; i < SK_COUNT; i++) t += level_for_xp(slot_tmp.xp[i]);
+    *total = t;
+    *playtime = slot_tmp.playtime;
+    return 1;
+}
+
+static int legacy_load(void);
+
+void save_migrate(void) {
+    int any = 0;
+    for (int k = 0; k < SAVE_SLOTS; k++) any |= slot_read(k);
+    if (any || !legacy_load()) return;
+    const char *d = "Adventurer";
+    int i = 0;
+    for (; d[i]; i++) player_name[i] = d[i];
+    player_name[i] = 0;
+    slot_write(0);
+}
+
+int save_exists(void) {
+    for (int k = 0; k < SAVE_SLOTS; k++)
+        if (slot_read(k)) return 1;
+    return 0;
+}
+
+void save_game(void) { slot_write(cur_slot); }
+
+int load_game(void) {
+    if (!slot_read(cur_slot)) return 0;
+    pl = slot_tmp;
+    for (int i = 0; i <= NAME_MAX; i++) player_name[i] = slot_name_tmp[i];
+    player_name[NAME_MAX] = 0;
+    return 1;
+}
+
+// ---------------------------------------------------------------------------------------
+// Legacy single save (versions 1 and 2), read only for migration
 static int save_version(void) {
     u32 magic;
     u16 ver;
@@ -49,20 +152,6 @@ static int save_version(void) {
     return magic == SAVE_MAGIC ? ver : 0;
 }
 
-int save_exists(void) {
-    int v = save_version();
-    return v == 1 || v == SAVE_VERSION;
-}
-
-void save_game(void) {
-    u32 magic = SAVE_MAGIC, sum = checksum((const u8 *)&pl, sizeof(pl));
-    u16 ver = SAVE_VERSION, size = sizeof(pl);
-    sram_write(8, &size, 2);
-    sram_write(12, &pl, sizeof(pl));
-    sram_write(12 + sizeof(pl), &sum, 4);
-    sram_write(4, &ver, 2);
-    sram_write(0, &magic, 4);
-}
 
 static EWRAM_BSS union { Player v2; PlayerV1 v1; } tmp;
 
@@ -76,7 +165,7 @@ static int read_checked(int size) {
     return sum == checksum((const u8 *)&tmp, size);
 }
 
-int load_game(void) {
+static int legacy_load(void) {
     int v = save_version();
     if (v == SAVE_VERSION) {
         if (!read_checked(sizeof(Player))) return 0;

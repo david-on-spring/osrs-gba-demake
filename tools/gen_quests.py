@@ -31,13 +31,14 @@ Script statements:
   stage Q N | flag Q B | unflag Q B | addvar Q N | setvar Q N
   give ITEM [N] | take ITEM [N] | xp SKILL N | sfx NAME | complete Q
   tp X Y DIR | walkthrough | npcstate N | npcoff | npcheal | shop | bank
+  playtime                     the speaking NPC tells the player's time played (Hans)
 """
 import os
 import re
 import shlex
 
 OPS = ['END', 'SAY', 'CHAT', 'CHOICE', 'GOTO', 'IF', 'STAGE', 'FLAG', 'UNFLAG', 'GIVE', 'TAKE', 'XP', 'SFX',
-       'COMPLETE', 'TP', 'ADDVAR', 'NPCSTATE', 'NPCOFF', 'NPCHEAL', 'WALKTHRU', 'SHOP', 'BANK', 'SETVAR']
+       'COMPLETE', 'TP', 'ADDVAR', 'NPCSTATE', 'NPCOFF', 'NPCHEAL', 'WALKTHRU', 'SHOP', 'BANK', 'SETVAR', 'PLAYTIME']
 OP = {n: i for i, n in enumerate(OPS)}
 CONDS = ['STAGE_EQ', 'STAGE_NE', 'STAGE_GE', 'STAGE_LE', 'STAGE_GT', 'STAGE_LT', 'HAS', 'WORN', 'FLAG', 'VAR_GE',
          'NEAR', 'QP_GE', 'FREE', 'CHANCE', 'DONE', 'FACING', 'LEVEL_GE', 'NPCSTATE', 'CLEAR']
@@ -313,6 +314,8 @@ class Compiler:
             self.emit('OP_COMPLETE', 'Q_' + t[1])
         elif kw == 'tp':
             self.emit('OP_TP', int(t[1]), int(t[2]), DIRS[t[3]])
+        elif kw == 'playtime':
+            self.emit('OP_PLAYTIME')
         elif kw == 'walkthrough':
             self.emit('OP_WALKTHRU')
         elif kw == 'npcstate':

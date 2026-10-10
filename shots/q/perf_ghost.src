@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 40
 poke16 @perf_max 0
 # Father Aereck in the Lumbridge church

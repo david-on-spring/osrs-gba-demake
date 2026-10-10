@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 40
 # Father Aereck in the Lumbridge church
 tp 156 171 3

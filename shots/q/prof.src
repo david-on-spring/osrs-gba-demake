@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 40
 tp 156 171 3
 wait 30

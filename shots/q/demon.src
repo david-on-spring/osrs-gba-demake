@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 40
 item 8 COINS 100
 tp 137 65 1

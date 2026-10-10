@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 40
 # Romeo in Varrock Square
 tp 141 65 1

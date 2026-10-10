@@ -1,6 +1,6 @@
 wait 70
 shot docs/screenshots/title.png
-press A
+newgame
 wait 40
 tp 147 167 0
 wait 260

@@ -1,6 +1,6 @@
 wait 60
 shot shots/q/v1_title.png
-press A
+loadgame
 wait 40
 dump @pl+0x34 1
 dump @pl+0xb8 7
