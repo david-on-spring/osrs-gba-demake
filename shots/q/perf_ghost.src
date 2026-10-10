@@ -13,7 +13,7 @@ dlg
 world
 expectq GHOST 1
 # Father Urhney in his swamp shack
-tp 110 184 2
+tpz OVERWORLD 3148 3183 LEFT
 talk
 dlg
 choose 0
@@ -22,11 +22,11 @@ world
 expectq GHOST 2
 expectitem 9 GHOSTSPEAK
 # talking to the ghost needs the amulet: open the coffin first without it
-tpz LUMBRIDGE 3249 3193 RIGHT
+tpz OVERWORLD 3249 3193 RIGHT
 press A
 dlg
 world
-tpz LUMBRIDGE 3249 3193 DOWN
+tpz OVERWORLD 3249 3193 DOWN
 talk
 dlg
 world
@@ -48,7 +48,7 @@ shot shots/q/ghost_equip_worn.png
 press B
 press START
 wait 20
-tpz LUMBRIDGE 3249 3193 DOWN
+tpz OVERWORLD 3249 3193 DOWN
 talk
 until8 @ui_wait 1 300
 wait 4
@@ -59,7 +59,7 @@ dlg
 world
 expectq GHOST 3
 # the skull on the Wizards' Tower altar (a skeleton rises)
-tp 92 195 3
+tpz OVERWORLD 3114 3161 RIGHT
 press A
 dlg
 world
@@ -67,7 +67,7 @@ wait 30
 shot shots/q/ghost_skeleton.png
 expectq GHOST 4
 # back to the coffin
-tpz LUMBRIDGE 3249 3193 RIGHT
+tpz OVERWORLD 3249 3193 RIGHT
 press A
 dlg
 done

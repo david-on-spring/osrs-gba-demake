@@ -5,7 +5,7 @@ newgame
 world
 clearinv
 item 0 COINS 1000
-tp 69 391 0
+tpz OVERWORLD 3235 3423 DOWN
 wait 4
 press L
 wait 4

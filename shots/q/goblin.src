@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 40
-tp 14 26 2
+tpz OVERWORLD 2956 3500 LEFT
 talk
 until8 @ui_wait 1 300
 wait 4
@@ -45,7 +45,7 @@ wait 6
 press A
 world
 expectitem 9 ORANGE_MAIL
-tp 14 26 2
+tpz OVERWORLD 2956 3500 LEFT
 talk
 dlg
 world
@@ -61,7 +61,7 @@ wait 6
 press A
 world
 expectitem 9 BLUE_MAIL
-tp 14 26 3
+tpz OVERWORLD 2958 3500 RIGHT
 talk
 dlg
 world

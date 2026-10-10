@@ -1,10 +1,10 @@
 wait 60
 newgame
 wait 4
-tp 154 144 0
+tpz OVERWORLD 3232 3265 RIGHT
 wait 6
 shot shots/q/imp_imp.png
-tp 90 194 1
+tpz OVERWORLD 3109 3165 UP
 talk
 dlg
 choose 0

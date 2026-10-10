@@ -131,12 +131,12 @@ int free_tile(int x, int y) {
 }
 
 // ---------------------------------------------------------------------------------------
-// Zones and portals. The 1:1 zones (Lumbridge, the castle floors) sit below the overworld in
-// the same cell grid; zones[] gives each one's rectangle, palette set and floor. Walking into a
-// T_PORTAL cell (the ring around Lumbridge in both maps) warps with a short fade; staircases
-// warp from their quest scripts (OP_WARP).
+// Zones. The castle's upper floors sit below the overworld in the same cell grid; zones[] gives
+// each one's rectangle, palette set and floor. Staircases warp between them with a short fade
+// from their quest scripts (OP_WARP). On the ground the world is seamless: the palette set
+// follows the camera (pal_regions[]), swapping only while the old set's town is off screen.
 static u8 cur_zone = 0xFF, cur_roof;
-static struct { u8 phase, t, dir, walk; s16 x, y; } warp;   // phase 1 fading out, 2 fading in
+static struct { u8 phase, t, dir; s16 x, y; } warp;   // phase 1 fading out, 2 fading in
 #define WARP_FRAMES 8
 
 int world_zone(int x, int y) {
@@ -145,23 +145,12 @@ int world_zone(int x, int y) {
     return 0;
 }
 
-static const Portal *portal_at(int x, int y) {
-    int c = idx(x, y), lo = 0, hi = PORTAL_COUNT - 1;
-    while (lo <= hi) {
-        int mid = (lo + hi) >> 1;
-        if (portals[mid].cell == (u32)c) return &portals[mid];
-        if (portals[mid].cell < (u32)c) lo = mid + 1;
-        else hi = mid - 1;
-    }
-    return 0;
-}
-
-// zone palette and the roof the player is under; call after the player moves
+// zone (floor) and the roof the player is under; call after the player moves
 static void zone_refresh(void) {
     int z = world_zone(pl.x, pl.y);
     if (z != cur_zone) {
         cur_zone = z;
-        gfx_set_world_palette_set(zones[z].pal_set);
+        if (zones[z].plane) gfx_set_world_palette_set(zones[z].pal_set);
         gfx_mark_world_dirty();
     }
     int r = map_roof[idx(pl.x, pl.y)];
@@ -171,17 +160,14 @@ static void zone_refresh(void) {
     }
 }
 
-static void warp_start(int x, int y, int dir, int walk) {
+void player_warp(int x, int y, int dir) {
     player_stop();
     warp.phase = 1;
     warp.t = 0;
     warp.x = x;
     warp.y = y;
     warp.dir = dir;
-    warp.walk = walk;
 }
-
-void player_warp(int x, int y, int dir) { warp_start(x, y, dir, 0); }
 int world_warping(void) { return warp.phase != 0; }
 
 static void warp_update(void) {
@@ -190,11 +176,6 @@ static void warp_update(void) {
         if (warp.t < WARP_FRAMES) return;
         player_tp(warp.x, warp.y, warp.dir);
         zone_refresh();
-        if (warp.walk && free_tile(pl.x + DX[pl.dir], pl.y + DY[pl.dir])) {
-            pl.x += DX[pl.dir];   // arrive mid-stride
-            pl.y += DY[pl.dir];
-            pl.moving = 1;
-        }
         warp.phase = 2;
         warp.t = 0;
     } else {
@@ -290,7 +271,8 @@ void world_refresh_npcs(void) {
     }
 }
 
-// centre on the player, kept inside the player's zone
+// centre on the player, kept inside the player's zone; on the ground, load the palette set of
+// the town the camera is near (any set draws the countryside: its banks are shared)
 void world_camera(void) {
     const Zone *z = &zones[world_zone(pl.x, pl.y)];
     int x0 = z->x0 * 16, y0 = z->y0 * 16, x1 = (z->x1 + 1) * 16 - SCREEN_W, y1 = (z->y1 + 1) * 16 - SCREEN_H;
@@ -300,6 +282,15 @@ void world_camera(void) {
     if (cam_y > y1) cam_y = y1;
     if (cam_x < x0) cam_x = x0;
     if (cam_y < y0) cam_y = y0;
+    if (z->plane) return;
+    int cx = cam_x >> 4, cy = cam_y >> 4;
+    for (int i = 0; i < PAL_REGION_COUNT; i++) {
+        const PalRegion *r = &pal_regions[i];
+        if (cx >= r->x0 && cx <= r->x1 && cy >= r->y0 && cy <= r->y1) {
+            gfx_set_world_palette_set(r->pal_set);
+            break;
+        }
+    }
 }
 
 void player_tp(int x, int y, int dir) {
@@ -340,15 +331,6 @@ void world_after_load(void) {
     home_cancel();
     target_set(-1);
     proj_clear();
-    // saves from before the 1:1 towns: an old 1:2 town is now only a view from outside
-    for (int i = 0; i < LEGACY_COUNT; i++) {
-        const Legacy *l = &legacy[i];
-        if (pl.x >= l->x0 && pl.x <= l->x1 && pl.y >= l->y0 && pl.y <= l->y1) {
-            pl.x = pl.x * 2 + l->dx;
-            pl.y = pl.y * 2 + l->dy;
-            break;
-        }
-    }
     // saves from an older map layout may place the player inside a wall: go home
     if (!in_map(pl.x, pl.y) || world_type(pl.x, pl.y) > T_WALKABLE_MAX) {
         pl.x = START_X;
@@ -484,11 +466,6 @@ static void start_step(int dir) {
     int nx = pl.x + DX[dir], ny = pl.y + DY[dir];
     if (in_map(nx, ny)) {
         int t = world_type(nx, ny);
-        const Portal *p = t == T_PORTAL ? portal_at(nx, ny) : 0;
-        if (p) {
-            warp_start(p->x, p->y, p->dir, 1);
-            return;
-        }
         if (t == T_STAIRS) {   // walking into a staircase climbs it
             interact();
             return;
@@ -538,7 +515,7 @@ static int dist(int ax, int ay, int bx, int by) {
 static int blocks_shot(int x, int y) {
     int t = world_type(x, y);
     return (t >= T_WALL && t <= T_SWALL) || (t >= T_TREE && t <= T_DEADTREE) || t == T_CLIFF || t == T_HEDGE ||
-           t == T_VOID || t == T_LOCKDOOR || t == T_PORTAL;
+           t == T_VOID || t == T_LOCKDOOR;
 }
 
 // Bresenham walk between the two cells (ends excluded)

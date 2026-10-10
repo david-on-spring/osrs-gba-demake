@@ -10,8 +10,8 @@ item 0 AIR_RUNE 50
 item 1 MIND_RUNE 100
 equip WEAPON STAFF_AIR
 spell WIND_STRIKE
-tp 179 123 3
-npcpos COW 184 123
+tpz OVERWORLD 3286 3306 RIGHT
+npcpos COW OVERWORLD 3291 3306
 wait 4
 press L
 wait 4
@@ -25,14 +25,14 @@ world
 expectxp MAGIC 400055
 expectqty 0 50
 expecttarget NONE
-expectat CELL 179 123
+expectat OVERWORLD 3286 3306
 # --- manual cast: Spellbook, Confuse (fourth in the book), Cast at the L target
 item 2 WATER_RUNE 10
 item 3 EARTH_RUNE 10
 item 4 BODY_RUNE 10
 equip WEAPON NONE
 spell NONE
-npcpos COW:2 182 123
+npcpos COW:2 OVERWORLD 3289 3306
 wait 4
 press L
 wait 4
@@ -98,7 +98,7 @@ expectitem 0 COINS
 expectqty 0 54
 expectitem 1 NONE
 expectxp MAGIC 2000650
-# --- dark wizards cast Water Strike (max 2) at the player: stand three cells from the stone
+# --- dark wizards cast Water Strike (max 2) at the player: stand just outside the stone
 #     circle's wizards (aggressive at this combat level) and lose some hitpoints
 press START
 wait 20
@@ -106,7 +106,8 @@ clearinv
 xp MAGIC 0
 xp DEFENCE 0
 hp 10
-tp 154 90 2
+tpz OVERWORLD 3233 3370 LEFT
+npcpos DARK_WIZARD OVERWORLD 3233 3372
 wait 300
 shot shots/t/magic_wizard.png
 wait 300

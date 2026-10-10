@@ -9,7 +9,7 @@ press A
 wait 1500
 shot shots/map/play_yew.png
 dump @pl+0x50 40
-tp 183 116 0
+tpz OVERWORLD 3294 3320 DOWN
 press A
 wait 400
 shot shots/map/play_mine.png
@@ -41,7 +41,7 @@ press B
 wait 20
 dump @cache_misses 1
 poke16 @perf_max 0
-tp 120 140 3
+tpz OVERWORLD 3168 3272 RIGHT
 hold RIGHT+B 400
 shot shots/map/play_run.png
 hold UP+B 400

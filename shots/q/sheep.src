@@ -3,8 +3,8 @@ newgame
 world
 # shear a sheep right away (sheep wander), with shears from the general store
 item 9 SHEARS
-npcpos SHEEP 139 146
-tp 139 145 0
+npcpos SHEEP OVERWORLD 3206 3260
+tpz OVERWORLD 3206 3261 DOWN
 press A
 wait 10
 expectitem 10 WOOL
@@ -13,7 +13,7 @@ wait 10
 shot shots/q/sheep_shorn.png
 item 9 NONE 0
 # Fred's house: start the quest
-tp 130 139 1
+tpz OVERWORLD 3188 3274 UP
 talk
 dlg
 choose 0
@@ -25,7 +25,7 @@ dlg
 world
 expectq SHEEP 1
 # shears from Fred's table
-tp 129 138 1
+tpz OVERWORLD 3185 3277 UP
 press A
 wait 10
 expectitem 9 SHEARS
@@ -45,7 +45,7 @@ item 16 BALL_WOOL
 item 17 BALL_WOOL
 item 18 BALL_WOOL
 item 19 BALL_WOOL
-tp 130 139 1
+tpz OVERWORLD 3188 3274 UP
 talk
 dlg
 world
@@ -85,7 +85,7 @@ item 15 BALL_WOOL
 item 16 BALL_WOOL
 item 17 BALL_WOOL
 item 18 BALL_WOOL
-tp 130 139 1
+tpz OVERWORLD 3188 3274 UP
 talk
 dlg
 done

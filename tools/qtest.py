@@ -9,7 +9,7 @@ Adds to the harness commands:
   spell NAME             set the autocast spell (a src/spells.c name in capitals, e.g. WIND_STRIKE; NONE)
   expectammo NAME N      PASS/FAIL check of the ammo slot and its quantity
   expectspell NAME       PASS/FAIL check of the autocast spell
-  expectnpcat I|KIND X Y PASS/FAIL check of an NPC's cell
+  expectnpcat I|KIND [ZONE] X Y  PASS/FAIL check of an NPC's cell (with ZONE: an OSRS tile)
   expecthpbelow N        PASS/FAIL check that current hitpoints are below N
   homecd TICKS           set the home teleport cooldown
   expecthomecd MIN       PASS/FAIL check that the home teleport cooldown is at least MIN ticks
@@ -37,12 +37,11 @@ Adds to the harness commands:
   expecthp N             PASS/FAIL check of current hitpoints
   expectstate STATE      PASS/FAIL check of game_state (TITLE WORLD MENU DIALOG BANK SHOP LEVELUP QUESTDONE)
   hp N                   set current hitpoints
-  npcpos I|KIND X Y      move NPC I (see build/spawns.txt), the first of a kind (or KIND:N, the Nth), to a cell
+  npcpos I|KIND [ZONE] X Y  move NPC I (see build/spawns.txt), the first of a kind (or KIND:N, the Nth), to a cell
   untildead I|KIND [N]   run until that NPC is inactive (killed), at most N frames (default 3000)
-  tpz ZONE X Y DIR       teleport to OSRS tile (X, Y) in a zone (OVERWORLD, LUMBRIDGE, CASTLE_1, CASTLE_2)
+  tpz ZONE X Y DIR       teleport to OSRS tile (X, Y) in a zone (OVERWORLD, CASTLE_1, CASTLE_2; a town's name
+                         such as LUMBRIDGE is the overworld)
   expectat ZONE X Y      PASS/FAIL check that the player stands on OSRS tile (X, Y) of a zone (ZONE CELL: a cell)
-  expectwarp ZONE X Y DIR  PASS/FAIL check that the player is where the portal next to (X, Y) in DIR leads
-                         (one step on: the player arrives mid-stride)
   face THING DIR         stand next to THING facing it (DIR is the way the player faces; another free side
                          is used if that one is blocked). THING is an NPC kind (its first spawn), obj:TYPE
                          or item:NAME (the 'stand' lines in build/spawns.txt)
@@ -98,6 +97,13 @@ def thing_cell(name):
     raise SystemExit('unknown thing ' + name)
 
 
+def at_arg(p, i):
+    """Cell from p[i:]: 'X Y' cells, or 'ZONE X Y' in OSRS tiles."""
+    if p[i].isalpha():
+        return zone_cell(p[i], int(p[i + 1]), int(p[i + 2]))
+    return int(p[i]), int(p[i + 1])
+
+
 def tp_lines(x, y, d):
     return ['press B', 'wait 2', 'poke16 @pl %x' % x, 'poke16 @pl+2 %x' % y, 'poke16 @pl+4 %x' % (x * 16),
             'poke16 @pl+6 %x' % (y * 16), 'poke8 @pl+8 %x' % d, 'wait 4']
@@ -128,14 +134,8 @@ for line in open(sys.argv[1]):
     elif c == 'tpz':
         x, y = zone_cell(p[1], int(p[2]), int(p[3]))
         out += tp_lines(x, y, int(p[4]) if p[4].isdigit() else DIRV[p[4]][0])
-    elif c in ('expectat', 'expectwarp'):
+    elif c == 'expectat':
         x, y = (int(p[2]), int(p[3])) if p[1] == 'CELL' else zone_cell(p[1], int(p[2]), int(p[3]))
-        if c == 'expectwarp':
-            d, dx, dy = DIRV[p[4]]
-            x, y, w, step = next((int(q[3]), int(q[4]), int(q[5]), int(q[6])) for q in spawn_lines()
-                                 if q[0] == 'portal' and int(q[1]) == x + dx and int(q[2]) == y + dy)
-            if step:    # arrives mid-stride
-                x, y = x + DIRV[['DOWN', 'UP', 'LEFT', 'RIGHT'][w]][1], y + DIRV[['DOWN', 'UP', 'LEFT', 'RIGHT'][w]][2]
         out += ['expect16 @pl %x %s_x' % (x, c), 'expect16 @pl+2 %x %s_y' % (y, c)]
     elif c == 'face':       # stand beside the thing facing it, from the side asked for if it is free
         d = DIRV[p[2]][0]
@@ -172,8 +172,9 @@ for line in open(sys.argv[1]):
         out += ['expect16 @pl %x %s_x' % (x, p[1]), 'expect16 @pl+2 %x %s_y' % (y, p[1])]
     elif c == 'expectnpcat':
         base = npc_index(p[1]) * NPC_SIZE
-        out += ['expect16 @npcs+0x%x %x %s_x' % (base + 4, int(p[2]), p[1]),
-                'expect16 @npcs+0x%x %x %s_y' % (base + 6, int(p[3]), p[1])]
+        x, y = at_arg(p, 2)
+        out += ['expect16 @npcs+0x%x %x %s_x' % (base + 4, x, p[1]),
+                'expect16 @npcs+0x%x %x %s_y' % (base + 6, y, p[1])]
     elif c == 'expecthpbelow':
         out.append('expectlt8 @pl+0x16 %x hp_below_%s' % (int(p[1]), p[1]))
     elif c == 'homecd':
@@ -222,7 +223,7 @@ for line in open(sys.argv[1]):
     elif c == 'expectstate':
         out.append('expect8 @game_state %x state_%s' % (STATES.index(p[1]), p[1]))
     elif c == 'npcpos':     # npcpos INDEX X Y: put an NPC (index from build/spawns.txt) on a cell
-        x, y = int(p[2]), int(p[3])
+        x, y = at_arg(p, 2)
         base = npc_index(p[1]) * NPC_SIZE
         cell = y * next(int(q[1]) for q in spawn_lines() if q[0] == 'mapw') + x
         out += ['poke8 @npcs+0x%x 0' % (base + 3), 'poke16 @npcs+0x%x %x' % (base + 4, x), 'poke16 @npcs+0x%x %x' % (base + 6, y),

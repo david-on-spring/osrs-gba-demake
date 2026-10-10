@@ -26,25 +26,25 @@ wait 10
 expectitem 9 BUCKET
 expectitem 10 POT
 # --- egg from the chicken coop north of the castle
-tp 151 128 1
+tpz OVERWORLD 3231 3297 UP
 press A
 wait 10
 expectitem 11 EGG
 # --- wheat: pick from the field by the mill, mill it
-tp 118 129 2
+tpz OVERWORLD 3164 3295 LEFT
 press A
 wait 10
 expectitem 12 GRAIN
-tp 118 123 1
+tpz OVERWORLD 3163 3308 UP
 press A
 wait 10
 shot shots/q/cook_hopper.png
-tp 119 124 2
+tpz OVERWORLD 3164 3303 LEFT
 press A
 wait 10
 expectitem 10 POT_FLOUR
 # --- milk the dairy cow
-tp 165 140 2
+tpz OVERWORLD 3257 3272 LEFT
 press A
 wait 10
 shot shots/q/cook_milk.png

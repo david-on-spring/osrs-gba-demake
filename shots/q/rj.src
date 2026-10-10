@@ -10,7 +10,7 @@ dlg
 world
 expectq RJ 1
 # Juliet in her house west of Varrock
-tp 116 59 2
+tpz OVERWORLD 3157 3435 LEFT
 talk
 dlg
 world
@@ -51,7 +51,7 @@ dlg
 world
 expectq RJ 5
 # cadava berries south-east of Varrock
-tp 169 91 3
+tpz OVERWORLD 3267 3370 RIGHT
 press A
 wait 10
 expectitem 9 CADAVA
@@ -62,7 +62,7 @@ dlg
 world
 expectq RJ 6
 expectitem 9 CADAVA_POTION
-tp 116 59 2
+tpz OVERWORLD 3157 3435 LEFT
 talk
 dlg
 world

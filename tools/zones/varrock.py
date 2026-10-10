@@ -1,5 +1,5 @@
 # Varrock at 1:1. Run by tools/world_gen.py in its namespace (see tools/zones/README.md).
-VARROCK = city('VARROCK', (3175, 3380, 3290, 3505), 0, 300, 3)
+VARROCK = city('VARROCK', (3175, 3380, 3290, 3505), keep=[(3150, 3476, 3174, 3505)])   # the Grand Exchange
 set_ctx(VARROCK.ctx)
 B = build_from_ref(load_ref('varrock'), dict(stone='WALL', wood='WALL', road='COBBLE', fence='FENCE', city='WALL',
                                              roof_stone='slate', roof_wood='slate', oaks=True))

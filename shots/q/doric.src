@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 40
-tp 12 51 2
+tpz OVERWORLD 2949 3452 LEFT
 talk
 dlg
 choose 0
@@ -12,7 +12,7 @@ world
 expectq DORIC 1
 expectitem 9 BRONZE_PICK
 # mine some clay at Rimmington
-tp 26 154 3
+tpz OVERWORLD 2980 3244 RIGHT
 press A
 wait 400
 shot shots/q/doric_clay.png
@@ -29,7 +29,7 @@ item 18 COPPER_ORE
 item 19 COPPER_ORE
 item 20 IRON_ORE
 item 21 IRON_ORE
-tp 12 51 2
+tpz OVERWORLD 2949 3452 LEFT
 talk
 dlg
 done
