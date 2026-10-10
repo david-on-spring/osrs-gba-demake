@@ -1,0 +1,60 @@
+# Skilling: chop a tree, light the logs from the inventory menu, cook on a range, eat.
+wait 60
+newgame
+world
+clearinv
+item 0 BRONZE_AXE
+item 1 TINDERBOX
+xp WOODCUTTING 0
+xp FIREMAKING 0
+# --- Woodcutting: tree west of Lumbridge castle
+tp 134 167 2
+press A
+until8 @pl+0x50 2 3000
+world
+expectitem 2 LOGS
+expectxp WOODCUTTING 250
+shot shots/t/skills_chop.png
+# --- Firemaking: START, Inventory, slot 2, Light
+tp 136 167 2
+press START
+wait 24
+press A
+wait 16
+press RIGHT
+press RIGHT
+press A
+wait 4
+press A
+until8 @pl+0x50 0 1000
+wait 20
+expectitem 2 NONE
+expectxp FIREMAKING 400
+shot shots/t/skills_fire.png
+# --- Cooking: raw shrimp on the castle kitchen range (level 40: no burning)
+xp COOKING 400000
+item 3 RAW_SHRIMP
+tp 140 171 0
+press A
+until8 @pl+0x54 f 1000
+world
+expectitem 3 SHRIMP
+expectxp COOKING 400300
+# --- Eat it: START, Inventory, slot 3, Eat
+hp 5
+press START
+wait 24
+press A
+wait 16
+press RIGHT
+press A
+wait 4
+press A
+wait 10
+expectitem 3 NONE
+expecthp 8
+press B
+wait 6
+press START
+wait 20
+shot shots/t/skills_cook.png

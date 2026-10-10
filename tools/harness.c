@@ -3,6 +3,7 @@
 //   script lines: wait N | hold KEYS N | press KEYS | shot file.png   (KEYS like A, START, UP+B)
 //                 audio on | audio off | wav file.wav   (capture the mixed audio output to a WAV)
 //                 until8 ADDR VAL [MAXFRAMES] | expect8/expect16 ADDR VAL LABEL   (test helpers)
+//                 expectge32 ADDR VAL LABEL   (PASS if the u32 at ADDR >= VAL)
 #include <mgba/core/core.h>
 #include <mgba/core/blip_buf.h>
 #include <mgba/core/interface.h>
@@ -255,6 +256,11 @@ int main(int argc, char **argv) {
             sscanf(line, "%*s %x %x %199s", &addr, &val, arg);
             unsigned got = cmd[6] == '8' ? core->busRead8(core, addr) : core->busRead16(core, addr);
             printf("%s %s (got %x, want %x)\n", got == val ? "PASS" : "FAIL", arg, got, val);
+        } else if (!strcmp(cmd, "expectge32")) {
+            unsigned addr = 0, val = 0;
+            sscanf(line, "%*s %x %x %199s", &addr, &val, arg);
+            unsigned got = core->busRead32(core, addr);
+            printf("%s %s (got %x, want >= %x)\n", got >= val ? "PASS" : "FAIL", arg, got, val);
         } else if (!strcmp(cmd, "dump")) {
             unsigned addr = 0;
             sscanf(line, "%*s %x %d", &addr, &n);

@@ -1,0 +1,64 @@
+# Combat: wield a sword from the inventory menu, kill a cow with a sword (level 40 melee, so it is quick), check XP, pick up its bones, bury them.
+wait 60
+newgame
+world
+clearinv
+equip WEAPON NONE
+xp ATTACK 400000
+xp STRENGTH 400000
+xp DEFENCE 400000
+xp PRAYER 0
+# --- Wield: START, Inventory, slot 0, Wield
+item 0 IRON_SWORD
+press START
+wait 24
+press A
+wait 16
+press A
+wait 4
+press A
+wait 10
+expectequip WEAPON IRON_SWORD
+expectitem 0 NONE
+press B
+wait 6
+press START
+wait 20
+tp 165 138 3
+npcpos COW 166 138
+wait 2
+press A
+untildead COW
+world
+wait 30
+expectxp ATTACK 400040
+expectxp HITPOINTS 1
+shot shots/t/combat_kill.png
+# --- Loot: the drops land on the cow's cell, in front of the player; A takes the top item
+press A
+wait 10
+press A
+wait 10
+press A
+wait 10
+expectitem 0 COWHIDE
+expectitem 1 RAW_BEEF
+expectitem 2 BONES
+# --- Bury: START, Inventory, slot 2, Bury
+press START
+wait 24
+press A
+wait 16
+press RIGHT
+press RIGHT
+press A
+wait 4
+press A
+wait 10
+expectitem 2 NONE
+expectxp PRAYER 45
+press B
+wait 6
+press START
+wait 20
+expectstate WORLD

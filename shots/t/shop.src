@@ -1,0 +1,34 @@
+# Shop: open the Lumbridge general store from its counter, buy one of the first item, sell it back.
+wait 60
+newgame
+world
+clearinv
+item 0 COINS 1000
+tp 142 153 1
+press A
+wait 20
+expectstate SHOP
+shot shots/t/shop_open.png
+# Buy 1 (first popup option) of stock slot 0: a pot for 1 coin
+press A
+wait 4
+press A
+wait 6
+expectitem 1 POT
+expectqty 0 999
+shot shots/t/shop_buy.png
+# Inventory tab, slot 1 (the bought item), Sell 1
+press R
+wait 4
+press RIGHT
+wait 4
+press A
+wait 4
+press A
+wait 6
+expectitem 1 NONE
+expectitem 0 COINS
+shot shots/t/shop_sell.png
+press B
+wait 10
+expectstate WORLD

@@ -38,7 +38,7 @@ $(BUILD)/avatar_art.c: tools/gen_avatar.py
 
 $(BUILD)/avatar_art.h: $(BUILD)/avatar_art.c
 
-$(BUILD)/%.o: src/%.c src/game.h src/gba.h $(BUILD)/assets.h $(BUILD)/music_data.h $(BUILD)/avatar_art.h $(BUILD)/quest_data.h
+$(BUILD)/%.o: src/%.c src/game.h src/gba.h src/ui_internal.h src/world_internal.h $(BUILD)/assets.h $(BUILD)/music_data.h $(BUILD)/avatar_art.h $(BUILD)/quest_data.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/assets.o: $(BUILD)/assets.c $(BUILD)/assets.h
@@ -69,7 +69,11 @@ $(TARGET).gba: $(BUILD)/$(TARGET).elf tools/fixrom.py
 	$(PYTHON) tools/fixrom.py $@
 	$(if $(GBAFIX),$(GBAFIX) $@)
 
+# headless test suite (needs build/harness from tools/build_harness.sh, or .toolchain/harness)
+test: $(TARGET).gba
+	sh tools/run_quest_tests.sh
+
 clean:
 	rm -rf $(BUILD) $(TARGET).gba
 
-.PHONY: all clean
+.PHONY: all clean test

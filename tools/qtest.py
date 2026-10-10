@@ -20,8 +20,15 @@ Adds to the harness commands:
   expectq QUEST N        PASS/FAIL check of a quest stage
   expectitem SLOT NAME   PASS/FAIL check of an inventory slot
   expecthas NAME         PASS/FAIL check that the item is anywhere in the inventory
+  expectqty SLOT N       PASS/FAIL check of an inventory slot's quantity
+  expectbank SLOT NAME   PASS/FAIL check of a bank slot
+  expectequip SLOT NAME  PASS/FAIL check of a worn item (SLOT as for equip; NONE for empty)
+  expectxp SKILL MIN     PASS/FAIL check that a skill has at least MIN XP (tenths)
+  expecthp N             PASS/FAIL check of current hitpoints
+  expectstate STATE      PASS/FAIL check of game_state (TITLE WORLD MENU DIALOG BANK SHOP LEVELUP QUESTDONE)
   hp N                   set current hitpoints
   npcpos I|KIND X Y      move NPC I (see build/spawns.txt), or the first of a kind, to a cell
+  untildead I|KIND [N]   run until that NPC is inactive (killed), at most N frames (default 3000)
 Player field offsets come from src/game.h's layout (checked against the map symbols)."""
 import os
 import re
@@ -41,9 +48,16 @@ for line in open(os.path.join(root, 'tools/quests.txt')):
 SKILLS = ['ATTACK', 'STRENGTH', 'DEFENCE', 'HITPOINTS', 'PRAYER', 'WOODCUTTING', 'FIREMAKING', 'FISHING',
           'COOKING', 'MINING']
 EQ = ['HEAD', 'WEAPON', 'BODY', 'SHIELD', 'LEGS', 'FEET', 'NECK']
-OFF_XP, OFF_INV, OFF_EQUIP, OFF_QSTAGE, OFF_QVAR = 0x20, 0x48, 0xB8, 0x24C, 0x25C
+OFF_XP, OFF_INV, OFF_EQUIP, OFF_BANK, OFF_QSTAGE, OFF_QVAR = 0x20, 0x48, 0xB8, 0xC6, 0x24C, 0x25C
+STATES = ['TITLE', 'WORLD', 'MENU', 'DIALOG', 'BANK', 'SHOP', 'LEVELUP', 'QUESTDONE']   # GS_* in src/game.h
 
-KB = ['ABCDEFGHIJKLM', 'NOPQRSTUVWXYZ', 'abcdefghijklm', 'nopqrstuvwxyz', '0123456789 -_']   # src/ui.c kb_keys
+KB = ['ABCDEFGHIJKLM', 'NOPQRSTUVWXYZ', 'abcdefghijklm', 'nopqrstuvwxyz', '0123456789 -_']   # src/title.c kb_keys
+def npc_index(k):          # an index, or the first spawn of a kind (indices shift as NPCs are added)
+    if k.isdigit():
+        return int(k)
+    return next(int(ln.split()[0]) for ln in open(os.path.join(root, 'build/spawns.txt')) if ln.split()[1] == k)
+
+
 out = []
 for line in open(sys.argv[1]):
     p = line.split()
@@ -90,18 +104,27 @@ for line in open(sys.argv[1]):
         out += ['until8 @ui_wait %d 900' % (4 if len(p) > 1 and p[1] == 'level' else 3), 'wait 10', 'press A', 'wait 4']
     elif c == 'expecthas':  # expecthas NAME: the item is somewhere in the inventory
         out.append('expectinv @pl+0x%x %x has_%s' % (OFF_INV, ITEM[p[1]], p[1]))
+    elif c == 'expectqty':  # expectqty SLOT N
+        out.append('expect16 @pl+0x%x %x slot%s_qty_%s' % (OFF_INV + int(p[1]) * 4 + 2, int(p[2]), p[1], p[2]))
+    elif c == 'expectbank':  # expectbank SLOT NAME
+        out.append('expect16 @pl+0x%x %x bank%s_%s' % (OFF_BANK + int(p[1]) * 4, ITEM[p[2]], p[1], p[2]))
+    elif c == 'expectequip':  # expectequip SLOT NAME
+        out.append('expect16 @pl+0x%x %x equip_%s_%s' % (OFF_EQUIP + EQ.index(p[1]) * 2, ITEM[p[2]], p[1], p[2]))
+    elif c == 'expectxp':   # expectxp SKILL MIN
+        out.append('expectge32 @pl+0x%x %x %s_xp_ge_%s' % (OFF_XP + SKILLS.index(p[1]) * 4, int(p[2]), p[1], p[2]))
+    elif c == 'expecthp':
+        out.append('expect8 @pl+0x16 %x hp_%s' % (int(p[1]), p[1]))
+    elif c == 'expectstate':
+        out.append('expect8 @game_state %x state_%s' % (STATES.index(p[1]), p[1]))
     elif c == 'npcpos':     # npcpos INDEX X Y: put an NPC (index from build/spawns.txt) on a cell
         x, y = int(p[2]), int(p[3])
-        if p[1].isdigit():
-            i = int(p[1])
-        else:               # npcpos KIND X Y: the first spawn of that kind (indices shift as NPCs are added)
-            i = next(int(ln.split()[0]) for ln in open(os.path.join(root, 'build/spawns.txt'))
-                     if ln.split()[1] == p[1])
-        base = i * 28
+        base = npc_index(p[1]) * 28
         cell = y * 208 + x
         out += ['poke8 @npcs+0x%x 0' % (base + 3), 'poke16 @npcs+0x%x %x' % (base + 4, x), 'poke16 @npcs+0x%x %x' % (base + 6, y),
                 'poke16 @npcs+0x%x %x' % (base + 8, x * 16), 'poke16 @npcs+0x%x %x' % (base + 10, y * 16),
                 'poke8 @occ_bits+0x%x %x' % ((cell >> 5) * 4 + ((cell & 31) >> 3), 1 << (cell & 7))]
+    elif c == 'untildead':
+        out.append('until8 @npcs+0x%x 0 %d' % (npc_index(p[1]) * 28, int(p[2]) if len(p) > 2 else 3000))
     elif c == 'hp':
         out.append('poke8 @pl+0x16 %x' % int(p[1]))
     elif c == 'newgame':    # login screen: New User, name "A" (or the given name), first empty slot

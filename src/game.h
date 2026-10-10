@@ -223,7 +223,7 @@ enum { PC_FILL = 1, PC_WELL, PC_EDGE, PC_EDGE_DIM, PC_HL1, PC_HL2, PC_HL3, PC_GO
 enum { TC_WHITE = 1, TC_GREY, TC_DIM, TC_SHADOW, TC_GOLD, TC_CYAN, TC_GREEN, TC_RED, TC_YELLOW,
        TC_ORANGE, TC_BLUE, TC_BLACK, TC_DKRED, TC_DKBLUE };
 
-// world.c
+// world.c, combat.c, skilling.c, world_draw.c (their shared internals: world_internal.h)
 int world_type(int x, int y);           // cell type (T_*), including runtime changes
 int world_meta(int x, int y);           // ground metatile
 int world_over(int x, int y);           // overlay metatile (tree canopies)
@@ -245,7 +245,7 @@ int npc_portrait_tile(int kind);        // first tile of a 16x16 frame for dialo
 int item_on_ground_count(void);
 void drop_item(int x, int y, int id, int qty);
 
-// ui.c
+// ui.c, hud.c, menu.c, dialog.c, store.c, title.c (their shared internals: ui_internal.h)
 void ui_init(void);
 void ui_hud_reset(void);
 void ui_hud_update(void);

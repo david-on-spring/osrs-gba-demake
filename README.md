@@ -15,6 +15,8 @@ on a 16.78 MHz handheld, with OSRS-style stone menus, a parchment chatbox and th
 ![Quests](https://img.shields.io/badge/quests-13-e0b838)
 ![No devkitPro](https://img.shields.io/badge/devkitPro-not%20required-lightgrey)
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-osrsdave-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/osrsdave)
+
 [**Download the ROM**](../../releases/latest) · [Features](#features) · [Controls](#controls) · [Quests](#quests) · [Building](#building) · [How it works](#how-it-works)
 
 </div>
@@ -213,7 +215,8 @@ screenshots and WAV audio. Scenario scripts can teleport the player and edit gam
 
 ```bash
 tools/build_harness.sh          # needs libmgba 0.10.5 built in .toolchain/mgba-0.10.5/build
-tools/run_quest_tests.sh        # plays all 13 quests end to end, plus save/reload
+make test                       # plays all 13 quests end to end, bank/shop/skilling/combat tests, save/reload
+python3 tools/snap.py build/snap_after --compare build/snap_before   # screenshot regression check
 ```
 
 ---
@@ -235,8 +238,12 @@ tools/run_quest_tests.sh        # plays all 13 quests end to end, plus save/relo
 | `src/crt0.s`, `src/gba.ld` | Cartridge header, startup and IRQ handler |
 | `src/gfx.c` | VRAM layout, palettes, fades, tile streaming and OAM |
 | `src/canvas.c` | UI drawing: font, panels, bars and highlights |
-| `src/world.c` | Map, movement, NPC AI, combat, skilling, ground items and fires |
-| `src/ui.c` | HUD, START menu, dialogue, bank, shops, level-ups and the title screen |
+| `src/world.c` | Map state, movement, NPC AI, ground items, fires and the game tick |
+| `src/combat.c`, `src/skilling.c` | Melee combat and drops; woodcutting, mining, fishing, firemaking, cooking and the A-button interact |
+| `src/world_draw.c` | Depth-sorted world sprites |
+| `src/ui.c` | UI core: shared helpers, popups, item grid, menu chrome |
+| `src/hud.c`, `src/menu.c`, `src/dialog.c` | HUD and level-ups, START menu and quest journal, the chatbox |
+| `src/store.c`, `src/title.c` | Bank and shop screens, the login screen |
 | `src/shops.c` | Shop stock lists, OSRS pricing, restocking |
 | `src/quests.c` | Quest script VM, journal and rewards |
 | `src/avatar.c` | Composited player sprite |
@@ -256,6 +263,10 @@ tools/run_quest_tests.sh        # plays all 13 quests end to end, plus save/relo
 - There is no coal, and the Duel Arena is cut off by the map's east edge. The Al Kharid toll is always charged (no Prince Ali Rescue yet).
 - The synth plays up to 10 notes at once and ignores pitch bends.
 - Standing directly north of a tree hides your character behind its leaves.
+
+## Support
+
+If you enjoy the demake, you can [buy me a coffee](https://buymeacoffee.com/osrsdave).
 
 ## Disclaimer
 
