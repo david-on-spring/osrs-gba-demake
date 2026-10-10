@@ -107,6 +107,7 @@ xp MAGIC 0
 xp DEFENCE 0
 hp 10
 tpz OVERWORLD 3233 3370 LEFT
+npcpos DARK_WIZARD OVERWORLD 3233 3372
 wait 300
 shot shots/t/magic_wizard.png
 wait 300
