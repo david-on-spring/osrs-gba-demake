@@ -56,6 +56,9 @@ is done, and what it costs on the hardware.
     - Doors on a roofed building's north, east and west walls cut a notch in the roof and get a
       doorway, so every entrance shows from outside.
     - Saves from before keep the character and start in Lumbridge (slot version 5).
+11. **Regions** (done). The map is stored as OSRS map squares of LZ77 blocks and decompressed
+    around the camera; positions are absolute OSRS tiles and the castle floors are planes 1 and 2
+    (slot version 6 converts version 5 saves). See `docs/regions.md`.
 
 ## Hardware budget
 
@@ -64,14 +67,15 @@ is done, and what it costs on the hardware.
 | ROM | 828 KB | 2.3 MB | 2.8 MB | 32 MB |
 | Map cells | 43,264 | 143,360 | 191,360 | |
 | World tiles in ROM | 1,777 | 14,502 | 12,037 | (streamed) |
-| Metatiles | — | 29,997 | 45,750 | 65,535 (`map_meta` is u16) |
+| Metatiles | — | 29,997 | 45,750 | 65,535 (`meta` is u16) |
 | Worst camera window (unique tiles) | 332 | 455 | 417 | 575 cache slots |
 | World palette sets | 1 | 7 (one per town) | 5 (countryside + 4 town groups) | |
-| EWRAM | 74 KB | 125 KB | 135 KB | 256 KB |
+| EWRAM | 74 KB | 125 KB | 135 KB (147 KB with regions) | 256 KB |
 | Peak frame work running across town edges | — | 147–160 scanlines | 156–169 scanlines | 228 |
 | NPC slots | 224 | 256 | 256 | |
 
-VRAM layout and the streaming algorithm are unchanged. A roof change or a staircase redraws the
+With regions (item 11) the ROM is 2.0 MB and walking frames peak at 193–208 scanlines; see
+`docs/regions.md`. VRAM layout and the streaming algorithm are unchanged. A roof change or a staircase redraws the
 31×21 tile window once, and the measurements above include that redraw. About 3.4% of tile uses
 are quantized to the nearest colour in their bank (most of them countryside tiles in the shared
 banks). `WG_SHARED` sets the number of shared banks.
