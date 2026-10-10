@@ -269,7 +269,7 @@ tools/run_quest_tests.sh        # plays all 13 quests end to end, plus save/relo
 
 - Dragon Slayer and members' content are not included.
 - The Wilderness has scenery but no monsters yet, and Varrock's specialty shops are empty buildings.
-- The Al Kharid toll gate is free, there is no coal, and the Duel Arena is cut off by the map's east edge.
+- There is no coal, and the Duel Arena is cut off by the map's east edge. The Al Kharid toll is always charged (no Prince Ali Rescue yet).
 - The synth plays up to 10 notes at once and ignores pitch bends.
 - Standing directly north of a tree hides your character behind its leaves.
 
