@@ -289,27 +289,20 @@ static void draw_combat(void) {
 
 // Read-only About page (Settings > About): build version, credits and the fan-project notice.
 static void draw_about(void) {
-    static const char *const lab[4] = {"Version", "Built", "Quests", "Platform"};
     draw_header("About");
     draw_panel(6, 22, 228, 120, 6);
-    text_big(120, 28, "2007 Demake");
-    draw_rule(14, 48, 212);
-    for (int i = 0; i < 4; i++) {
-        int y = 54 + i * 11;
-        text_draw(16, y, lab[i], TC_GREY);
-        const char *v = sbuf;
-        if (i == 0) v = GAME_VERSION;
-        else if (i == 1) v = GAME_DATE;
-        else if (i == 2) fmt_int(sbuf, QUEST_COUNT);
-        else v = "Game Boy Advance";
-        text_right(224, y, v, TC_WHITE);
-    }
-    draw_rule(14, 100, 212);
-    text_draw(16, 105, "github.com/david-on-spring/osrs-gba-demake", TC_CYAN);
+    text_big(120, 30, "2007 Demake");
+    draw_rule(14, 52, 212);
+    text_draw(16, 60, "Version", TC_GREY);
+    text_right(224, 60, GAME_VERSION, TC_WHITE);
+    text_draw(16, 72, "Built", TC_GREY);
+    text_right(224, 72, GAME_DATE, TC_WHITE);
+    draw_rule(14, 88, 212);
+    text_draw(16, 96, "github.com/david-on-spring/osrs-gba-demake", TC_CYAN);
     char lines[2][48];
     int n = text_wrap("A fan-made demake of Old School RuneScape. Not affiliated with Jagex Ltd.", 208,
                       lines, 2);
-    for (int i = 0; i < n; i++) text_draw(16, 117 + i * 10, lines[i], TC_DIM);
+    for (int i = 0; i < n; i++) text_draw(16, 110 + i * 10, lines[i], TC_DIM);
     draw_footer("Settings > About", 0, "Back");
 }
 
