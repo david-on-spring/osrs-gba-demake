@@ -15,8 +15,11 @@ static s16 dlg_px, dlg_py;
 
 #define DLG_Y 104
 // the first page clears the whole screen (HUD); later pages only the dialogue area
+static u8 dlg_fresh;                    // both canvases were just cleared whole
 static void dialog_clear(void) {
-    if (game_state == GS_DIALOG) {
+    if (dlg_fresh) {
+        dlg_fresh = 0;
+    } else if (game_state == GS_DIALOG) {
         cv_clear_rows(&cv_text, 8, 19);
         cv_clear_rows(&cv_panel, 8, 19);
     } else {
@@ -132,6 +135,7 @@ static void dialog_close(void) {
 }
 
 // next page/choice of the running quest script; closes the dialogue when it ends
+
 static void dialog_vm_next(void) {
     if (qvm_step(&dlg_ev)) {
         int first = game_state != GS_DIALOG;
@@ -139,6 +143,7 @@ static void dialog_vm_next(void) {
             dlg_last_speaker = -1;
             cv_clear(&cv_text);
             cv_clear(&cv_panel);
+            dlg_fresh = 1;
         }
         dialog_enter();
         if (dlg_ev.type == DLG_SAY) {
@@ -171,6 +176,7 @@ void dialog_open(int kind, int index) {
     dlg_last_speaker = -1;
     cv_clear(&cv_text);
     cv_clear(&cv_panel);
+    dlg_fresh = 1;
     dialog_enter();
     dialog_layout_say(kind, dlg_pages[0], 0);
 }

@@ -53,6 +53,8 @@ IWRAM_CODE void cv_pset(Canvas *c, int x, int y, int col) {
     mark(c, y, y);
 }
 
+// Works one tile row band at a time: each tile column gets its mask once, then a plain
+// store (fully covered tile) or a masked one per pixel line.
 IWRAM_CODE void cv_fill(Canvas *c, int x, int y, int w, int h, int col) {
     if (x < 0) {
         w += x;
@@ -66,25 +68,28 @@ IWRAM_CODE void cv_fill(Canvas *c, int x, int y, int w, int h, int col) {
     if (y + h > SCREEN_H) h = SCREEN_H - y;
     if (w <= 0 || h <= 0) return;
     u32 full = (u32)col * 0x11111111u;
-    int x1 = x + w;
-    for (int yy = y; yy < y + h; yy++) {
-        u32 *base = &c->tiles[(yy >> 3) * 30 * 8 + (yy & 7)];
-        int xx = x;
-        while (xx < x1) {
-            int tx = xx >> 3;
-            int s = xx & 7;
-            int e = (x1 - (tx << 3)) > 8 ? 8 : x1 - (tx << 3);
-            u32 *row = &base[tx * 8];
-            if (s == 0 && e == 8) {
-                *row = full;
+    int x1 = x + w - 1, y1 = y + h;
+    int t0 = x >> 3, t1 = x1 >> 3;
+    u32 m0 = 0xFFFFFFFFu << ((x & 7) << 2), m1 = 0xFFFFFFFFu >> ((7 - (x1 & 7)) << 2);
+    if (t0 == t1) m0 = m1 = m0 & m1;
+    for (int yy = y; yy < y1;) {
+        int ye = (yy | 7) + 1;
+        if (ye > y1) ye = y1;
+        int n = ye - yy;
+        u32 *band = &c->tiles[(yy >> 3) * 240 + (yy & 7)];
+        for (int t = t0; t <= t1; t++) {
+            u32 m = t == t0 ? m0 : t == t1 ? m1 : 0xFFFFFFFFu;
+            u32 *p = band + t * 8;
+            if (m == 0xFFFFFFFFu) {
+                for (int k = 0; k < n; k++) p[k] = full;
             } else {
-                u32 mask = (e == 8 ? 0xFFFFFFFFu : ((1u << (e * 4)) - 1)) & ~((1u << (s * 4)) - 1);
-                *row = (*row & ~mask) | (full & mask);
+                u32 v = full & m, keep = ~m;
+                for (int k = 0; k < n; k++) p[k] = (p[k] & keep) | v;
             }
-            xx = (tx + 1) << 3;
         }
+        yy = ye;
     }
-    mark(c, y, y + h - 1);
+    mark(c, y, y1 - 1);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -302,10 +307,17 @@ IWRAM_CODE void draw_panel(int x, int y, int w, int h, int ch) {
 }
 
 // OSRS chatbox / quest scroll paper
+// (each pixel is written once: outline, inner ring, then the paper)
 void draw_parchment(int x, int y, int w, int h) {
     Canvas *c = &cv_panel;
-    cv_fill(c, x, y, w, h, PC_EDGE_DIM);
-    cv_fill(c, x + 1, y + 1, w - 2, h - 2, PC_PARCH_D);
+    cv_fill(c, x, y, w, 1, PC_EDGE_DIM);
+    cv_fill(c, x, y + h - 1, w, 1, PC_EDGE_DIM);
+    cv_fill(c, x, y + 1, 1, h - 2, PC_EDGE_DIM);
+    cv_fill(c, x + w - 1, y + 1, 1, h - 2, PC_EDGE_DIM);
+    cv_fill(c, x + 1, y + 1, w - 2, 1, PC_PARCH_D);
+    cv_fill(c, x + 1, y + h - 2, w - 2, 1, PC_PARCH_D);
+    cv_fill(c, x + 1, y + 2, 1, h - 4, PC_PARCH_D);
+    cv_fill(c, x + w - 2, y + 2, 1, h - 4, PC_PARCH_D);
     cv_fill(c, x + 2, y + 2, w - 4, h - 4, PC_PARCH);
 }
 
