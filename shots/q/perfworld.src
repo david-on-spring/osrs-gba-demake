@@ -12,7 +12,7 @@ tp 150 60 3
 wait 10
 hold LEFT+B 300
 hold DOWN+B 300
-tp 147 167 0
+tpz LUMBRIDGE 3222 3218 0
 hold DOWN+B 200
 hold RIGHT+B 300
 dump @frame 2

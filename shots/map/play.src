@@ -47,7 +47,7 @@ shot shots/map/play_run.png
 hold UP+B 400
 dump @perf_max 1
 dump @cache_misses 1
-tp 149 167 1
+tpz LUMBRIDGE 3226 3218 1
 press A
 wait 30
 shot shots/map/play_guide.png

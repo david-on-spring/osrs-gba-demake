@@ -129,6 +129,79 @@ int free_tile(int x, int y) {
     return walkable(x, y) && npc_at(x, y) < 0 && !(pl.x == x && pl.y == y);
 }
 
+// ---------------------------------------------------------------------------------------
+// Zones and portals. The 1:1 zones (Lumbridge, the castle floors) sit below the overworld in
+// the same cell grid; zones[] gives each one's rectangle, palette set and floor. Walking into a
+// T_PORTAL cell (the ring around Lumbridge in both maps) warps with a short fade; staircases
+// warp from their quest scripts (OP_WARP).
+static u8 cur_zone = 0xFF, cur_roof;
+static struct { u8 phase, t, dir, walk; s16 x, y; } warp;   // phase 1 fading out, 2 fading in
+#define WARP_FRAMES 8
+
+int world_zone(int x, int y) {
+    for (int i = 0; i < ZONE_COUNT; i++)
+        if (x >= zones[i].x0 && x <= zones[i].x1 && y >= zones[i].y0 && y <= zones[i].y1) return i;
+    return 0;
+}
+
+static const Portal *portal_at(int x, int y) {
+    int c = idx(x, y), lo = 0, hi = PORTAL_COUNT - 1;
+    while (lo <= hi) {
+        int mid = (lo + hi) >> 1;
+        if (portals[mid].cell == c) return &portals[mid];
+        if (portals[mid].cell < c) lo = mid + 1;
+        else hi = mid - 1;
+    }
+    return 0;
+}
+
+// zone palette and the roof the player is under; call after the player moves
+static void zone_refresh(void) {
+    int z = world_zone(pl.x, pl.y);
+    if (z != cur_zone) {
+        cur_zone = z;
+        gfx_set_world_palette_set(zones[z].pal_set);
+        gfx_mark_world_dirty();
+    }
+    int r = map_roof[idx(pl.x, pl.y)];
+    if (r != cur_roof) {
+        cur_roof = r;
+        gfx_set_hidden_roof(r);
+    }
+}
+
+static void warp_start(int x, int y, int dir, int walk) {
+    player_stop();
+    warp.phase = 1;
+    warp.t = 0;
+    warp.x = x;
+    warp.y = y;
+    warp.dir = dir;
+    warp.walk = walk;
+}
+
+void player_warp(int x, int y, int dir) { warp_start(x, y, dir, 0); }
+int world_warping(void) { return warp.phase != 0; }
+
+static void warp_update(void) {
+    if (warp.phase == 1) {
+        gfx_set_world_fade(16 - (++warp.t) * 16 / WARP_FRAMES);
+        if (warp.t < WARP_FRAMES) return;
+        player_tp(warp.x, warp.y, warp.dir);
+        zone_refresh();
+        if (warp.walk && free_tile(pl.x + DX[pl.dir], pl.y + DY[pl.dir])) {
+            pl.x += DX[pl.dir];   // arrive mid-stride
+            pl.y += DY[pl.dir];
+            pl.moving = 1;
+        }
+        warp.phase = 2;
+        warp.t = 0;
+    } else {
+        gfx_set_world_fade((++warp.t) * 16 / WARP_FRAMES);
+        if (warp.t >= WARP_FRAMES) warp.phase = 0;
+    }
+}
+
 int world_region(void) {
     for (int i = 0; i < REGION_COUNT; i++) {
         const Region *r = &regions[i];
@@ -214,6 +287,18 @@ void world_refresh_npcs(void) {
     }
 }
 
+// centre on the player, kept inside the player's zone
+void world_camera(void) {
+    const Zone *z = &zones[world_zone(pl.x, pl.y)];
+    int x0 = z->x0 * 16, y0 = z->y0 * 16, x1 = (z->x1 + 1) * 16 - SCREEN_W, y1 = (z->y1 + 1) * 16 - SCREEN_H;
+    cam_x = pl.px + 8 - SCREEN_W / 2;
+    cam_y = pl.py + 8 - SCREEN_H / 2;
+    if (cam_x > x1) cam_x = x1;
+    if (cam_y > y1) cam_y = y1;
+    if (cam_x < x0) cam_x = x0;
+    if (cam_y < y0) cam_y = y0;
+}
+
 void player_tp(int x, int y, int dir) {
     player_stop();
     pl.x = x;
@@ -249,6 +334,11 @@ int npc_portrait_tile(int kind) {
 }
 
 void world_after_load(void) {
+    // saves from before the 1:1 Lumbridge zone: the old 1:2 town is now only a view from outside
+    if (pl.x >= OW_LUM_X0 && pl.x <= OW_LUM_X1 && pl.y >= OW_LUM_Y0 && pl.y <= OW_LUM_Y1) {
+        pl.x = pl.x * 2 + LUM_ZONE_DX;
+        pl.y = pl.y * 2 + LUM_ZONE_DY;
+    }
     // saves from an older map layout may place the player inside a wall: go home
     if (!in_map(pl.x, pl.y) || world_type(pl.x, pl.y) > T_WALKABLE_MAX) {
         pl.x = START_X;
@@ -258,6 +348,10 @@ void world_after_load(void) {
     pl.py = pl.y * 16;
     pl.moving = 0;
     pl.action = ACT_NONE;
+    warp.phase = 0;
+    cur_zone = 0xFF;
+    cur_roof = 0xFF;
+    zone_refresh();
     gfx_set_player_palette();
     world_refresh_npcs();
 }
@@ -375,6 +469,18 @@ void splat_spawn(int wx, int wy, int dmg) {
 static void start_step(int dir) {
     pl.dir = dir;
     int nx = pl.x + DX[dir], ny = pl.y + DY[dir];
+    if (in_map(nx, ny)) {
+        int t = world_type(nx, ny);
+        const Portal *p = t == T_PORTAL ? portal_at(nx, ny) : 0;
+        if (p) {
+            warp_start(p->x, p->y, p->dir, 1);
+            return;
+        }
+        if (t == T_STAIRS) {   // walking into a staircase climbs it
+            interact();
+            return;
+        }
+    }
     if (!free_tile(nx, ny)) return;
     pl.x = nx;
     pl.y = ny;
@@ -581,10 +687,12 @@ static void move_entity(s16 *px, s16 *py, int tx, int ty, u8 *moving, int speed,
 }
 
 void world_update(void) {
-    if (pl.moving) {
+    if (warp.phase) {
+        warp_update();
+    } else if (pl.moving) {
         move_entity(&pl.px, &pl.py, pl.x, pl.y, &pl.moving, (keys & KEY_B) ? 4 : 2, &pl.anim);
     }
-    if (!pl.moving) {
+    if (!pl.moving && !warp.phase) {
         int dir = -1;
         if (keys & KEY_UP) dir = DIR_UP;
         else if (keys & KEY_DOWN) dir = DIR_DOWN;
@@ -629,10 +737,6 @@ void world_update(void) {
         game_tick();
     }
 
-    cam_x = pl.px + 8 - SCREEN_W / 2;
-    cam_y = pl.py + 8 - SCREEN_H / 2;
-    if (cam_x < 0) cam_x = 0;
-    if (cam_y < 0) cam_y = 0;
-    if (cam_x > MAP_W * 16 - SCREEN_W) cam_x = MAP_W * 16 - SCREEN_W;
-    if (cam_y > MAP_H * 16 - SCREEN_H) cam_y = MAP_H * 16 - SCREEN_H;
+    zone_refresh();
+    world_camera();
 }

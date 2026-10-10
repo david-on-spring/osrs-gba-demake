@@ -1764,3 +1764,53 @@ talk HANS
 :time
   npc "Ahh, I see all the newcomers arriving in Lumbridge, fresh-faced and eager for adventure. I remember you..."
   playtime
+
+# Lumbridge Castle's spiral staircases (north-west and south-west towers). The ground floor only
+# goes up, the top floor only down; the first floor asks.
+obj STAIRS
+  if near STAIRS_N0 2 goto n0
+  if near STAIRS_S0 2 goto s0
+  if near STAIRS_N2 2 goto n2
+  if near STAIRS_S2 2 goto s2
+  if near STAIRS_N1 2 goto n1
+  choice
+    option "Climb-up." s1up
+    option "Climb-down." s1down
+    option "Cancel." end
+:n1
+  choice
+    option "Climb-up." n1up
+    option "Climb-down." n1down
+    option "Cancel." end
+:n0
+  chat "You climb up the stairs."
+  warp ARRIVE_N1 RIGHT
+  end
+:s0
+  chat "You climb up the stairs."
+  warp ARRIVE_S1 RIGHT
+  end
+:n1up
+  chat "You climb up the stairs."
+  warp ARRIVE_N2 RIGHT
+  end
+:s1up
+  chat "You climb up the stairs."
+  warp ARRIVE_S2 RIGHT
+  end
+:n1down
+  chat "You climb down the stairs."
+  warp ARRIVE_N0 RIGHT
+  end
+:s1down
+  chat "You climb down the stairs."
+  warp ARRIVE_S0 RIGHT
+  end
+:n2
+  chat "You climb down the stairs."
+  warp ARRIVE_N1 RIGHT
+  end
+:s2
+  chat "You climb down the stairs."
+  warp ARRIVE_S1 RIGHT
+  end

@@ -3,7 +3,7 @@ newgame
 wait 40
 poke16 @perf_max 0
 # Father Aereck in the Lumbridge church
-tp 156 171 3
+face AERECK RIGHT
 talk
 dlg
 choose 2
@@ -22,11 +22,11 @@ world
 expectq GHOST 2
 expectitem 9 GHOSTSPEAK
 # talking to the ghost needs the amulet: open the coffin first without it
-tp 156 178 3
+tpz LUMBRIDGE 3249 3193 RIGHT
 press A
 dlg
 world
-tp 156 178 0
+tpz LUMBRIDGE 3249 3193 DOWN
 talk
 dlg
 world
@@ -47,7 +47,7 @@ shot shots/q/ghost_equip_worn.png
 press B
 press START
 wait 20
-tp 156 178 0
+tpz LUMBRIDGE 3249 3193 DOWN
 talk
 until8 @ui_wait 1 300
 wait 4
@@ -66,7 +66,7 @@ wait 30
 shot shots/q/ghost_skeleton.png
 expectq GHOST 4
 # back to the coffin
-tp 156 178 3
+tpz LUMBRIDGE 3249 3193 RIGHT
 press A
 dlg
 done

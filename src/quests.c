@@ -72,7 +72,7 @@ static int cond(int c, int a, int b) {
         return 0;
     case C_FLAG: return (pl.qvar[a] >> b) & 1;
     case C_VAR_GE: return pl.qvar[a] >= b;
-    case C_NEAR: return cheb(pl.x, pl.y, a & 0xFF, a >> 8) <= b;
+    case C_NEAR: return cheb(pl.x, pl.y, a, b & 0x1FF) <= b >> 9;
     case C_QP_GE: return quest_points() >= b;
     case C_FREE: return inv_free() >= b;
     case C_CHANCE: return rnd_range(100) < b;
@@ -200,6 +200,7 @@ int qvm_step(DlgEvent *ev) {
         case OP_SFX: sfx(c[1]); vm.pc = pc + 2; break;
         case OP_COMPLETE: complete(c[1]); vm.pc = pc + 2; world_refresh_npcs(); break;
         case OP_TP: player_tp(c[1], c[2], c[3]); vm.pc = pc + 4; break;
+        case OP_WARP: player_warp(rd16(pc + 1), rd16(pc + 3), c[5]); vm.pc = pc + 6; break;
         case OP_WALKTHRU: player_walk_through(); vm.pc = pc + 1; break;
         case OP_NPCSTATE:
             if (vm.npc >= 0) npcs[vm.npc].state = c[1];

@@ -17,7 +17,7 @@ wait 10
 expectitem 9 ONION
 # burn some cooked meat on the castle range
 item 10 COOKED_MEAT
-tp 137 171 0
+tpz LUMBRIDGE 3206 3215 UP
 press A
 wait 10
 expectitem 10 BURNT_MEAT

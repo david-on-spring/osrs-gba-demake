@@ -2,7 +2,7 @@ wait 70
 shot docs/screenshots/title.png
 newgame
 wait 40
-tp 147 167 0
+tpz LUMBRIDGE 3222 3218 0
 wait 260
 shot docs/screenshots/lumbridge.png
 press START

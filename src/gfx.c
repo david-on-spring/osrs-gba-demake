@@ -42,6 +42,8 @@ static s16 dirty_cells[MAX_CELL_DIRTY][2];
 static u8 n_dirty_cells;
 
 static EWRAM_BSS u16 wpal[14 * 16];   // world palette (with water shimmer applied)
+static u8 wpal_set;                    // world_pal[] set in wpal (one per zone kind)
+static u8 hidden_roof;                 // map_roof group left off the overlay layer
 static EWRAM_BSS u16 opal[8 * 16];    // actor palettes (player palette is dynamic)
 static u8 pal_pending;
 static u8 fade_level = 16;
@@ -129,7 +131,7 @@ void gfx_init(void) {
         PAL_BG[i] = panel_pal[i];
         PAL_BG[16 + i] = text_pal[i];
     }
-    for (int i = 0; i < 14 * 16; i++) wpal[i] = world_pal[i];
+    for (int i = 0; i < 14 * 16; i++) wpal[i] = world_pal[wpal_set][i];
     for (int i = 0; i < 8 * 16; i++) opal[i] = obj_pal[i];
     for (int i = 8 * 16; i < 256; i++) PAL_OBJ[i] = obj_pal[i];
     build_gradient();
@@ -159,6 +161,20 @@ void gfx_init(void) {
     REG_IE = 1;
     REG_IME = 1;
     REG_DISPCNT = 0x1F40;
+}
+
+void gfx_set_world_palette_set(int set) {
+    if (set == wpal_set) return;
+    wpal_set = set;
+    for (int i = 0; i < 14 * 16; i++) wpal[i] = world_pal[set][i];
+    pal_pending = 1;
+}
+
+void gfx_set_hidden_roof(int group) {
+    if (group == hidden_roof) return;
+    // the roof being uncovered and the one being hidden may both be on screen: redraw it all
+    hidden_roof = group;
+    world_dirty = 1;
 }
 
 void gfx_set_world_fade(int level16) {
@@ -254,7 +270,7 @@ static void draw_tile(int tx, int ty) {
     if (tx >= 0 && ty >= 0 && cx < MAP_W && cy < MAP_H) {
         int k = ((ty & 1) << 1) | (tx & 1);
         ge = meta_tiles[world_meta(cx, cy)][k];
-        oe = meta_tiles[world_over(cx, cy)][k];
+        if (!hidden_roof || map_roof[cy * MAP_W + cx] != hidden_roof) oe = meta_tiles[world_over(cx, cy)][k];
     }
     u16 g = (CACHE_BASE + cache_get(ge & 0xFFFF)) | (ge >> 16);
     u16 o = (CACHE_BASE + cache_get(oe & 0xFFFF)) | (oe >> 16);
@@ -450,8 +466,9 @@ void gfx_vblank(void) {
 
     // water shimmer: swap the two highlight shades every 24 frames
     if (frame % 24 == 0) {
-        for (int i = 0; i + 1 < WATER_SLOT_COUNT; i += 2) {
-            int a = water_slots[i] - 32, b = water_slots[i + 1] - 32;
+        const u16 *ws = water_slots[wpal_set];
+        for (int i = 0; ws[i] && ws[i + 1]; i += 2) {
+            int a = ws[i] - 32, b = ws[i + 1] - 32;
             u16 t = wpal[a];
             wpal[a] = wpal[b];
             wpal[b] = t;

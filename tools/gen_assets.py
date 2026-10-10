@@ -1866,6 +1866,13 @@ with open(os.path.join(OUT, 'spawns.txt'), 'w') as f:
         f.write('obj %s %d %d\n' % (t, x, y))
     for (it, x, y) in world_gen.ITEM_SPAWNS:
         f.write('item %s %d %d\n' % (it, x, y))
+    for n, (x, y) in sorted(world_gen.QPOS.items()):
+        f.write('place %s %d %d\n' % (n, x, y))
+    for (x, y), (dx, dy, d) in sorted(world_gen.PORTALS.items()):   # last field: the arrival step is free
+        sx, sy = dx + (0, 0, -1, 1)[d], dy + (1, -1, 0, 0)[d]
+        f.write('portal %d %d %d %d %d %d\n' % (x, y, dx, dy, d, world_gen.walk_ok(sx, sy)))
+    for n, z, ps, plane in world_gen.ZONES:     # OSRS (X, Y) -> cell: CX0 + (X - OX) // S, CY0 + (OY - Y) // S
+        f.write('zone %s %d %d %d %d %d\n' % (n, z.OX, z.OY, z.S, z.CX0, z.CY0))
 import gen_quests  # noqa: E402
 gen_quests.emit(OUT, font_w, world_gen, KINDS)
 

@@ -30,11 +30,11 @@ press B
 press START
 wait 20
 equip NECK GHOSTSPEAK
-tp 156 178 3
+tpz LUMBRIDGE 3249 3193 RIGHT
 press A
 dlg
 world
-tp 156 178 0
+tpz LUMBRIDGE 3249 3193 DOWN
 talk
 dlg
 choose 0

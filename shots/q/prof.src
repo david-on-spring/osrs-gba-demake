@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 40
-tp 156 171 3
+face AERECK RIGHT
 wait 30
 talk
 until8 @ui_wait 1 300

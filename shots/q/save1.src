@@ -2,7 +2,7 @@ wait 60
 newgame
 wait 40
 # start The Restless Ghost and get the amulet, then save mid-quest
-tp 156 171 3
+face AERECK RIGHT
 talk
 dlg
 choose 2

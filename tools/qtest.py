@@ -29,6 +29,12 @@ Adds to the harness commands:
   hp N                   set current hitpoints
   npcpos I|KIND X Y      move NPC I (see build/spawns.txt), or the first of a kind, to a cell
   untildead I|KIND [N]   run until that NPC is inactive (killed), at most N frames (default 3000)
+  tpz ZONE X Y DIR       teleport to OSRS tile (X, Y) in a zone (OVERWORLD, LUMBRIDGE, CASTLE_1, CASTLE_2)
+  expectat ZONE X Y      PASS/FAIL check that the player stands on OSRS tile (X, Y) of a zone (ZONE CELL: a cell)
+  expectwarp ZONE X Y DIR  PASS/FAIL check that the player is where the portal next to (X, Y) in DIR leads
+                         (one step on: the player arrives mid-stride)
+  face THING DIR         stand next to THING facing it (DIR is the way the player faces). THING is an NPC
+                         kind (its first spawn), obj:TYPE, item:NAME or a named place (build/spawns.txt)
 Player field offsets come from src/game.h's layout (checked against the map symbols)."""
 import os
 import re
@@ -52,6 +58,37 @@ OFF_XP, OFF_INV, OFF_EQUIP, OFF_BANK, OFF_QSTAGE, OFF_QVAR = 0x20, 0x48, 0xB8, 0
 STATES = ['TITLE', 'WORLD', 'MENU', 'DIALOG', 'BANK', 'SHOP', 'LEVELUP', 'QUESTDONE']   # GS_* in src/game.h
 
 KB = ['ABCDEFGHIJKLM', 'NOPQRSTUVWXYZ', 'abcdefghijklm', 'nopqrstuvwxyz', '0123456789 -_']   # src/title.c kb_keys
+SPAWNS_TXT = os.path.join(root, 'build/spawns.txt')
+
+
+def spawn_lines():
+    return [ln.split() for ln in open(SPAWNS_TXT)]
+
+
+def zone_cell(z, X, Y):
+    for p in spawn_lines():
+        if p[0] == 'zone' and p[1] == z:
+            OX, OY, S, CX0, CY0 = map(int, p[2:])
+            return CX0 + (X - OX) // S, CY0 + (OY - Y) // S
+    raise SystemExit('unknown zone ' + z)
+
+
+def thing_cell(name):
+    for p in spawn_lines():
+        if (p[0].isdigit() and p[1] == name) or (p[0] in ('obj', 'item', 'place') and
+                                                  (p[0] + ':' + p[1] == name or (p[0] == 'place' and p[1] == name))):
+            return int(p[-2]), int(p[-1])
+    raise SystemExit('unknown thing ' + name)
+
+
+def tp_lines(x, y, d):
+    return ['press B', 'wait 2', 'poke16 @pl %x' % x, 'poke16 @pl+2 %x' % y, 'poke16 @pl+4 %x' % (x * 16),
+            'poke16 @pl+6 %x' % (y * 16), 'poke8 @pl+8 %x' % d, 'wait 4']
+
+
+DIRV = {'DOWN': (0, 0, 1), 'UP': (1, 0, -1), 'LEFT': (2, -1, 0), 'RIGHT': (3, 1, 0)}
+
+
 def npc_index(k):          # an index, or the first spawn of a kind (indices shift as NPCs are added)
     if k.isdigit():
         return int(k)
@@ -68,6 +105,22 @@ for line in open(sys.argv[1]):
         x, y, d = int(p[1]), int(p[2]), int(p[3])
         out += ['press B', 'wait 2', 'poke16 @pl %x' % x, 'poke16 @pl+2 %x' % y, 'poke16 @pl+4 %x' % (x * 16),
                 'poke16 @pl+6 %x' % (y * 16), 'poke8 @pl+8 %x' % d, 'wait 4']
+    elif c == 'tpz':
+        x, y = zone_cell(p[1], int(p[2]), int(p[3]))
+        out += tp_lines(x, y, int(p[4]) if p[4].isdigit() else DIRV[p[4]][0])
+    elif c in ('expectat', 'expectwarp'):
+        x, y = (int(p[2]), int(p[3])) if p[1] == 'CELL' else zone_cell(p[1], int(p[2]), int(p[3]))
+        if c == 'expectwarp':
+            d, dx, dy = DIRV[p[4]]
+            x, y, w, step = next((int(q[3]), int(q[4]), int(q[5]), int(q[6])) for q in spawn_lines()
+                                 if q[0] == 'portal' and int(q[1]) == x + dx and int(q[2]) == y + dy)
+            if step:    # arrives mid-stride
+                x, y = x + DIRV[['DOWN', 'UP', 'LEFT', 'RIGHT'][w]][1], y + DIRV[['DOWN', 'UP', 'LEFT', 'RIGHT'][w]][2]
+        out += ['expect16 @pl %x %s_x' % (x, c), 'expect16 @pl+2 %x %s_y' % (y, c)]
+    elif c == 'face':
+        x, y = thing_cell(p[1])
+        d, dx, dy = DIRV[p[2]]
+        out += tp_lines(x - dx, y - dy, d)
     elif c == 'item':
         slot, it = int(p[1]), ITEM[p[2]]
         q = int(p[3]) if len(p) > 3 else 1
@@ -119,7 +172,7 @@ for line in open(sys.argv[1]):
     elif c == 'npcpos':     # npcpos INDEX X Y: put an NPC (index from build/spawns.txt) on a cell
         x, y = int(p[2]), int(p[3])
         base = npc_index(p[1]) * 28
-        cell = y * 208 + x
+        cell = y * 208 + x     # MAP_W
         out += ['poke8 @npcs+0x%x 0' % (base + 3), 'poke16 @npcs+0x%x %x' % (base + 4, x), 'poke16 @npcs+0x%x %x' % (base + 6, y),
                 'poke16 @npcs+0x%x %x' % (base + 8, x * 16), 'poke16 @npcs+0x%x %x' % (base + 10, y * 16),
                 'poke8 @occ_bits+0x%x %x' % ((cell >> 5) * 4 + ((cell & 31) >> 3), 1 << (cell & 7))]

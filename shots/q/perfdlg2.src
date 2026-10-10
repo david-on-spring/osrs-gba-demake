@@ -4,7 +4,7 @@ wait 40
 stage COOK 1
 item 9 EGG
 item 10 BUCKET_MILK
-tp 139 171 2
+face COOK LEFT
 wait 30
 talk
 until8 @ui_wait 1 300
