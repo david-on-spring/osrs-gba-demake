@@ -2917,6 +2917,15 @@ def legacy_obj(x, y, img):
         img[10][4] = WC['FR']
         img[10][9] = WC['FY']
         img[10][11] = WC['CR0']
+    # this art is in the old map colours: use the nearest colours of the HD palette instead
+    pal = set(hd_art.P.values())
+    near = {}
+    for r in img:
+        for i, c in enumerate(r):
+            if c is not None and c not in pal:
+                if c not in near:
+                    near[c] = min(pal, key=lambda d: cdist(c, d))
+                r[i] = near[c]
     return img
 
 
@@ -3040,7 +3049,7 @@ def assign_palette_sets():
 PAL_REGIONS = assign_palette_sets()
 ZONES = [(n, z, LUMBRIDGE.pset if ps is None else ps, pl_) for (n, z, ps, pl_) in ZONES]
 NSETS = max(c.pset for c in CITIES) + 1   # world palette sets: 0 countryside only, then the town groups
-SHARED = int(os.environ.get('WG_SHARED', 8))   # world banks shared by every set
+SHARED = int(os.environ.get('WG_SHARED', 9))   # world banks shared by every set
 meta_imgs = []
 meta_set = []       # palette set of each metatile
 meta_index = {}

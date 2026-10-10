@@ -276,7 +276,7 @@ uploads the ROM as a build artifact. Pushing a `v*` tag builds, tests and attach
 
 | Piece | What it does |
 |---|---|
-| **One world** | The mainland is a single 416×416-cell map (one cell per OSRS tile), with the castle's upper floors placed below it in the same grid, so collision, NPCs, items and quests need no special cases. Eight palette banks are shared by every town; the rest hold a town's own materials and are swapped while the camera approaches it, before any of its tiles come into view. |
+| **One world** | The mainland is a single 416×416-cell map (one cell per OSRS tile), with the castle's upper floors placed below it in the same grid, so collision, NPCs, items and quests need no special cases. Nine of the fourteen world palette banks are shared by every town; the rest hold a town's own materials and are swapped while the camera approaches it, before any of its tiles come into view. |
 | **World streaming** | The map stays in ROM. A reference-counted cache of 576 VRAM tiles is updated one row or column at a time as the camera moves, so the whole mainland fits in video memory with no seams. Stumps and depleted rocks live in a small override table. |
 | **UI canvases** | Two background layers give every screen cell its own tile. Panels and proportional text are drawn per pixel into RAM and streamed to VRAM. A per-scanline HBlank DMA paints the panel gradient, and hardware alpha blending fades the windows in and out. |
 | **Avatar compositing** | 137 layer graphics (bodies, armour, shields, weapons, tools) are stacked into a 32×32 sprite whenever your gear or pose changes, then recoloured by metal tier through the palette. |

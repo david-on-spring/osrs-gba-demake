@@ -1415,7 +1415,7 @@ def obj_cliff(env, x, y, base):
             c = (P['c0'], P['c1'], P['c0'], P['c4'], P['c0'])[shade]
             if (px + (4 if (py // 4 + v) % 2 else 0)) % 8 == 7 or py % 4 == 3:
                 c = P['c2']                                     # cracks between blocks
-            if snowy and not (S and py >= 10) and (hsh(75, px // 2, py // 2, v) % 7 or py < 8):
+            if snowy and not (S and py >= 10):
                 c = P['sn0'] if (px + py * 3 + v) % 13 else P['sn1']
             if S and py >= 10:                                  # the drop: dark face with streaks
                 c = P['c3'] if (px * 3 + v) % 5 else P['c5']
