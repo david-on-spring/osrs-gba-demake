@@ -10,6 +10,17 @@ static int area_region = -1, area_timer;
 static s16 target_npc = -1, cached_target = -1;
 static u8 cached_hp = 255, cached_target_hp = 255;
 static u8 hud_dirty_all = 1, hud_dirty_msg, hud_dirty_xp, hud_dirty_area, hud_dirty_status, hud_dirty_target;
+// After ui_hud_reset the canvases are blank, so the repaint skips clearing the parts' areas
+// (HB_* bits) and is spread over three frames, since the first one usually also closes a
+// window or moves the player: the HP orb, area name and target, then the messages, then the
+// XP drops (their area overlaps the orb's and the messages', so they still clear it, last).
+enum { HB_STATUS = 1, HB_MSG = 2, HB_AREA = 4, HB_TARGET = 8 };
+static u8 hud_blank, hud_step;
+static int hud_was_blank(int bit) {
+    int b = hud_blank & bit;
+    hud_blank &= ~bit;
+    return b;
+}
 
 typedef struct { u8 sk, lvl; } LevelUp;
 static LevelUp lvlq[6];
@@ -65,17 +76,23 @@ static void hud_clear_rect(int x, int y, int w, int h) {
 // health (red liquid on black), with the heart icon drawn over it (see ui_draw_sprites)
 static s16 orb_icon = -1;
 static void hud_draw_status(void) {
-    hud_clear_rect(176, 128, 64, 32);
+    if (!hud_was_blank(HB_STATUS)) hud_clear_rect(176, 128, 64, 32);
     int max = skill_level(SK_HITPOINTS);
     int cx = 222, cy = 143, r = 11;
     int level = (2 * r + 1) * (max - pl.hp) / (max ? max : 1);   // drained rows from the top
-    for (int dy = -r - 1; dy <= r + 1; dy++)
-        for (int dx = -r - 1; dx <= r + 1; dx++) {
-            int d2 = dx * dx + dy * dy;
-            if (d2 > (r + 1) * (r + 1)) continue;
-            int col = d2 > r * r ? PC_EDGE_DIM : d2 > (r - 1) * (r - 1) ? PC_EDGE : dy + r < level ? PC_EDGE_DIM : PC_RED;
-            cv_pset(&cv_panel, cx + dx, cy + dy, col);
-        }
+    // each row is three nested spans, half-widths by |dy| for r = 11: outline (d2 <= (r+1)^2),
+    // rim (d2 <= r^2) and liquid (d2 <= (r-1)^2)
+    static const s8 span[3][13] = {
+        {12, 11, 11, 11, 11, 10, 10, 9, 8, 7, 6, 4, 0},
+        {11, 10, 10, 10, 10, 9, 9, 8, 7, 6, 4, 0, -1},
+        {10, 9, 9, 9, 9, 8, 8, 7, 6, 4, 0, -1, -1},
+    };
+    for (int dy = -r - 1; dy <= r + 1; dy++) {
+        int ady = dy < 0 ? -dy : dy, a = span[0][ady], b = span[1][ady], e = span[2][ady];
+        cv_fill(&cv_panel, cx - a, cy + dy, 2 * a + 1, 1, PC_EDGE_DIM);
+        if (b >= 0) cv_fill(&cv_panel, cx - b, cy + dy, 2 * b + 1, 1, PC_EDGE);
+        if (e >= 0) cv_fill(&cv_panel, cx - e, cy + dy, 2 * e + 1, 1, dy + r < level ? PC_EDGE_DIM : PC_RED);
+    }
     char *p = sbuf;
     sadd_num(p, pl.hp);
     int pct = max ? pl.hp * 100 / max : 0;
@@ -84,7 +101,7 @@ static void hud_draw_status(void) {
 }
 
 static void hud_draw_msgs(void) {
-    hud_clear_rect(0, 116, 150, 44);
+    if (!hud_was_blank(HB_MSG)) hud_clear_rect(0, 116, 150, 44);
     int any = 0, w = 0;
     for (int i = 0; i < 2; i++)
         if (msgs[i].timer) {
@@ -134,7 +151,7 @@ static void hud_draw_xp(void) {
 }
 
 static void hud_draw_area(void) {
-    hud_clear_rect(0, 0, 128, 22);
+    if (!hud_was_blank(HB_AREA)) hud_clear_rect(0, 0, 128, 22);
     if (!area_timer) return;
     const char *name = regions[area_region].name;
     draw_panel(2, 3, text_width(name) + 12, 15, 0);
@@ -145,7 +162,7 @@ static void hud_draw_area(void) {
 static int shown_target(void) { return lock_target >= 0 ? lock_target : target_npc; }
 
 static void hud_draw_target(void) {
-    hud_clear_rect(128, 0, 112, 26);
+    if (!hud_was_blank(HB_TARGET)) hud_clear_rect(128, 0, 112, 26);
     int t = shown_target();
     if (t < 0 || !npcs[t].active) return;
     Npc *n = &npcs[t];
@@ -172,8 +189,10 @@ void ui_hud_reset(void) {
     cv_clear(&cv_text);
     cv_clear(&cv_panel);
     hud_dirty_all = 1;
+    hud_blank = HB_STATUS | HB_MSG | HB_AREA | HB_TARGET;
     cached_hp = 255;
 }
+
 
 void ui_hud_update(void) {
     for (int i = 0; i < 2; i++)
@@ -217,13 +236,26 @@ void ui_hud_update(void) {
     if (hud_dirty_all) {
         hud_dirty_all = 0;
         hud_dirty_msg = hud_dirty_xp = hud_dirty_area = hud_dirty_status = hud_dirty_target = 1;
+        if (hud_blank) hud_step = 2;
+    }
+    u8 hold_msg = 0, hold_xp = 0;   // parts that wait for their frame stay dirty
+    if (hud_step) {
+        hold_xp = hud_dirty_xp;
+        hud_dirty_xp = 0;
+        if (hud_step == 2) {
+            hold_msg = hud_dirty_msg;
+            hud_dirty_msg = 0;
+        }
+        hud_step--;
     }
     if (hud_dirty_status) hud_draw_status();
     if (hud_dirty_msg) hud_draw_msgs();
     if (hud_dirty_xp) hud_draw_xp();
     if (hud_dirty_area) hud_draw_area();
     if (hud_dirty_target) hud_draw_target();
-    hud_dirty_status = hud_dirty_msg = hud_dirty_xp = hud_dirty_area = hud_dirty_target = 0;
+    hud_dirty_status = hud_dirty_area = hud_dirty_target = 0;
+    hud_dirty_msg = hold_msg;
+    hud_dirty_xp = hold_xp;
 
     if (game_state == GS_WORLD) {
         int q = quest_pending();
