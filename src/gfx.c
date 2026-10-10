@@ -65,6 +65,23 @@ static const u16 text_pal[16] = {
 };
 
 static inline u16 rgb5(int r, int g, int b) { return r | (g << 5) | (b << 10); }
+static void build_gradient(void);
+
+static u8 title_pal_on;
+
+// the login screen's grey stone palette and backdrop colours on the panel layer
+void gfx_set_title_palette(int on) {
+    title_pal_on = on;
+    for (int i = 0; i < 16; i++) PAL_BG[i] = on ? title_pal[i] : panel_pal[i];
+    for (int y = 0; y < 161; y++) {
+        if (on) {
+            // login box stone: flat grey with a faint grain
+            int v = 11 + ((y * 7) % 5 == 0 ? -1 : 0);
+            panel_grad[y] = rgb5(v, v, v);
+        }
+    }
+    if (!on) build_gradient();
+}
 
 static void build_gradient(void) {
     // OSRS stone: warm brown, a touch lighter at the top, every fourth line a shade darker
@@ -445,7 +462,7 @@ void gfx_vblank(void) {
         upload_palettes();
         pal_pending = 0;
     }
-    PAL_BG[PC_HL1] = hl_color;
+    if (!title_pal_on) PAL_BG[PC_HL1] = hl_color;
 
     REG_MOSAIC = mosaic_n | (mosaic_n << 4) | (mosaic_n << 8) | (mosaic_n << 12);
     REG_BLDCNT = (ui_text_blend ? 0x0003 : 0x0002) | 0x0040 | 0x3E00;

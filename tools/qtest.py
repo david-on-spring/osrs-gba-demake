@@ -10,6 +10,8 @@ Adds to the harness commands:
   xp SKILL TENTHS        set a skill's XP (tenths)
   page [N]               let N dialogue pages type out and continue (default 1)
   choose K               pick option K (0-based) in a choice box
+  newgame [NAME]         from the login screen: New User, type NAME (default A), first empty slot
+  loadgame [N]           from the login screen: Existing User, slot N (default: first used)
   talk                   press A and give the dialogue a moment to open
   dumpq                  dump quest stages and vars
   dlg                    continue pages until a choice box, a popup or the end of the dialogue
@@ -19,7 +21,7 @@ Adds to the harness commands:
   expectitem SLOT NAME   PASS/FAIL check of an inventory slot
   expecthas NAME         PASS/FAIL check that the item is anywhere in the inventory
   hp N                   set current hitpoints
-  npcpos I X Y           move NPC I (see build/spawns.txt) to a cell (for wandering NPCs)
+  npcpos I|KIND X Y      move NPC I (see build/spawns.txt), or the first of a kind, to a cell
 Player field offsets come from src/game.h's layout (checked against the map symbols)."""
 import os
 import re
@@ -41,6 +43,7 @@ SKILLS = ['ATTACK', 'STRENGTH', 'DEFENCE', 'HITPOINTS', 'PRAYER', 'WOODCUTTING',
 EQ = ['HEAD', 'WEAPON', 'BODY', 'SHIELD', 'LEGS', 'FEET', 'NECK']
 OFF_XP, OFF_INV, OFF_EQUIP, OFF_QSTAGE, OFF_QVAR = 0x20, 0x48, 0xB8, 0x24C, 0x25C
 
+KB = ['ABCDEFGHIJKLM', 'NOPQRSTUVWXYZ', 'abcdefghijklm', 'nopqrstuvwxyz', '0123456789 -_']   # src/ui.c kb_keys
 out = []
 for line in open(sys.argv[1]):
     p = line.split()
@@ -88,7 +91,12 @@ for line in open(sys.argv[1]):
     elif c == 'expecthas':  # expecthas NAME: the item is somewhere in the inventory
         out.append('expectinv @pl+0x%x %x has_%s' % (OFF_INV, ITEM[p[1]], p[1]))
     elif c == 'npcpos':     # npcpos INDEX X Y: put an NPC (index from build/spawns.txt) on a cell
-        i, x, y = int(p[1]), int(p[2]), int(p[3])
+        x, y = int(p[2]), int(p[3])
+        if p[1].isdigit():
+            i = int(p[1])
+        else:               # npcpos KIND X Y: the first spawn of that kind (indices shift as NPCs are added)
+            i = next(int(ln.split()[0]) for ln in open(os.path.join(root, 'build/spawns.txt'))
+                     if ln.split()[1] == p[1])
         base = i * 28
         cell = y * 208 + x
         out += ['poke8 @npcs+0x%x 0' % (base + 3), 'poke16 @npcs+0x%x %x' % (base + 4, x), 'poke16 @npcs+0x%x %x' % (base + 6, y),
@@ -96,6 +104,14 @@ for line in open(sys.argv[1]):
                 'poke8 @occ_bits+0x%x %x' % ((cell >> 5) * 4 + ((cell & 31) >> 3), 1 << (cell & 7))]
     elif c == 'hp':
         out.append('poke8 @pl+0x16 %x' % int(p[1]))
+    elif c == 'newgame':    # login screen: New User, name "A" (or the given name), first empty slot
+        out += ['press A', 'wait 6']
+        for ch in (p[1] if len(p) > 1 else 'A'):
+            k = next((r, row.index(ch)) for r, row in enumerate(KB) if ch in row)
+            out += ['press DOWN'] * k[0] + ['press RIGHT'] * k[1] + ['press A'] + ['press UP'] * k[0] + ['press LEFT'] * k[1]
+        out += ['press START', 'wait 6', 'press A']
+    elif c == 'loadgame':   # login screen: Existing User, slot N (default: the first used one)
+        out += ['press A', 'wait 6'] + ['press DOWN'] * (int(p[1]) - 1 if len(p) > 1 else 0) + ['press A']
     elif c == 'talk':
         out += ['press A', 'wait 4']
     elif c == 'dumpq':

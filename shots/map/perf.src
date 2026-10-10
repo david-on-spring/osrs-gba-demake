@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 100
 poke16 @perf_max 0
 tp 120 140 3

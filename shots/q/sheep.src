@@ -1,9 +1,9 @@
 wait 60
-press A
+newgame
 world
 # shear a sheep right away (sheep wander), with shears from the general store
 item 9 SHEARS
-npcpos 160 139 146
+npcpos SHEEP 139 146
 tp 139 145 0
 press A
 wait 10

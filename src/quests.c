@@ -115,6 +115,45 @@ static void complete(int q) {
     if (npending < QUEST_COUNT) pending[npending++] = q;
 }
 
+// "You've spent 1 day, 4 hours, 12 minutes in the world..." wrapped into dialogue lines
+static char playtime_text[160];
+static const char *playtime_page(void) {
+    u32 mins = pl.playtime / 3600;
+    u32 d = mins / 1440, h = mins / 60 % 24, m = mins % 60;
+    char buf[160], n[12];
+    char *p = buf;
+    const char *a = "You've spent ";
+    while (*a) *p++ = *a++;
+    const u32 v[3] = {d, h, m};
+    const char *const unit[3] = {" day", " hour", " minute"};
+    for (int i = 0; i < 3; i++) {
+        fmt_int(n, v[i]);
+        for (char *q = n; *q;) *p++ = *q++;
+        for (const char *q = unit[i]; *q;) *p++ = *q++;
+        if (v[i] != 1) *p++ = 's';
+        *p++ = i < 1 ? ',' : i < 2 ? ' ' : ' ';
+        if (i == 0) *p++ = ' ';
+        if (i == 1) {
+            *p++ = 'a';
+            *p++ = 'n';
+            *p++ = 'd';
+            *p++ = ' ';
+        }
+    }
+    a = "in the world since you first arrived.";
+    while (*a) *p++ = *a++;
+    *p = 0;
+    char lines[3][48];
+    int nl = text_wrap(buf, 172, lines, 3);
+    p = playtime_text;
+    for (int i = 0; i < nl; i++) {
+        if (i) *p++ = '\n';
+        for (char *q = lines[i]; *q;) *p++ = *q++;
+    }
+    *p = 0;
+    return playtime_text;
+}
+
 int qvm_step(DlgEvent *ev) {
     int guard = 4000;
     while (vm.pc != VM_IDLE && guard--) {
@@ -128,6 +167,12 @@ int qvm_step(DlgEvent *ev) {
             ev->speaker = c[1] == 0xFF ? (vm.kind != 0xFF ? vm.kind : SPK_NONE) : c[1];
             ev->text = quest_str[rd16(pc + 2)];
             vm.pc = pc + 4;
+            return 1;
+        case OP_PLAYTIME:
+            ev->type = DLG_SAY;
+            ev->speaker = vm.kind != 0xFF ? vm.kind : SPK_NONE;
+            ev->text = playtime_page();
+            vm.pc = pc + 1;
             return 1;
         case OP_CHAT: msg_col(quest_str[rd16(pc + 2)], c[1]); vm.pc = pc + 4; break;
         case OP_CHOICE:

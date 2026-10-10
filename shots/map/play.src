@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 30
 tp 71 36 0
 poke16 @pl+0x34 c50c

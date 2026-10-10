@@ -1,6 +1,6 @@
 wait 60
 shot shots/q/load_title.png
-press A
+loadgame
 wait 40
 expectq GHOST 2
 expecthas GHOSTSPEAK

@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 30
 clearinv
 item 0 EGG

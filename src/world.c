@@ -216,6 +216,7 @@ void world_init(void) {
     for (int i = 0; i < MAX_SPLATS; i++) splats[i].timer = 0;
     for (int i = 0; i < ITEM_SPAWN_COUNT; i++) ispawn_timer[i] = 1;
     for (int i = 0; i < NPC_KIND_COUNT; i++) kind_vis[i] = 1;   // every spawn starts active
+    shops_reset();
     world_refresh_npcs();
     gfx_mark_world_dirty();
 }
@@ -226,10 +227,17 @@ void npc_set_active(int i, int on) {
     Npc *n = &npcs[i];
     if (on == n->active) return;
     if (on) {
-        if (!free_tile(n->hx, n->hy)) return;
+        // a wanderer may be standing on the spot: use the nearest free cell instead
+        int sx = -1, sy = -1;
+        for (int r = 0; r <= 2 && sx < 0; r++)
+            for (int dy = -r; dy <= r && sx < 0; dy++)
+                for (int dx = -r; dx <= r && sx < 0; dx++)
+                    if ((dx == r || dx == -r || dy == r || dy == -r) && free_tile(n->hx + dx, n->hy + dy))
+                        sx = n->hx + dx, sy = n->hy + dy;
+        if (sx < 0) return;
         n->active = 1;
-        n->x = n->hx;
-        n->y = n->hy;
+        n->x = sx;
+        n->y = sy;
         n->px = n->x * 16;
         n->py = n->y * 16;
         n->hp = npc_defs[n->kind].hp;
@@ -1258,6 +1266,7 @@ static void game_tick(void) {
         else if (!--ispawn_timer[i]) drop_item(sp->x, sp->y, sp->item, 1);
     }
 
+    shops_tick();
     world_refresh_npcs();   // cheap; catches stage changes made outside scripts
     if (++regen_ticks >= 60) {
         regen_ticks = 0;

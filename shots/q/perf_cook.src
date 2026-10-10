@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 40
 poke16 @perf_max 0
 # --- talk to the Cook in the castle kitchen

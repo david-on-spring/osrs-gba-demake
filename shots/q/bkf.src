@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 40
 # too few quest points first
 tp 21 105 1

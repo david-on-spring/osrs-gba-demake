@@ -1,5 +1,5 @@
 wait 60
-press A
+newgame
 wait 40
 # start The Restless Ghost and get the amulet, then save mid-quest
 tp 156 171 3
