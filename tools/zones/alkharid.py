@@ -1,6 +1,6 @@
 # Al Kharid at 1:1 (with the Lumbridge toll gate on its western fence). Run by tools/world_gen.py in its
 # namespace (see tools/zones/README.md).
-ALKHARID = city('ALKHARID', (3262, 3142, 3330, 3235), 136, 300, 4)
+ALKHARID = city('ALKHARID', (3262, 3142, 3330, 3235))
 set_ctx(ALKHARID.ctx)
 B = build_from_ref(load_ref('alkharid'), dict(stone='WWALL', wood='WWALL', road='PATH', sand='DESERT', fence='FENCE',
                                               roof_stone='slate', roof_wood='slate', tree='PALM', desert=True,

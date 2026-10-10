@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 40
-tpz OVERWORLD 2966 3212 UP
+tpz OVERWORLD 2964 3213 UP
 talk
 dlg
 choose 0
@@ -11,13 +11,13 @@ dlg
 world
 expectq WITCH 1
 # onion from Fred's field
-tpz OVERWORLD 3210 3292 LEFT
+tpz OVERWORLD 3210 3293 LEFT
 press A
 wait 10
 expectitem 9 ONION
 # burn some cooked meat on the castle range
 item 10 COOKED_MEAT
-tpz LUMBRIDGE 3206 3215 UP
+tpz OVERWORLD 3206 3215 UP
 press A
 wait 10
 expectitem 10 BURNT_MEAT
@@ -25,12 +25,12 @@ expectitem 10 BURNT_MEAT
 item 11 EYE_NEWT
 # a rat north of Rimmington: fight it for its tail
 item 12 RAT_TAIL
-tpz OVERWORLD 2966 3212 UP
+tpz OVERWORLD 2964 3213 UP
 talk
 dlg
 world
 expectq WITCH 2
-tpz OVERWORLD 2966 3212 RIGHT
+tpz OVERWORLD 2968 3213 RIGHT
 press A
 dlg
 done

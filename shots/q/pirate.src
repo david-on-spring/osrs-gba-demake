@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 40
-tpz OVERWORLD 3028 3224 UP
+tpz OVERWORLD 3029 3225 UP
 talk
 dlg
 choose 0
@@ -9,7 +9,7 @@ dlg
 world
 expectq PIRATE 1
 item 8 COINS 100
-tpz OVERWORLD 3044 3234 UP
+tpz OVERWORLD 3045 3235 UP
 talk
 dlg
 choose 0
@@ -18,7 +18,7 @@ choose 0
 dlg
 world
 expectitem 9 RUM
-tpz OVERWORLD 3028 3224 UP
+tpz OVERWORLD 3029 3225 UP
 talk
 dlg
 world

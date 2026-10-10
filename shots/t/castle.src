@@ -2,7 +2,7 @@ wait 60
 newgame
 wait 60
 # ground floor north-west staircase -> first floor -> second floor (the bank)
-tpz LUMBRIDGE 3205 3229 LEFT
+tpz OVERWORLD 3205 3229 LEFT
 press LEFT
 wait 40
 expectat CASTLE_1 3205 3229
@@ -22,20 +22,20 @@ press LEFT
 choose 1
 wait 40
 expectat LUMBRIDGE 3205 3205
-# out of town to the west (the 1:2 overworld) and back in
-tpz LUMBRIDGE 3197 3244 LEFT
+# out of town to the west and back in: one world, no warp
+tpz LUMBRIDGE 3187 3245 LEFT
 press LEFT
 wait 40
-expectwarp LUMBRIDGE 3197 3244 LEFT
-tpz OVERWORLD 3194 3244 RIGHT
+expectat OVERWORLD 3186 3245
+tpz OVERWORLD 3186 3245 RIGHT
 press RIGHT
 wait 40
-expectwarp CELL 133 154 RIGHT
+expectat OVERWORLD 3187 3245
 # the graveyard's south gate opens onto the swamp
-tpz LUMBRIDGE 3243 3190 DOWN
+tpz OVERWORLD 3243 3190 DOWN
 press DOWN
 wait 12
 press DOWN
 wait 40
-expectwarp LUMBRIDGE 3243 3189 DOWN
+expectat OVERWORLD 3243 3188
 shot shots/t/castle_swamp.png

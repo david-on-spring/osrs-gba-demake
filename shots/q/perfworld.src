@@ -8,11 +8,11 @@ dump @snd_play_frame 2
 hold RIGHT+B 300
 hold UP+B 300
 hold DOWN 200
-tpz VARROCK 3228 3432 RIGHT
+tpz OVERWORLD 3228 3432 RIGHT
 wait 10
 hold LEFT+B 300
 hold DOWN+B 300
-tpz LUMBRIDGE 3222 3218 0
+tpz OVERWORLD 3222 3218 DOWN
 hold DOWN+B 200
 hold RIGHT+B 300
 dump @frame 2

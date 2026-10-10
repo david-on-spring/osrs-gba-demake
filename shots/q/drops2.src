@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 40
-tpz LUMBRIDGE 3224 3220 3
+tpz OVERWORLD 3224 3220 RIGHT
 wait 30
 dump @snd_stats+4 1
 press A

@@ -1,5 +1,5 @@
 # Falador at 1:1. Run by tools/world_gen.py in its namespace (see tools/zones/README.md).
-FALADOR = city('FALADOR', (2935, 3307, 3065, 3398), 0, 448, 5)
+FALADOR = city('FALADOR', (2935, 3307, 3065, 3398))
 set_ctx(FALADOR.ctx)
 B = build_from_ref(load_ref('falador'), dict(stone='WWALL', wood='WWALL', road='COBBLE', fence='FENCE', city='WWALL',
                                              roof_stone='red', roof_wood='red', oaks=True))

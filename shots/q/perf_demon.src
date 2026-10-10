@@ -22,7 +22,7 @@ dlg
 world
 expecthas KEY_ROVIN
 # Wizard Traiborn: 25 bones
-tpz OVERWORLD 3110 3156 RIGHT
+tpz OVERWORLD 3111 3156 RIGHT
 talk
 dlg
 world
@@ -54,13 +54,13 @@ item 23 BONES 1
 item 24 BONES 1
 item 25 BONES 1
 item 26 BUCKET
-tpz OVERWORLD 3110 3156 RIGHT
+tpz OVERWORLD 3111 3156 RIGHT
 talk
 dlg
 world
 expecthas KEY_TRAIBORN
 # fill the bucket at the Varrock Square fountain, pour it down the drain east of the palace
-tpz VARROCK 3209 3428 RIGHT
+tpz OVERWORLD 3209 3428 RIGHT
 press A
 wait 10
 expecthas BUCKET_WATER
@@ -83,7 +83,7 @@ xp STRENGTH 300000
 xp DEFENCE 300000
 xp HITPOINTS 300000
 hp 40
-tpz OVERWORLD 3222 3370 RIGHT
+tpz OVERWORLD 3224 3370 RIGHT
 wait 2
 press A
 wait 60
@@ -99,7 +99,7 @@ dlg
 world
 dumpq
 expectq DEMON 3
-tpz OVERWORLD 3222 3370 RIGHT
+tpz OVERWORLD 3224 3370 RIGHT
 wait 2
 press A
 until8 @ui_wait 1 6000

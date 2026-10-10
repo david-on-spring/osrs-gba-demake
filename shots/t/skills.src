@@ -8,7 +8,7 @@ item 1 TINDERBOX
 xp WOODCUTTING 0
 xp FIREMAKING 0
 # --- Woodcutting: tree west of Lumbridge castle
-tpz LUMBRIDGE 3198 3222 LEFT
+tpz OVERWORLD 3198 3222 LEFT
 press A
 until8 @pl+0x58 2 3000
 world
@@ -16,7 +16,7 @@ expectitem 2 LOGS
 expectxp WOODCUTTING 250
 shot shots/t/skills_chop.png
 # --- Firemaking: START, Inventory, slot 2, Light
-tpz LUMBRIDGE 3200 3222 LEFT
+tpz OVERWORLD 3200 3222 LEFT
 press START
 wait 24
 press A
@@ -34,7 +34,7 @@ shot shots/t/skills_fire.png
 # --- Cooking: raw shrimp on the castle kitchen range (level 40: no burning)
 xp COOKING 400000
 item 3 RAW_SHRIMP
-tpz LUMBRIDGE 3206 3215 UP
+tpz OVERWORLD 3206 3215 UP
 press A
 until8 @pl+0x5c f 1000
 world

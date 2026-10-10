@@ -4,7 +4,7 @@ world
 # shear a sheep right away (sheep wander), with shears from the general store
 item 9 SHEARS
 npcpos SHEEP OVERWORLD 3206 3260
-tpz OVERWORLD 3206 3262 DOWN
+tpz OVERWORLD 3206 3261 DOWN
 press A
 wait 10
 expectitem 10 WOOL
@@ -25,7 +25,7 @@ dlg
 world
 expectq SHEEP 1
 # shears from Fred's table
-tpz OVERWORLD 3186 3276 UP
+tpz OVERWORLD 3185 3277 UP
 press A
 wait 10
 expectitem 9 SHEARS

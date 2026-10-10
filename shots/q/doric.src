@@ -1,7 +1,7 @@
 wait 60
 newgame
 wait 40
-tpz OVERWORLD 2952 3450 LEFT
+tpz OVERWORLD 2949 3452 LEFT
 talk
 dlg
 choose 0
@@ -29,7 +29,7 @@ item 18 COPPER_ORE
 item 19 COPPER_ORE
 item 20 IRON_ORE
 item 21 IRON_ORE
-tpz OVERWORLD 2952 3450 LEFT
+tpz OVERWORLD 2949 3452 LEFT
 talk
 dlg
 done

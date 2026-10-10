@@ -25,9 +25,11 @@ on a 16.78 MHz handheld, with OSRS-style stone menus, a parchment chatbox and th
 
 ## Features
 
-### Towns at full scale, the countryside at 1:2
+### The whole mainland at full scale
 
-The six towns are rebuilt at OSRS's own scale, one tile per tile: Lumbridge, Varrock, Falador,
+The world is one seamless map at OSRS's own scale, one tile per tile: you walk from the fields
+into a town and out again with no loading screen or fade. The six towns are rebuilt in detail:
+Lumbridge, Varrock, Falador,
 Draynor Village, Al Kharid and Edgeville. Their streets, buildings, rooms, doors, fences, trees and
 water are traced from the OSRS world map, and each town has its own materials: Lumbridge's grey
 stone and red roofs, Varrock's brick and gilded slate around the Square's fountain, Falador's white
@@ -39,10 +41,10 @@ Lumbridge Castle has all three floors: the kitchen and chequered great hall on t
 Duke Horacio's bedroom and the spinning wheel on the first, and the bank on the second, linked by the
 spiral staircases in the north-west and south-west towers.
 
-Between the towns lies a 208×208-cell recreation of the free-to-play mainland at half scale: the
-Wizards' Tower, Port Sarim, Rimmington, Ice Mountain, Barbarian Village, the Wilderness ditch, the
-Grand Exchange and the desert. Walking off a town's edge carries you onto the big map and back; the
-map is streamed tile by tile, so there are no loading screens beyond a short fade.
+Between the towns lies the rest of the free-to-play mainland, 416×416 tiles: the Wizards' Tower,
+Port Sarim, Rimmington, Ice Mountain, Barbarian Village, the Wilderness ditch, the Grand Exchange
+and the desert. The map is streamed tile by tile as you walk, so the only fades are the castle's
+staircases.
 
 <table>
 <tr>
@@ -274,7 +276,7 @@ uploads the ROM as a build artifact. Pushing a `v*` tag builds, tests and attach
 
 | Piece | What it does |
 |---|---|
-| **Zones** | The towns are separate 1:1 maps placed below the overworld in one 256×560-cell grid, so collision, NPCs, items and quests need no special cases. A ring of portal cells around each town in both maps moves you between them with a short fade, and each zone loads its own world palette set. |
+| **One world** | The mainland is a single 416×416-cell map (one cell per OSRS tile), with the castle's upper floors placed below it in the same grid, so collision, NPCs, items and quests need no special cases. Eight palette banks are shared by every town; the rest hold a town's own materials and are swapped while the camera approaches it, before any of its tiles come into view. |
 | **World streaming** | The map stays in ROM. A reference-counted cache of 576 VRAM tiles is updated one row or column at a time as the camera moves, so the whole mainland fits in video memory with no seams. Stumps and depleted rocks live in a small override table. |
 | **UI canvases** | Two background layers give every screen cell its own tile. Panels and proportional text are drawn per pixel into RAM and streamed to VRAM. A per-scanline HBlank DMA paints the panel gradient, and hardware alpha blending fades the windows in and out. |
 | **Avatar compositing** | 137 layer graphics (bodies, armour, shields, weapons, tools) are stacked into a 32×32 sprite whenever your gear or pose changes, then recoloured by metal tier through the palette. |

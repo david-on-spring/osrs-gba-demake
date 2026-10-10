@@ -94,7 +94,7 @@ static u32 checksum(const u8 *p, int n) {
 // Slot k at SLOT_BASE(k): magic (4) | version (2) | pad (2) | size (2) | pad (2) | name (16) |
 // Player | checksum (4, over name + Player). The old single save at offset 0 (versions 1-2)
 // is copied into slot 1 the first time the login screen sees it (and left in place).
-#define SLOT_VERSION 4
+#define SLOT_VERSION 5             // 5: the seamless 1:1 world (cells changed meaning; older saves start in Lumbridge)
 #define SLOT_BASE(k) (0x1000 * ((k) + 1))
 #define SLOT_NAME 12
 #define SLOT_PLAYER 28
@@ -127,7 +127,7 @@ static int slot_read(int k) {
     sram_read(b + 8, &size, 2);
     if (magic != SAVE_MAGIC) return 0;
     int v3 = ver == 3 && size == sizeof(PlayerV3);
-    if (!v3 && (ver != SLOT_VERSION || size != sizeof(Player))) return 0;
+    if (!v3 && ((ver != SLOT_VERSION && ver != 4) || size != sizeof(Player))) return 0;
     void *dst = v3 ? (void *)&slot_v3 : (void *)&slot_tmp;
     sram_read(b + SLOT_NAME, slot_name_tmp, 16);
     sram_read(b + SLOT_PLAYER, dst, size);
@@ -139,6 +139,10 @@ static int slot_read(int k) {
         from_v3(&slot_v3);
         slot_tmp = pl;
         pl = keep;
+    }
+    if (ver != SLOT_VERSION) {           // saved on the old map layout
+        slot_tmp.x = START_X;
+        slot_tmp.y = START_Y;
     }
     return 1;
 }
@@ -178,6 +182,8 @@ void save_migrate(void) {
     int any = 0;
     for (int k = 0; k < SAVE_SLOTS; k++) any |= slot_read(k);
     if (any || !legacy_load()) return;
+    pl.x = START_X;                      // the old map layout
+    pl.y = START_Y;
     const char *d = "Adventurer";
     int i = 0;
     for (; d[i]; i++) player_name[i] = d[i];

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Remastered terrain art for the 1:1 zones (Lumbridge and the castle floors).
+"""World art: terrain, buildings, roofs and objects for every map cell.
 
-Imported by world_gen.py, which calls render(wg, x, y) for every zone cell and roof_images(wg, g)
-for every roof group. Images are 16x16 lists of rows of 5-bit (r, g, b) tuples, None = transparent.
+Imported by world_gen.py, which calls render(wg, x, y) for every cell and roof_images(wg, g) for
+every roof group. A few countryside objects come from world_gen.legacy_obj(). Images are 16x16 lists of rows of 5-bit (r, g, b) tuples, None = transparent.
 
 Style: a GBA-era 3/4 view (FireRed/LeafGreen, Golden Sun) over 2007 OSRS colours and geometry.
   - terrain classes blend through a bilinear field over the 3x3 cell neighbourhood with a fixed
@@ -60,6 +60,8 @@ P = {k: c5(v) for k, v in dict(
     # bits
     out='#1c1814', fy='#f8e058', fw='#f8f8f0', fr='#e05050', fp='#c070d8', ir0='#3c3c40', ir1='#5c5c64',
     fi0='#f08020', fi1='#f8d040', paper='#f0e8d0', hd0='#3a7a2c', hd1='#4e9636', hd2='#6cb44a', hd3='#2a5a22',
+    # Wilderness earth, Ice Mountain snow
+    wd0='#4e4232', wd1='#605040', wd2='#342a1e', wd3='#78703e', sn0='#e8eef4', sn1='#c8d4e0', sn2='#9cacbc',
 ).items()}
 
 # shared ramps: aliases keep the zone palette (14 banks of 15 colours) packable
@@ -82,6 +84,8 @@ WATER_SWAP = (P['w1'], P['w2'])
 # ----------------------------------------------------------------------------------------
 BASE = dict(P)
 THEMES = {
+    # the countryside between the towns: Lumbridge's materials, timber bridges
+    'OVERWORLD': dict(colours={}, window='blue', fence='wood'),
     # grey stone castle and houses with red-brown tile roofs, stone bridge, blue banners
     'LUMBRIDGE': dict(colours={}, window='blue', fence='wood', bridge='stone', banner=True),
     # pale grey paving, grey brick, slate roofs with gold trim, green stained glass
@@ -156,8 +160,9 @@ def paste(dst, src, ox=0, oy=0):
 # Terrain field
 # ----------------------------------------------------------------------------------------
 CLASS = {'GRASS': 'grass', 'FLOWERS': 'grass', 'FERN': 'grass', 'PATH': 'path', 'BRIDGE': 'path', 'SWAMP': 'swamp',
-         'SAND': 'sand', 'DESERT': 'sand', 'COBBLE': 'cobble', 'DITCH': 'path', 'WATER': 'water'}
-RANK = {'water': 0, 'swamp': 1, 'sand': 2, 'path': 3, 'cobble': 4, 'grass': 5}
+         'SAND': 'sand', 'DESERT': 'sand', 'COBBLE': 'cobble', 'DITCH': 'wild', 'WATER': 'water', 'WILD': 'wild',
+         'SNOW': 'snow'}
+RANK = {'water': 0, 'swamp': 1, 'sand': 2, 'path': 3, 'cobble': 4, 'grass': 5, 'wild': 6, 'snow': 7}
 INTERIOR = {'FLOOR', 'WOODFLOOR', 'CARPET', 'CHECKER', 'RUG'}
 # fixed dither, 16x16, values -0.5..0.5 (one table for every cell, so tiles repeat)
 DITHER = [[((hsh(91, x, y) & 255) / 255.0 - 0.5) for x in range(16)] for y in range(16)]
@@ -307,13 +312,39 @@ def build_tables():
              'path': {P['p0']: P['ps'], P['p1']: P['p2'], P['p2']: P['p3'], P['p3']: P['p3']},
              'swamp': {P['s0']: P['ss'], P['s1']: P['s2'], P['s2']: P['ss'], P['s3']: P['s2']},
              'cobble': {P['cb0']: P['cb2'], P['cb1']: P['cb0'], P['cb2']: P['cb3'], P['cb3']: P['cb3']},
-             'sand': {P['ds0']: P['ds2'], P['ds1']: P['ds0'], P['ds2']: P['ds3'], P['ds3']: P['ds3']}}
-    RIM = {'grass': P['g2'], 'path': P['p3'], 'swamp': P['s2'], 'cobble': P['cb3'], 'sand': P['ds3']}
+             'sand': {P['ds0']: P['ds2'], P['ds1']: P['ds0'], P['ds2']: P['ds3'], P['ds3']: P['ds3']},
+             'wild': {P['wd0']: P['wd2'], P['wd1']: P['wd0'], P['wd3']: P['wd1']},
+             'snow': {P['sn0']: P['sn1'], P['sn1']: P['sn2']}}
+    RIM = {'grass': P['g2'], 'path': P['p3'], 'swamp': P['s2'], 'cobble': P['cb3'], 'sand': P['ds3'], 'wild': P['wd2'],
+           'snow': P['sn2']}
     WATER_SWAP = (P['w1'], P['w2'])
 
 
 build_tables()
-GPX = {'grass': grass_px, 'path': path_px, 'swamp': swamp_px, 'cobble': cobble_px, 'sand': sand_px}
+def wild_px(px, py, tx, ty):
+    """Wilderness: dark trampled earth with dead grass."""
+    lx, ly = px & 7, py & 7
+    v = hsh(41, tx, ty) % 4
+    h = hsh(43, lx, ly, v) % 100
+    if h < 8:
+        return P['wd2']
+    if h < 20:
+        return P['wd1']
+    if h < 24 and v:
+        return P['wd3']
+    return P['wd0']
+
+
+def snow_px(px, py, tx, ty):
+    lx, ly = px & 7, py & 7
+    v = hsh(47, tx, ty) % 3
+    if (ly * 3 + lx + v * 2) % 11 == 0:
+        return P['sn1']
+    return P['sn0']
+
+
+GPX = {'grass': grass_px, 'path': path_px, 'swamp': swamp_px, 'cobble': cobble_px, 'sand': sand_px, 'wild': wild_px,
+       'snow': snow_px}
 
 
 def water_px(px, py, tx, ty):
@@ -1369,6 +1400,35 @@ def obj_vfountain(env, x, y, base):
     return img
 
 
+def obj_cliff(env, x, y, base):
+    """Rock outcrop (Ice Mountain, the Al Kharid mine): flat-topped stone blocks with cracks, a
+    darker face where the rock drops to open ground; snow-capped on snowy ground."""
+    img = [r[:] for r in base]
+    nb = lambda dx, dy: env.t(x + dx, y + dy) == 'CLIFF'
+    snowy = env.g(x, y) == 'SNOW'
+    v = hsh(71, x, y) % 4
+    S, N = not nb(0, 1), not nb(0, -1)
+    for py in range(16):
+        for px in range(16):
+            bx, by = (px + (4 if (py // 4 + v) % 2 else 0)) // 8, py // 4
+            shade = hsh(73, bx, by, v) % 5
+            c = (P['c0'], P['c1'], P['c0'], P['c4'], P['c0'])[shade]
+            if (px + (4 if (py // 4 + v) % 2 else 0)) % 8 == 7 or py % 4 == 3:
+                c = P['c2']                                     # cracks between blocks
+            if snowy and not (S and py >= 10) and (hsh(75, px // 2, py // 2, v) % 7 or py < 8):
+                c = P['sn0'] if (px + py * 3 + v) % 13 else P['sn1']
+            if S and py >= 10:                                  # the drop: dark face with streaks
+                c = P['c3'] if (px * 3 + v) % 5 else P['c5']
+                if py == 10:
+                    c = P['c2']
+            if N and py == 0:
+                c = P['sn1'] if snowy else P['c4']
+            if not nb(-1, 0) and px == 0 or not nb(1, 0) and px == 15:
+                c = P['c3'] if not snowy or (S and py >= 10) else P['sn2']
+            img[py][px] = c
+    return img
+
+
 def obj_cactus(base, gshade):
     img = [r[:] for r in base]
     shadow_ellipse(img, 9, 14.5, 5, 1.8, gshade)
@@ -1797,6 +1857,10 @@ def render(wg, x, y, quest_art=None):
         for px in range(5, 11):
             stump[8][px] = P['th1'] if 6 <= px <= 9 else P['h1']
         paste(base, outline(stump, P['c5']))
+    elif t == 'CLIFF':
+        base = obj_cliff(env, x, y, base)
+    elif t in wg.LEGACY_OBJS:
+        base = wg.legacy_obj(x, y, base)
     elif quest_art and t in quest_art:
         paste(base, quest_art[t])
     return base, over

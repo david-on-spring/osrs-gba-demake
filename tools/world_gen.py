@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""World map generator: a scaled recreation of the OSRS free-to-play mainland.
+"""World map generator: a recreation of the OSRS free-to-play mainland at full scale.
 
-Scale: one map cell = 2x2 OSRS tiles. The map covers OSRS x 2928..3343 and y 3137..3552
-(208 x 208 cells). Everything is authored in real OSRS coordinates with drawing primitives
+Scale: one map cell = one OSRS tile. The overworld covers OSRS x 2928..3343 and y 3136..3551
+(416 x 416 cells); upper floors sit in rows below it. Everything is authored in real OSRS coordinates with drawing primitives
 (polygons, polylines, rectangles, buildings, scatter), then rendered into 16x16 cell images,
 cut into 8x8 tiles, deduplicated and palette-packed.
 
@@ -89,22 +89,23 @@ for _a, _b in (('H0', 'K1'), ('H2', 'K2'), ('C0', 'F1'), ('C2', 'F0'), ('S0', 'D
 # ----------------------------------------------------------------------------------------
 # Map geometry
 # ----------------------------------------------------------------------------------------
-# The cell grid holds the overworld (rows 0..207, 1 cell = 2x2 OSRS tiles) and, below it, the
-# 1:1 zones (Lumbridge and the castle's upper floors; see ZONES). Authoring primitives work in
+# The cell grid holds the overworld (rows 0..415, 1 cell = 1 OSRS tile) and, below it, the
+# upper floors (the castle's first and second floors; see ZONES). Authoring primitives work in
 # real OSRS coordinates through the current context (origin, scale, cell offset and clip rect).
-MW = 256
-OW_W = OW_H = 208           # the overworld: cells 0..207 in both directions
-ZONE_Y = 212                # first row of the zone area
-MH = 560
+MW = 416
+OW_W = OW_H = 416           # the overworld: cells 0..415 in both directions
+ZONE_Y = 420                # first row of the upper floors
+MH = 460
 
 
 class Ctx:
-    def __init__(self, OX, OY, S, CX0, CY0, X0, Y0, X1, Y1):
+    def __init__(self, OX, OY, S, CX0, CY0, X0, Y0, X1, Y1, excl=()):
         self.OX, self.OY, self.S, self.CX0, self.CY0 = OX, OY, S, CX0, CY0
         self.X0, self.Y0, self.X1, self.Y1 = X0, Y0, X1, Y1
+        self.excl = list(excl)      # cell rects inside the clip rect that stay untouched (other towns)
 
 
-OW = Ctx(2928, 3552, 2, 0, 0, 0, 0, OW_W - 1, OW_H - 1)
+OW = Ctx(2928, 3551, 1, 0, 0, 0, 0, OW_W - 1, OW_H - 1)
 CTX = OW
 
 
@@ -134,7 +135,7 @@ def YR():
 
 
 def wsc(w):
-    """A width authored for the 1:2 overworld, in cells of the current context."""
+    """A width authored for the old 1:2 overworld, in cells of the current context."""
     return max(1, w * 2 // CTX.S)
 
 
@@ -146,7 +147,7 @@ BLOCK = ['WATER', 'WALL', 'HWALL', 'WWALL', 'SWALL', 'FENCE', 'TREE', 'OAK', 'WI
          'GRAVE', 'CLAY', 'HOPPER', 'FLOURBIN', 'WHEEL', 'COFFIN', 'CADAVA', 'CAULDRON', 'COMPOST',
          'LOCKDOOR', 'GRILL', 'HOLE', 'DRAIN', 'CHEST', 'TOLLGATE',
          # 1:1 zones: void between zones, edge/stair portals, castle and town furniture
-         'VOID', 'PORTAL', 'STAIRS', 'TABLE', 'BED', 'STATUE', 'PEW', 'HEDGE', 'CRATE',
+         'VOID', 'STAIRS', 'TABLE', 'BED', 'STATUE', 'PEW', 'HEDGE', 'CRATE',
          'CHAIR', 'BOOKCASE', 'DRAWERS', 'FIREPLACE', 'BARREL', 'WARDROBE', 'POTPLANT', 'BIGSTALL', 'ANVIL',
          'FURNACE', 'SHELF', 'THRONE', 'WELL', 'SACKS', 'FLOWERBED', 'PALM', 'BENCH', 'SUNFLOWER', 'LOWWALL',
          'VFOUNTAIN']
@@ -171,7 +172,8 @@ def inb(x, y):
 
 def inc(x, y):
     """Inside the current authoring context."""
-    return CTX.X0 <= x <= CTX.X1 and CTX.Y0 <= y <= CTX.Y1
+    return CTX.X0 <= x <= CTX.X1 and CTX.Y0 <= y <= CTX.Y1 and \
+        not any(a <= x <= c and b <= y <= d for (a, b, c, d) in CTX.excl)
 
 
 def setg(x, y, g):
@@ -277,12 +279,33 @@ def river(pts, w=3):
     opolyline(pts, w, lambda x, y: setg(x, y, 'WATER'))
 
 
-def building(X0, Y0, X1, Y1, wall='WALL', floor='FLOOR', doors=(), margin=1):
+ROOF = [[0] * MW for _ in range(MH)]     # roof group per cell (0 = open sky)
+ROOFS = [None]      # group -> (style, cells); a group's roof hides while the player is under it
+ROOF_OF = {'WALL': 'slate', 'HWALL': 'thatch', 'SWALL': 'flat', 'WWALL': 'flatwhite'}
+
+
+def zc(X, Y):
+    return (cx(X), cy(Y))
+
+
+def zroof(style, cells):
+    """Register a roof over a building footprint (OSRS tiles). The south-facing wall row is left
+    open: it is the facade seen from the street."""
+    g = len(ROOFS)
+    cs = set(zc(*c) for c in cells)
+    ROOFS.append((style, cs))
+    for (x, y) in cs:
+        ROOF[y][x] = g
+    return g
+
+
+def building(X0, Y0, X1, Y1, wall='WALL', floor='FLOOR', doors=(), margin=1, roof='auto'):
     x0, y0, x1, y1 = orect(X0, Y0, X1, Y1)
-    return cbuilding(x0, y0, x1, y1, wall, floor, doors, margin)
+    return cbuilding(x0, y0, x1, y1, wall, floor, doors, margin, roof)
 
 
-def cbuilding(x0, y0, x1, y1, wall='WALL', floor='FLOOR', doors=(), margin=1):
+def cbuilding(x0, y0, x1, y1, wall='WALL', floor='FLOOR', doors=(), margin=1, roof=None):
+    """A walled rectangle (cells). roof: a roof style, 'auto' (by wall material) or None."""
     reserve(x0 - margin, y0 - margin, x1 + margin, y1 + margin)
     for y in range(y0, y1 + 1):
         for x in range(x0, x1 + 1):
@@ -292,6 +315,12 @@ def cbuilding(x0, y0, x1, y1, wall='WALL', floor='FLOOR', doors=(), margin=1):
     r = (x0, y0, x1, y1)
     for d in doors:
         door(r, *d)
+    if roof:
+        g = len(ROOFS)
+        cs = set((x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1) if inc(x, y))
+        ROOFS.append((ROOF_OF.get(wall, 'slate') if roof == 'auto' else roof, cs))
+        for (x, y) in cs:
+            ROOF[y][x] = g
     return r
 
 
@@ -327,14 +356,17 @@ def wall_line(x0, y0, x1, y1, wall='WALL', doors=()):
 SPAWNS = []
 SHOPS = []          # (SHOP_ id, cell x, cell y): building centre, used to pick the shop by position
 SHOP_OWNERS = set()  # NPC kinds that keep a specialty shop
+SHOP_SKETCH = set()  # shops still as the countryside sketch placed them
+CITIES = []          # the towns rebuilt at full detail, in the order they were laid (see city())
 
 
 def shop(name, r, side, npc):
     """A shop plus its entry in the shop table. General stores get a counter with staff behind
     it (see service); a specialty shop has one keeper, behind a counter if the room is deep
     enough for staff, counter and customers, else just standing at the back wall."""
-    SHOPS[:] = [sh for sh in SHOPS if sh[0] != name]      # a town's 1:1 zone re-adds its shops
+    SHOPS[:] = [sh for sh in SHOPS if sh[0] != name]      # a rebuilt town re-adds its shops
     SHOPS.append((name, (r[0] + r[2]) // 2, (r[1] + r[3]) // 2))
+    (SHOP_SKETCH.discard if CITIES else SHOP_SKETCH.add)(name)
     if npc != 'SHOPKEEPER':
         SHOP_OWNERS.add(npc)
     if npc == 'SHOPKEEPER':
@@ -435,16 +467,20 @@ def vnoise(x, y, seed):
     return top * (1 - fy) + bot * fy
 
 
-def forest(X0, Y0, X1, Y1, dens, kinds, on=('GRASS',), seed=1, scale=4.5):
-    """Clumped woodland: tree probability follows smooth noise so trees form groves and glades."""
+def forest(X0, Y0, X1, Y1, dens, kinds, on=('GRASS',), seed=1, scale=None):
+    """Clumped woodland: tree probability follows smooth noise so trees form groves and glades.
+    scale (cells) defaults to groves sized as on the old 1:2 map."""
     r = random.Random(seed)
+    fine = 2.0
+    if scale is None:
+        scale, fine = 9.0 / CTX.S, 4.0 / CTX.S
     x0, y0, x1, y1 = orect(X0, Y0, X1, Y1)
     tot = sum(w for _, w in kinds)
     for y in range(max(CTX.Y0, y0), min(CTX.Y1 + 1, y1 + 1)):
         for x in range(max(CTX.X0, x0), min(CTX.X1 + 1, x1 + 1)):
             if TY[y][x] not in on or GR[y][x] != TY[y][x] or RES[y][x]:
                 continue
-            n = 0.65 * vnoise(x / scale, y / scale, seed) + 0.35 * vnoise(x / 2.0, y / 2.0, seed + 7)
+            n = 0.65 * vnoise(x / scale, y / scale, seed) + 0.35 * vnoise(x / fine, y / fine, seed + 7)
             p = dens * max(0.0, min(1.0, (n - 0.38) / 0.3))
             if r.random() < p:
                 k = r.random() * tot
@@ -532,13 +568,13 @@ def infill(X0, Y0, X1, Y1, n, wall='HWALL', floor='WOODFLOOR', seed=1, ground=('
 
 def spawn(kind, X, Y, cell=False):
     x, y = (X, Y) if cell else (cx(X), cy(Y))
-    for rad in range(0, 5):
+    for rad in range(0, 10):
         for dy in range(-rad, rad + 1):
             for dx in range(-rad, rad + 1):
                 if max(abs(dx), abs(dy)) != rad:
                     continue
                 xx, yy = x + dx, y + dy
-                if inb(xx, yy) and TY[yy][xx] in WALKSET and TY[yy][xx] not in ('DOOR', 'BRIDGE') and (REACH[yy][xx] or ow_copy(xx, yy)) and \
+                if inb(xx, yy) and TY[yy][xx] in WALKSET and TY[yy][xx] not in ('DOOR', 'BRIDGE') and REACH[yy][xx] and \
                         not any(s[1] == xx and s[2] == yy for s in SPAWNS):
                     SPAWNS.append((kind, xx, yy))
                     return (xx, yy)
@@ -549,7 +585,7 @@ def spawn_area(kind, n, X0, Y0, X1, Y1, seed=0):
     r = random.Random(seed or hsh(n, X0, Y0, len(kind)))
     x0, y0, x1, y1 = orect(X0, Y0, X1, Y1)
     cand = [(x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)
-            if inb(x, y) and TY[y][x] in WALKSET and TY[y][x] not in ('DOOR', 'BRIDGE') and (REACH[y][x] or ow_copy(x, y))]
+            if inb(x, y) and TY[y][x] in WALKSET and TY[y][x] not in ('DOOR', 'BRIDGE') and REACH[y][x]]
     r.shuffle(cand)
     k = 0
     for (x, y) in cand:
@@ -661,8 +697,8 @@ def base_terrain():
 base_terrain()
 
 # ========================================================================================
-# LUMBRIDGE (overworld copy, 1:2): only seen from outside. Walking into it warps into the 1:1
-# Lumbridge zone (see ZONES below), which holds all of the town's gameplay.
+# LUMBRIDGE (first sketch): the hand-traced 1:1 town below replaces it. The sketch still names
+# a few positions (the toll gate) and gameplay the town re-lands (see migrate_ow_content).
 # ========================================================================================
 # courtyard and outer walls
 ofill(3217, 3205, 3229, 3231, 'GRASS')
@@ -798,12 +834,14 @@ wcx, wcy = fpt(3109, 3161)
 for y in YR():
     for x in XR():
         d = math.hypot(x + 0.5 - wcx, y + 0.5 - wcy)
-        if d <= 5.2:
-            TY[y][x] = 'WALL' if d > 4.2 else 'FLOOR'
+        if d <= 10.4:
+            TY[y][x] = 'WALL' if d > 9.4 else 'FLOOR'
             GR[y][x] = 'FLOOR'
-reserve(int(wcx) - 7, int(wcy) - 7, int(wcx) + 7, int(wcy) + 7)
-TY[int(wcy) - 5][int(wcx)] = 'DOOR'
-setg(int(wcx), int(wcy) - 6, 'PATH')
+reserve(int(wcx) - 13, int(wcy) - 13, int(wcx) + 13, int(wcy) + 13)
+TY[int(wcy) - 10][int(wcx)] = 'DOOR'
+setg(int(wcx), int(wcy) - 11, 'PATH')
+zroof('tower', [(X, Y) for X in range(3098, 3121) for Y in range(3150, 3173)
+                if TY[cy(Y)][cx(X)] in ('WALL', 'FLOOR', 'DOOR') and GR[cy(Y)][cx(X)] == 'FLOOR'])
 road([(3109, 3171), (3109, 3166)], 1)
 
 # ========================================================================================
@@ -1059,11 +1097,11 @@ gcx, gcy = fpt(3165, 3490)
 for y in YR():
     for x in XR():
         d = max(abs(x + 0.5 - gcx), abs(y + 0.5 - gcy)) * 0.8 + 0.2 * (abs(x + 0.5 - gcx) + abs(y + 0.5 - gcy))
-        if d <= 5.5:
-            TY[y][x] = 'WALL' if d > 4.6 else 'FLOOR'
+        if d <= 10:
+            TY[y][x] = 'WALL' if d > 9.1 else 'FLOOR'
             GR[y][x] = 'FLOOR'
-reserve(int(gcx) - 7, int(gcy) - 7, int(gcx) + 7, int(gcy) + 7)
-for (dx, dy) in ((0, -5), (0, 5), (-5, 0), (5, 0)):
+reserve(int(gcx) - 12, int(gcy) - 12, int(gcx) + 12, int(gcy) + 12)
+for (dx, dy) in ((0, -9), (0, 9), (-9, 0), (9, 0)):
     TY[int(gcy) + dy][int(gcx) + dx] = 'DOOR'
     setg(int(gcx) + dx + (1 if dx > 0 else -1 if dx < 0 else 0), int(gcy) + dy + (1 if dy > 0 else -1 if dy < 0 else 0), 'COBBLE')
 GE_BOOTHS = []
@@ -1077,8 +1115,8 @@ mine(3278, 3358, 3294, 3374, [('COPPER', 4), ('TIN', 4), ('IRON', 3)], 'PATH', 2
 ccx, ccy = fpt(3225, 3370)
 for k in range(8):
     a = k * math.pi / 4
-    put(int(ccx + 3.2 * math.cos(a)), int(ccy + 3.2 * math.sin(a)), 'BOULDER')
-reserve(int(ccx) - 4, int(ccy) - 4, int(ccx) + 4, int(ccy) + 4)
+    put(int(ccx + 6.4 * math.cos(a)), int(ccy + 6.4 * math.sin(a)), 'BOULDER')
+reserve(int(ccx) - 8, int(ccy) - 8, int(ccx) + 8, int(ccy) + 8)
 
 # ========================================================================================
 # AL KHARID and the desert
@@ -1113,9 +1151,9 @@ opoly([(3309, 3324), (3316, 3326), (3320, 3300), (3318, 3270), (3310, 3268), (33
 opoly([(3286, 3326), (3292, 3326), (3290, 3300), (3288, 3290), (3284, 3300)],
       lambda x, y: put(x, y, 'CLIFF') if TY[y][x] == 'DESERT' and not RES[y][x] else None)
 # Duel Arena (partly beyond the eastern map edge)
-ARENA = building(3314, 3206, 3343, 3262, 'SWALL', 'DESERT', [('W', 3232)], margin=0)
+ARENA = building(3314, 3206, 3343, 3262, 'SWALL', 'DESERT', [('W', 3232)], margin=0, roof=None)
 for (X0, Y0, X1, Y1) in ((3320, 3212, 3334, 3226), (3320, 3238, 3334, 3252)):
-    building(X0, Y0, X1, Y1, 'SWALL', 'SAND', [('W', (Y0 + Y1) // 2)])
+    building(X0, Y0, X1, Y1, 'SWALL', 'SAND', [('W', (Y0 + Y1) // 2)], roof=None)
 for y in YR():                              # desert sand inside
     for x in range(ARENA[0] + 1, ARENA[2]):
         if ARENA[1] < y < ARENA[3] and TY[y][x] == 'GRASS':
@@ -1169,7 +1207,7 @@ def qobj_near(t, X, Y, name=None, on=('GRASS', 'FLOWERS')):
     """Place an object on the nearest free open-ground cell to OSRS (X, Y) that keeps a walkable
     neighbour."""
     x0, y0 = cx(X), cy(Y)
-    for rad in range(0, 8):
+    for rad in range(0, 16):
         for dy in range(-rad, rad + 1):
             for dx in range(-rad, rad + 1):
                 if max(abs(dx), abs(dy)) != rad:
@@ -1190,7 +1228,7 @@ MILL = orect(3162, 3302, 3170, 3310)
 qobj('HOPPER', MILL[0] + 1, MILL[1] + 1)
 qobj('FLOURBIN', MILL[0] + 1, MILL[3] - 1)
 # altar on the Wizards' Tower floor (the basement altar in OSRS)
-qobj('ALTAR', int(wcx) + 3, int(wcy), 'TOWER_ALTAR')
+qobj('ALTAR', int(wcx) + 6, int(wcy), 'TOWER_ALTAR')
 # cadava bushes south-west of the Varrock SE mine and south of Varrock
 qobj_near('CADAVA', 3268, 3370)
 qobj_near('CADAVA', 3272, 3374)
@@ -1232,70 +1270,84 @@ QPOS['CABBAGE_FIELD'] = (cx(3048), cy(3280))
 QPOS['PARK_DIG'] = (cx(3005), cy(3374))     # just south of the Falador park fountain
 
 # ========================================================================================
-# 1:1 ZONES: Lumbridge at full OSRS scale (1 cell = 1 tile) and the castle's upper floors
+# TOWNS at full detail, and the castle's upper floors
 # ========================================================================================
-# The zones sit below the overworld in the same cell grid, so every runtime system (collision,
-# NPCs, ground items, quests) works on them unchanged. A ring of portal cells around LUM_R in
-# both maps moves the player between the 1:2 overworld and the 1:1 town; the castle floors are
-# joined by the spiral staircases (quest scripts 'obj STAIRS' in tools/quests.txt). Cells of a
-# zone outside its walkable part are scenery so the camera never shows the void between zones.
-LUM_R = (3196, 3188, 3261, 3254)        # walkable Lumbridge (OSRS X0, Y0, X1, Y1); Al Kharid's zone starts at 3262
-ZL0 = Ctx(3187, 3263, 1, 0, ZONE_Y, 0, ZONE_Y, 85, ZONE_Y + 83)          # OSRS 3187..3272 x 3180..3263
-ZF1 = Ctx(3195, 3236, 1, 90, ZONE_Y, 90, ZONE_Y, 121, ZONE_Y + 36)       # OSRS 3195..3226 x 3200..3236
-ZF2 = Ctx(3195, 3236, 1, 126, ZONE_Y, 126, ZONE_Y, 157, ZONE_Y + 36)
-# (name, context, palette set, plane). The camera stays inside the player's zone; each zone
-# loads its own world palette set.
-ZONES = [('OVERWORLD', OW, 0, 0), ('LUMBRIDGE', ZL0, 1, 0), ('CASTLE_1', ZF1, 1, 1), ('CASTLE_2', ZF2, 1, 2)]
-PORTALS = {}        # cell -> (dest x, dest y, dir): walking into the cell warps
+# A town is rebuilt in place over the countryside sketch above: city() clears its rectangle plus a
+# scenery margin (keeping clear of the towns laid before it) and the town's script lays it out
+# again, by hand (Lumbridge, below) or from a trace (tools/zones/*.py). The castle floors sit
+# below the overworld and are joined to it by the spiral staircases (quest scripts 'obj STAIRS'
+# in tools/quests.txt).
+LUM_R = (3196, 3188, 3261, 3254)        # Lumbridge proper (OSRS X0, Y0, X1, Y1); Al Kharid starts at 3262
+ZF1 = Ctx(3195, 3236, 1, 0, ZONE_Y, 0, ZONE_Y, 31, ZONE_Y + 36)          # OSRS 3195..3226 x 3200..3236
+ZF2 = Ctx(3195, 3236, 1, 36, ZONE_Y, 36, ZONE_Y, 67, ZONE_Y + 36)
+# (name, context, palette set, plane). The camera stays inside the player's zone. The floors use
+# Lumbridge's palette set (filled in by assign_palette_sets()).
+ZONES = [('OVERWORLD', OW, 0, 0), ('CASTLE_1', ZF1, None, 1), ('CASTLE_2', ZF2, None, 2)]
 LINKS = {}          # stair cell -> [dest cells] (for the reachability checks)
-ROOF = [[0] * MW for _ in range(MH)]     # roof group per cell (0 = open sky)
-ROOFS = [None]      # group -> (style, cells); a group's roof hides while the player is under it
 VIEW = {}           # upper-floor cell -> ground-floor cell it shows (looking down from the castle)
 
 
-def ow_cell(X, Y):
-    return ((X - OW.OX) // 2, (OW.OY - Y) // 2)
-
-
 class City:
-    """A town rebuilt at 1:1. R is its walkable rectangle in OSRS tiles; the zone around it adds a
-    scenery margin. In the overworld the same rectangle becomes a 1:2 view with a portal ring."""
+    """A town at full detail. R is the town proper in OSRS tiles; ctx clips the town's script to R
+    plus a scenery margin."""
 
-    def __init__(self, name, R, ctx, pset):
-        self.name, self.R, self.ctx, self.pset = name, R, ctx, pset
-        self.ow_r = (ow_cell(R[0], R[3]), ow_cell(R[2], R[1]))
-        self.dest = {}
-
-
-CITIES = []
+    def __init__(self, name, R, ctx):
+        self.name, self.R, self.ctx = name, R, ctx
+        self.pset = None
 
 
-def city(name, R, cx0, cy0, pset, margin=9, ctx=None):
+def town_ctx(X0, Y0, X1, Y1, excl=()):
+    """Overworld context clipped to OSRS (X0, Y0)..(X1, Y1)."""
+    return Ctx(OW.OX, OW.OY, 1, 0, 0, max(0, cx(X0)), max(0, cy(Y1)), min(OW_W - 1, cx(X1)), min(OW_H - 1, cy(Y0)), excl)
+
+
+def city(name, R, margin=9, ctx=None, keep=()):
+    """Register a town and clear its area of the countryside sketch: ground, scenery, roads and
+    roofs. Earlier towns' rectangles, and the OSRS rects in keep (countryside landmarks the
+    margin would cut in two), are kept out of its margin."""
+    global SKETCH_SPAWNS, SKETCH_QPOS
+    if not CITIES:                      # what the countryside sketch made (see migrate_ow_content)
+        SKETCH_SPAWNS = set(SPAWNS)
+        SKETCH_QPOS = dict(QPOS)
+    set_ctx(OW)
+    excl = [orect(*c.R) for c in CITIES] + [orect(*k) for k in keep]
     if ctx is None:
-        ctx = Ctx(R[0] - margin, R[3] + margin, 1, cx0, cy0, cx0, cy0, cx0 + R[2] - R[0] + 2 * margin,
-                  cy0 + R[3] - R[1] + 2 * margin)
-    assert ctx.X1 < MW and ctx.Y1 < MH, (name, ctx.X1, ctx.Y1)
-    for z in ZONES:
-        o = z[1]
-        if z[0] == name:
-            continue
-        assert ctx.X1 < o.X0 or ctx.X0 > o.X1 or ctx.Y1 < o.Y0 or ctx.Y0 > o.Y1, ('zones overlap', name, z[0])
-    c = City(name, R, ctx, pset)
+        ctx = town_ctx(R[0] - margin, R[1] - margin, R[2] + margin, R[3] + margin, excl)
+    else:
+        ctx.excl = excl
+    c = City(name, R, ctx)
     CITIES.append(c)
-    if not any(z[0] == name for z in ZONES):
-        ZONES.append((name, ctx, pset, 0))
+    set_ctx(ctx)
+    for y in YR():
+        for x in XR():
+            if inc(x, y):
+                TY[y][x] = GR[y][x] = 'GRASS'
+                RES[y][x] = ROAD[y][x] = False
+                g = ROOF[y][x]
+                if g:
+                    ROOFS[g][1].discard((x, y))
+                    ROOF[y][x] = 0
     return c
 
 
-def zone_of(x, y):
-    for i, (n, c, ps, pl_) in enumerate(ZONES):
-        if c.X0 <= x <= c.X1 and c.Y0 <= y <= c.Y1:
-            return i
+def town_at(x, y):
+    """The town whose rectangle holds overworld cell (x, y), or None."""
+    if not (0 <= x < OW_W and 0 <= y < OW_H):
+        return None
+    X, Y = OW.OX + x, OW.OY - y
+    for c in CITIES:
+        if c.R[0] <= X <= c.R[2] and c.R[1] <= Y <= c.R[3]:
+            return c
     return None
 
 
-def zc(X, Y):
-    return (cx(X), cy(Y))
+def owner_of(x, y):
+    """The town that laid overworld cell (x, y) (its rectangle or margin), or None."""
+    for c in reversed(CITIES):
+        z = c.ctx
+        if z.X0 <= x <= z.X1 and z.Y0 <= y <= z.Y1 and not any(a <= x <= cc and b <= y <= d for (a, b, cc, d) in z.excl):
+            return c
+    return None
 
 
 def zset(X, Y, t, g=None):
@@ -1332,17 +1384,6 @@ def zwalls(interior, wall, floor):
 
 def tiles(X0, Y0, X1, Y1):
     return [(X, Y) for X in range(X0, X1 + 1) for Y in range(Y0, Y1 + 1)]
-
-
-def zroof(style, cells):
-    """Register a roof over a building footprint (OSRS tiles). The south-facing wall row is left
-    open: it is the facade seen from the street."""
-    g = len(ROOFS)
-    cs = set(zc(*c) for c in cells)
-    ROOFS.append((style, cs))
-    for (x, y) in cs:
-        ROOF[y][x] = g
-    return g
 
 
 def zbuild(X0, Y0, X1, Y1, wall, floor, doors=(), roof=None, outside='PATH'):
@@ -1452,8 +1493,8 @@ def keep_second():
 
 
 # ---- Lumbridge ground floor -------------------------------------------------------------
-set_ctx(ZL0)
-fill_cells(ZL0.X0, ZL0.Y0, ZL0.X1, ZL0.Y1, 'GRASS')
+ZL0 = town_ctx(3187, 3180, 3272, 3263)      # Lumbridge and its scenery margin
+LUMBRIDGE = city('LUMBRIDGE', LUM_R, ctx=ZL0)
 # swamp to the south (same outline as the overworld), lakes and the River Lum at full scale
 opoly([(3133, 3140), (3133, 3203), (3145, 3216), (3190, 3214), (3197, 3200), (3214, 3199), (3236, 3192),
        (3247, 3189), (3256, 3188), (3256, 3140)], lambda x, y: setg(x, y, 'SWAMP'))
@@ -1596,12 +1637,8 @@ for k in 'NS':
                 LINKS.setdefault((sa[0] + dx, sa[1] + dy), []).append(QPOS['ARRIVE_%s%d' % (k, b)])
 
 
-# ---- edge portals between the overworld and the 1:1 towns ----------------------------------
-LUMBRIDGE = city('LUMBRIDGE', LUM_R, 0, 0, 1, ctx=ZL0)
-
-
 def walk_ok(x, y):
-    return inb(x, y) and TY[y][x] in WALKSET and TY[y][x] != 'DOOR' and (x, y) not in PORTALS
+    return inb(x, y) and TY[y][x] in WALKSET and TY[y][x] != 'DOOR'
 
 
 def nearest_walk(x, y, ok, rmax=10):
@@ -1611,71 +1648,6 @@ def nearest_walk(x, y, ok, rmax=10):
                 if max(abs(dx), abs(dy)) == r and ok(x + dx, y + dy):
                     return (x + dx, y + dy)
     return None
-
-
-def ow_copy(x, y):
-    """Inside the overworld's 1:2 copy of a 1:1 town (only ever seen from outside)."""
-    for c in CITIES:
-        (ox0, oy0), (ox1, oy1) = c.ow_r
-        if ox0 <= x <= ox1 and oy0 <= y <= oy1:
-            return c
-    return None
-
-
-def zone_rect(c):
-    z = c.ctx
-    return (z.CX0 + c.R[0] - z.OX, z.CY0 + z.OY - c.R[3], z.CX0 + c.R[2] - z.OX, z.CY0 + z.OY - c.R[1])
-
-
-def make_portals(c):
-    """Ring cells of the town's rectangle in both maps. Overworld ring -> one step inside the
-    zone's ring; zone ring -> first walkable overworld cell outside the overworld ring. The stored
-    direction is the one the player keeps walking in (DIR_DOWN 0, UP 1, LEFT 2, RIGHT 3)."""
-    (ox0, oy0), (ox1, oy1) = c.ow_r
-    zx0, zy0, zx1, zy1 = zone_rect(c)
-    z = c.ctx
-    ring = lambda x0, y0, x1, y1: [(x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)
-                                   if (x in (x0, x1) or y in (y0, y1)) and TY[y][x] in WALKSET and TY[y][x] != 'DOOR']
-    ring_ow, ring_z = ring(ox0, oy0, ox1, oy1), ring(zx0, zy0, zx1, zy1)
-    for p_ in ring_ow + ring_z:
-        PORTALS[p_] = None
-    in_ow_r = lambda x, y: ox0 <= x <= ox1 and oy0 <= y <= oy1
-    in_z_r = lambda x, y: zx0 < x < zx1 and zy0 < y < zy1
-    step = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0)}
-    side = lambda x, y, x0, y0, x1, y1: 2 if x == x0 else 3 if x == x1 else 1 if y == y0 else 0   # outward
-    for (x, y) in ring_ow:
-        d = side(x, y, ox0, oy0, ox1, oy1) ^ 1          # inward
-        X, Y = OW.OX + 2 * x, OW.OY - 2 * y
-        tx = min(max(z.CX0 + X - z.OX, zx0 + 1), zx1 - 1)
-        ty = min(max(z.CY0 + z.OY - Y, zy0 + 1), zy1 - 1)
-        back = lambda a, b: (a - step[d][0], b - step[d][1]) in PORTALS
-        dest = nearest_walk(tx, ty, lambda a, b: in_z_r(a, b) and walk_ok(a, b) and back(a, b), 3) or \
-            nearest_walk(tx, ty, lambda a, b: in_z_r(a, b) and walk_ok(a, b))
-        assert dest, ('no zone landing for overworld portal', c.name, x, y)
-        PORTALS[(x, y)] = (dest[0], dest[1], d)
-    for (x, y) in ring_z:
-        d = side(x, y, zx0, zy0, zx1, zy1)
-        X, Y = z.OX + x - z.CX0, z.OY - (y - z.CY0)
-        ox, oy = ow_cell(X, Y)
-        while in_ow_r(ox, oy):
-            ox, oy = ox + step[d][0], oy + step[d][1]
-        nb = ow_copy(ox, oy)
-        if nb is not None and nb is not c:
-            # the next town's 1:1 zone borders this one: walk straight into it, one step past its ring
-            z2 = nb.ctx
-            X2, Y2 = X + step[d][0] * 2, Y - step[d][1] * 2
-            ax0, ay0, ax1, ay1 = zone_rect(nb)
-            tx = min(max(z2.CX0 + X2 - z2.OX, ax0 + 1), ax1 - 1)
-            ty = min(max(z2.CY0 + z2.OY - Y2, ay0 + 1), ay1 - 1)
-            dest = nearest_walk(tx, ty, lambda a, b: ax0 < a < ax1 and ay0 < b < ay1 and walk_ok(a, b))
-            assert dest, ('no landing in the next town', c.name, nb.name, x, y)
-            PORTALS[(x, y)] = (dest[0], dest[1], d)
-            continue
-        back = lambda a, b: (a - step[d][0], b - step[d][1]) in PORTALS     # can walk straight back in
-        dest = nearest_walk(ox, oy, lambda a, b: not ow_copy(a, b) and walk_ok(a, b) and back(a, b), 3) or \
-            nearest_walk(ox, oy, lambda a, b: not ow_copy(a, b) and walk_ok(a, b))
-        assert dest, ('no overworld landing for zone portal', c.name, x, y)
-        PORTALS[(x, y)] = (dest[0], dest[1], d)
 
 
 # ---- towns traced from the OSRS map (tools/zones/*.ref, see tools/ref_extract.py) ------------
@@ -2086,6 +2058,7 @@ def zshop(name, b, npc, _retry=False):
             break
     SHOPS[:] = [sh for sh in SHOPS if sh[0] != name]
     SHOPS.append((name,) + zc((b['rect'][0] + b['rect'][2]) // 2, (b['rect'][1] + b['rect'][3]) // 2))
+    SHOP_SKETCH.discard(name)
     if npc != 'SHOPKEEPER':
         SHOP_OWNERS.add(npc)
     SPAWNS.append((npc,) + zc(*K))
@@ -2200,70 +2173,56 @@ def furnish(b, kit=None, seed=0):
 
 
 def migrate_ow_content():
-    """Gameplay placed in the overworld's 1:2 copy of a town moves into its 1:1 zone: NPCs, ground
-    items, quest objects, fishing spots and named positions keep their OSRS location. Shop and
-    bank staff are left to the towns' scripts (they need their counters)."""
+    """Gameplay the countryside sketch placed inside a town is re-landed on the town as rebuilt:
+    NPCs, ground items, quest objects, fishing spots and named positions move to the nearest
+    cell that suits them. Shop and bank staff are left to the towns' scripts (they need their
+    counters)."""
     global SPAWNS, ITEM_SPAWNS, QUEST_OBJS, FISH_SPOTS
-    osrs = lambda x, y: (OW.OX + 2 * x, OW.OY - 2 * y)
     taken = set((x, y) for (_, x, y) in SPAWNS)
-
-    def land(c, x, y, ok):
-        set_ctx(c.ctx)
-        X, Y = osrs(x, y)
-        d = nearest_walk(cx(X), cy(Y), ok, 12)
-        set_ctx(OW)
-        return d
+    land = lambda x, y, ok: nearest_walk(x, y, ok, 12)
     open_ok = lambda a, b: walk_ok(a, b) and TY[b][a] != 'BRIDGE' and REACH[b][a] and (a, b) not in taken
     sp = []
     for (k, x, y) in SPAWNS:
-        c = ow_copy(x, y) if y < OW_H else None
-        if not c:
+        if not town_at(x, y):
             sp.append((k, x, y))
             continue
         if k in ('BANKER', 'SHOPKEEPER') or k in SHOP_OWNERS:
+            if (k, x, y) not in SKETCH_SPAWNS:
+                sp.append((k, x, y))        # placed by the town's script
             continue
-        d = land(c, x, y, open_ok)
-        assert d, ('no zone cell for', k, c.name, x, y)
+        taken.discard((x, y))
+        d = (x, y) if open_ok(x, y) else land(x, y, open_ok)
+        assert d, ('no town cell for', k, x, y)
         taken.add(d)
         sp.append((k,) + d)
     SPAWNS = sp
-    its = []
-    for (it, x, y) in ITEM_SPAWNS:
-        c = ow_copy(x, y) if y < OW_H else None
-        its.append((it, x, y) if not c else (it,) + land(c, x, y, lambda a, b: walk_ok(a, b) and REACH[b][a]))
-    ITEM_SPAWNS = its
+    ITEM_SPAWNS = [(it, x, y) if not town_at(x, y) or (walk_ok(x, y) and REACH[y][x]) else
+                   (it,) + land(x, y, lambda a, b: walk_ok(a, b) and REACH[b][a]) for (it, x, y) in ITEM_SPAWNS]
     qo = []
     for (t, x, y) in QUEST_OBJS:
-        c = ow_copy(x, y) if y < OW_H else None
-        if not c:
+        if not town_at(x, y) or TY[y][x] == t:
             qo.append((t, x, y))
             continue
         if t == 'TOLLGATE':
             continue                # the town's script places its own gate
-        d = land(c, x, y, lambda a, b: walk_ok(a, b) and REACH[b][a] and (a, b) not in taken and
+        d = land(x, y, lambda a, b: walk_ok(a, b) and REACH[b][a] and (a, b) not in taken and
                  sum(walk_ok(a + u, b + v) for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1))) >= 2)
-        assert d, ('no zone cell for quest object', t, c.name)
+        assert d, ('no town cell for quest object', t, x, y)
         TY[d[1]][d[0]] = t
         taken.add(d)
         qo.append((t,) + d)
     QUEST_OBJS = qo
     fs = []
     for (k, x, y) in FISH_SPOTS:
-        c = ow_copy(x, y) if y < OW_H else None
-        if not c:
+        if not town_at(x, y) or TY[y][x] == 'WATER':
             fs.append((k, x, y))
             continue
-        set_ctx(c.ctx)
-        n0 = len(FISH_SPOTS)
-        X, Y = osrs(x, y)
-        fish(k, X, Y, lambda a, b: REACH[b][a] and (a, b) not in PORTALS)
+        fish(k, OW.OX + x, OW.OY - y, lambda a, b: REACH[b][a])
         fs.append(FISH_SPOTS.pop())
-        set_ctx(OW)
     FISH_SPOTS = fs
     for n, (x, y) in list(QPOS.items()):
-        c = ow_copy(x, y) if y < OW_H else None
-        if c:
-            QPOS[n] = land(c, x, y, lambda a, b: walk_ok(a, b))
+        if SKETCH_QPOS.get(n) == (x, y) and town_at(x, y) and not walk_ok(x, y):
+            QPOS[n] = land(x, y, lambda a, b: walk_ok(a, b))
 
 
 set_ctx(ZF1)
@@ -2283,15 +2242,55 @@ for _town in ('draynor', 'varrock', 'alkharid', 'falador', 'edgeville'):   # noq
         exec(compile(open(_path).read(), _path, 'exec'))
         TOWNS.append(_town)
         set_ctx(OW)
-for _c in CITIES:
-    make_portals(_c)
+def join_roads():
+    """Where a countryside road reaches a town's edge off the town's own streets, pave the gap to
+    the nearest street (both follow the OSRS map, but not tile for tile)."""
+    set_ctx(OW)
+    street = lambda x, y: TY[y][x] in ('PATH', 'COBBLE', 'BRIDGE')
+    ground = ('GRASS', 'FLOWERS', 'SAND', 'DESERT', 'SWAMP', 'FERN', 'SNOW', 'WILD')
+    for c in CITIES:
+        z = c.ctx
+        x0, y0, x1, y1 = z.X0 - 1, z.Y0 - 1, z.X1 + 1, z.Y1 + 1
+        ring = [(x, y) for y in range(y0, y1 + 1) for x in range(x0, x1 + 1)
+                if (x in (x0, x1) or y in (y0, y1)) and inb(x, y) and y < OW_H]
+        for (x, y) in ring:
+            if not (ROAD[y][x] and street(x, y)) or owner_of(x, y):
+                continue
+            ix = x + (1 if x == x0 else -1 if x == x1 else 0)
+            iy = y + (1 if y == y0 else -1 if y == y1 else 0)
+            if street(ix, iy):
+                continue
+            best = None
+            for ay in range(-12, 13):
+                for ax in range(-12, 13):
+                    a, b = ix + ax, iy + ay
+                    if z.X0 <= a <= z.X1 and z.Y0 <= b <= z.Y1 and street(a, b) and owner_of(a, b) is c:
+                        d = ax * ax + ay * ay
+                        if best is None or d < best[0]:
+                            best = (d, a, b)
+            if best is None:
+                continue
+            _, a, b = best
+            n = max(abs(a - x), abs(b - y))
+            for k in range(n + 1):
+                px, py = round(x + (a - x) * k / n), round(y + (b - y) * k / n)
+                for (qx, qy) in ((px, py), (px + 1, py), (px, py + 1)):
+                    if inb(qx, qy) and TY[qy][qx] in ground and not ROOF[qy][qx]:
+                        TY[qy][qx] = GR[qy][qx] = 'PATH'
+
+
+join_roads()
+for _y in range(1, OW_H):              # no canopy over a roof (canopies are drawn on the cell above)
+    for _x in range(OW_W):
+        if TY[_y][_x] in TREES and ROOF[_y - 1][_x]:
+            TY[_y][_x] = GR[_y][_x] = 'GRASS'
 
 
 # ========================================================================================
 # NPCs
 # ========================================================================================
 def flood():
-    """Cells reachable from START on foot, through doors, gates, edge portals and staircases."""
+    """Cells reachable from START on foot, through doors, gates and staircases."""
     from collections import deque
     seen = [[False] * MW for _ in range(MH)]
     q = deque([START])
@@ -2307,9 +2306,7 @@ def flood():
             xx, yy = x + dx, y + dy
             if not inb(xx, yy) or seen[yy][xx]:
                 continue
-            if (xx, yy) in PORTALS:
-                visit(*PORTALS[(xx, yy)][:2])
-            elif (xx, yy) in LINKS:
+            if (xx, yy) in LINKS:
                 for d in LINKS[(xx, yy)]:
                     visit(*d)
             elif TY[yy][xx] in WALKSET or TY[yy][xx] in ('LOCKDOOR', 'TOLLGATE'):
@@ -2370,7 +2367,7 @@ SPAWNS.append(('DORIC', *DORIC_POS))
 spawn('SEDRIDOR', 3104, 3160)
 spawn('MIZGOG', 3109, 3166)
 spawn('TRAIBORN', 3112, 3156)
-spawn('SKELETON', int(wcx) + 2, int(wcy) + 2, cell=True)
+spawn('SKELETON', int(wcx) + 4, int(wcy) + 4, cell=True)
 spawn('AUBURY', 3254, 3405)
 for (X, Y) in ((3236, 3262), (3122, 3272), (3004, 3302), (3292, 3420), (3068, 3398)):
     spawn('IMP', X, Y)
@@ -2451,8 +2448,8 @@ FISH_SPOTS = []
 def fish(kind, X, Y, land_ok=None):
     x0, y0 = cx(X), cy(Y)
     best = None
-    for y in range(y0 - 6, y0 + 7):
-        for x in range(x0 - 6, x0 + 7):
+    for y in range(y0 - 12, y0 + 13):
+        for x in range(x0 - 12, x0 + 13):
             if not inb(x, y) or TY[y][x] != 'WATER':
                 continue
             if any((k, xx, yy) for (k, xx, yy) in FISH_SPOTS if (xx, yy) == (x, y)):
@@ -2485,7 +2482,7 @@ for (X, Y) in ((3238, 3244), (3238, 3249)):                                 # Lu
 set_ctx(OW)
 migrate_ow_content()
 for (n, x, y) in SHOPS:
-    assert not ow_copy(x, y), ('shop %s is still in an overworld town copy: its town must re-add it' % n)
+    assert n not in SHOP_SKETCH or not town_at(x, y), ('shop %s is only in the sketch of a rebuilt town: its town must re-add it' % n)
 
 # ========================================================================================
 # Regions for the area banner (first match wins; last entry is the fallback)
@@ -2531,25 +2528,13 @@ for (ctx, n, X0, Y0, X1, Y1) in ((ZF1, 'Lumbridge Castle', 3195, 3200, 3226, 323
                                  (ZF2, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
                                  (ZL0, 'Lumbridge Castle', 3199, 3200, 3231, 3236),
                                  (ZL0, 'Lumbridge Swamp', 3187, 3180, 3236, 3199),
-                                 (ZL0, 'Lumbridge', 3187, 3180, 3272, 3263)):
+                                 (ZL0, 'Lumbridge', 3187, 3180, 3261, 3263)):
     set_ctx(ctx)
     REGIONS.append((n,) + orect(X0, Y0, X1, Y1))
-for (n, X0, Y0, X1, Y1) in REGIONS_O[:-1]:          # town sub-areas (Varrock Square...) in the zones
-    for c in CITIES[1:]:
-        z = c.ctx
-        zX0, zY0, zX1, zY1 = c.R
-        if X1 < zX0 or X0 > zX1 or Y1 < zY0 or Y0 > zY1:
-            continue
-        set_ctx(z)
-        x0, y0, x1, y1 = orect(max(X0, zX0), max(Y0, zY0), min(X1, zX1), min(Y1, zY1))
-        REGIONS.append((n, x0, y0, x1, y1))
 set_ctx(OW)
 for (n, X0, Y0, X1, Y1) in REGIONS_O:
     x0, y0, x1, y1 = orect(X0, Y0, X1, Y1)
-    x0, y0, x1, y1 = max(0, x0), max(0, y0), min(OW_W - 1, x1), min(OW_H - 1, y1)
-    if all(ow_copy(x, y) for x in (x0, x1) for y in (y0, y1)) and n != 'Misthalin':
-        continue            # entirely inside a town's 1:2 copy
-    REGIONS.append((n, x0, y0, x1, y1))
+    REGIONS.append((n, max(0, x0), max(0, y0), min(OW_W - 1, x1), min(OW_H - 1, y1)))
 
 # notable NPC cells (reported for quest placement)
 LANDMARKS = {
@@ -2565,12 +2550,9 @@ LANDMARKS = {
     'Emir/Al Kharid palace': EMIR,
     'Hans (Lumbridge courtyard)': HANS,
 }
-for _n, (_x, _y) in list(LANDMARKS.items()):      # those inside a town's 1:2 copy live in its zone
-    _c = ow_copy(_x, _y) if _y < OW_H else None
-    if _c:
-        set_ctx(_c.ctx)
-        LANDMARKS[_n] = nearest_walk(cx(OW.OX + 2 * _x), cy(OW.OY - 2 * _y), lambda a, b: walk_ok(a, b) and REACH[b][a], 12)
-        set_ctx(OW)
+for _n, (_x, _y) in list(LANDMARKS.items()):      # the sketch's positions inside a rebuilt town
+    if town_at(_x, _y) and not (walk_ok(_x, _y) and REACH[_y][_x]):
+        LANDMARKS[_n] = nearest_walk(_x, _y, lambda a, b: walk_ok(a, b) and REACH[b][a], 12)
 
 # ========================================================================================
 # Validation: reachability from the start position
@@ -2588,7 +2570,7 @@ def check_reachability():
             errs.append('fish spot %s %d,%d' % (k, x, y))
     for y in range(MH):
         for x in range(MW):
-            if TY[y][x] in ('BOOTH', 'COUNTER', 'RANGE', 'FIREPIT') and not near(x, y) and not ow_copy(x, y):
+            if TY[y][x] in ('BOOTH', 'COUNTER', 'RANGE', 'FIREPIT') and not near(x, y):
                 errs.append('%s at %d,%d unreachable' % (TY[y][x], x, y))
     for (t, x, y) in QUEST_OBJS:
         if not near(x, y):
@@ -2612,8 +2594,7 @@ def check_reachability():
         cnt = sum(seen[y][x] for y in range(y0, y1 + 1) for x in range(x0, x1 + 1))
         if cnt == 0:
             errs.append('region %s unreachable' % n)
-    # the swamp must be a short walk from the graveyard (its south gate): with 2x2-tile cells the
-    # old overworld graveyard had no way through
+    # the swamp must be a short walk from the graveyard (its south gate)
     from collections import deque
     set_ctx(ZL0)
     g0 = zc(3244, 3195)
@@ -2626,8 +2607,6 @@ def check_reachability():
             break
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             n = (c[0] + dx, c[1] + dy)
-            if n in PORTALS:
-                n = PORTALS[n][:2]
             if not inb(*n) or n in dist or TY[n[1]][n[0]] not in WALKSET:
                 continue
             dist[n] = dist[c] + 1
@@ -2654,7 +2633,7 @@ CHARS = {'GRASS': '.', 'FLOWERS': ',', 'PATH': '_', 'COBBLE': '=', 'FLOOR': ':',
          'COMPOST': '$', 'LOCKDOOR': '!', 'GRILL': 'G', 'HOLE': '?', 'DRAIN': 'z', 'CHEST': 'k', 'TOLLGATE': 'g'}
 
 
-CHARS.update({'CHECKER': '#', 'VOID': ' ', 'PORTAL': 'p', 'STAIRS': '/', 'TABLE': 'T', 'BED': 'b', 'STATUE': 's',
+CHARS.update({'CHECKER': '#', 'VOID': ' ', 'STAIRS': '/', 'TABLE': 'T', 'BED': 'b', 'STATUE': 's',
               'PEW': 'n', 'HEDGE': 'h', 'CRATE': 'x', 'FERN': '.', 'RUG': 'r', 'CHAIR': 'c', 'BOOKCASE': 'k',
               'DRAWERS': 'd', 'FIREPLACE': 'F', 'BARREL': 'o', 'WARDROBE': 'w', 'POTPLANT': 'p', 'BIGSTALL': 'L',
               'ANVIL': 'a', 'FURNACE': 'u', 'SHELF': 'k', 'THRONE': 'T', 'WELL': 'O', 'SACKS': 's', 'FLOWERBED': ',',
@@ -2683,163 +2662,7 @@ def G_at(x, y):
     return GR[y][x] if inb(x, y) else None
 
 
-def grass_px(px, py, var):
-    h = hsh(var, px, py) % 100
-    if h < 7:
-        return WC['G2']
-    if h < 17:
-        return WC['G1']
-    if h < 20 and py % 2 == 0:
-        return WC['G3']
-    return WC['G0']
-
-
-def dirt_px(px, py, var):
-    h = hsh(var + 50, px, py) % 100
-    if h < 8:
-        return WC['D2']
-    if h < 20:
-        return WC['D1']
-    return WC['D0']
-
-
-def water_px(px, py):
-    if py % 4 == 1 and (px + 5 * (py // 4)) % 8 in (0, 1, 2):
-        return WC['W1']
-    if py % 8 == 3 and (px + 3 * (py // 8)) % 16 == 9:
-        return WC['W2']
-    return WC['W0']
-
-
-def floor_px(px, py):
-    row = py // 8
-    sx = (px + (4 if row % 2 else 0)) % 8
-    sy = py % 8
-    if sx == 7 or sy == 7:
-        return WC['F2']
-    if sx == 0 or sy == 0:
-        return WC['F1']
-    return WC['F0']
-
-
-def woodfloor_px(px, py):
-    sy = py % 4
-    if sy == 3:
-        return WC['H2']
-    if (px + 5 * (py // 4)) % 16 == 0:
-        return WC['H2']
-    if sy == 0:
-        return WC['H1']
-    return WC['H0']
-
-
-def cobble_px(px, py):
-    r = py // 4
-    sx = (px + (3 if r % 2 else 0)) % 6
-    sy = py % 4
-    if sy == 3 or sx == 5:
-        return WC['F2']
-    if sy == 0 or sx == 0:
-        return WC['C0'] if hsh(11, px // 6, r) % 3 == 0 else WC['F1']
-    return WC['F0']
-
-
-def carpet_px(px, py):
-    if (px + py) % 6 == 0 or (px - py) % 6 == 0:
-        return WC['CP0']
-    return WC['CP1']
-
-
-def desert_px(px, py, var):
-    rip = (py * 2 + int(2.5 * math.sin(px * 0.55 + var * 2.1))) % 9
-    if rip == 0:
-        return WC['DS1']
-    if rip == 1 and hsh(px, py, 3) % 2:
-        return WC['DS2']
-    h = hsh(var + 90, px, py) % 100
-    if h < 4:
-        return WC['DS3']
-    return WC['DS0']
-
-
-def swamp_px(px, py, var):
-    h = hsh(var + 20, px, py) % 100
-    if ((px - 4 - var * 3) ** 2 + (py - 10) ** 2) < 7:
-        return WC['SW3'] if h < 70 else WC['SW2']
-    if h < 10:
-        return WC['SW2']
-    if h < 24:
-        return WC['SW1']
-    return WC['SW0']
-
-
-def wild_px(px, py, var):
-    h = hsh(var + 30, px, py) % 100
-    if h < 8:
-        return WC['WD2']
-    if h < 22:
-        return WC['WD1']
-    if h < 26 and py % 3 == 0:
-        return WC['WD3']
-    return WC['WD0']
-
-
-def snow_px(px, py, var):
-    return WC['SN1'] if hsh(var + 40, px, py) % 7 == 0 else WC['SN0']
-
-
-def sand_px(px, py, var):
-    return WC['S0'] if hsh(px, py) % 5 else WC['S1']
-
-
-GPX = {
-    'GRASS': grass_px, 'FLOWERS': grass_px, 'PATH': dirt_px, 'DESERT': desert_px, 'SWAMP': swamp_px,
-    'WILD': wild_px, 'SNOW': snow_px, 'SAND': sand_px, 'DITCH': wild_px,
-    'COBBLE': lambda px, py, v: cobble_px(px, py), 'FLOOR': lambda px, py, v: floor_px(px, py),
-    'DOOR': lambda px, py, v: floor_px(px, py), 'WOODFLOOR': lambda px, py, v: woodfloor_px(px, py),
-    'CARPET': lambda px, py, v: carpet_px(px, py), 'BRIDGE': dirt_px, 'WATER': lambda px, py, v: water_px(px, py),
-}
-RANK = {'COBBLE': 1, 'PATH': 2, 'SAND': 3, 'DESERT': 3, 'SWAMP': 4, 'SNOW': 4, 'WILD': 5, 'GRASS': 6, 'FLOWERS': 6}
 DIRS8 = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (1, -1), (-1, 1), (1, 1)]
-
-
-def base_img(g, var):
-    f = GPX.get(g, grass_px)
-    return [[f(px, py, var) for px in range(16)] for py in range(16)]
-
-
-def blend(img, nb, me, var):
-    """nb: list of neighbour grounds in DIRS8 order. Higher-rank neighbours bleed in."""
-    r0 = RANK.get(me)
-    if r0 is None:
-        return
-    others = sorted({g for g in nb if g in RANK and RANK[g] > r0 and g != me}, key=lambda g: RANK[g])
-    for n in others:
-        f = GPX[n]
-        isn = [g == n for g in nb]
-        for py in range(16):
-            for px in range(16):
-                jag = (hsh(7, px, py) % 3 == 0)
-                lim = 1 + (1 if jag else 0)
-                d = 99
-                if px <= lim and isn[0]:
-                    d = min(d, px)
-                if px >= 15 - lim and isn[1]:
-                    d = min(d, 15 - px)
-                if py <= lim and isn[2]:
-                    d = min(d, py)
-                if py >= 15 - lim and isn[3]:
-                    d = min(d, 15 - py)
-                if px <= lim and py <= lim and isn[4]:
-                    d = min(d, max(px, py))
-                if px >= 15 - lim and py <= lim and isn[5]:
-                    d = min(d, max(15 - px, py))
-                if px <= lim and py >= 15 - lim and isn[6]:
-                    d = min(d, max(px, 15 - py))
-                if px >= 15 - lim and py >= 15 - lim and isn[7]:
-                    d = min(d, max(15 - px, 15 - py))
-                if d <= lim:
-                    img[py][px] = f(px, py, var)
 
 
 def outline(img, col):
@@ -2871,70 +2694,6 @@ def ellipse_fill(img, cx_, cy_, rx, ry, col):
                 img[y][x] = col
 
 
-def tree_image(kind):
-    img = blank(16, 32)
-    trunk = blank(16, 32)
-    if kind == 'DEADTREE':
-        for y in range(14, 31):
-            for x in range(7, 9 + (1 if y > 26 else 0)):
-                trunk[y][x] = WC['K1'] if x == 7 else WC['K0']
-        for (x0, y0, dx, n) in ((7, 20, -1, 5), (8, 17, 1, 5), (7, 14, -1, 4), (8, 12, 1, 3), (7, 10, 0, 3)):
-            x, y = x0, y0
-            for i in range(n):
-                x += dx
-                y -= 1
-                if 0 <= x < 16:
-                    trunk[y][x] = WC['K0']
-        paste(img, outline(trunk, WC['K2']), 0, 0)
-        return img
-    if kind == 'TREE':
-        cx_, cy_, rx, ry = 7.5, 13.0, 7.2, 8.5
-        cols = (WC['L2'], WC['L0'], WC['L1'], WC['L3'])
-    elif kind == 'OAK':
-        cx_, cy_, rx, ry = 7.5, 12.5, 7.6, 10.0
-        cols = (WC['O2'], WC['O0'], WC['O1'], WC['O3'])
-    elif kind == 'YEW':
-        cx_, cy_, rx, ry = 7.5, 11.5, 7.8, 11.0
-        cols = (WC['YW2'], WC['YW0'], WC['YW1'], WC['YW3'])
-    else:
-        cx_, cy_, rx, ry = 7.5, 11.0, 7.4, 7.5
-        cols = (WC['Y2'], WC['Y0'], WC['Y1'], WC['Y3'])
-    for y in range(18, 31):
-        for x in range(6, 10):
-            trunk[y][x] = WC['K1'] if x in (7, 8) and y % 3 else WC['K0']
-    for x in (5, 10):
-        trunk[30][x] = WC['K0']
-    paste(img, outline(trunk, WC['K2']), 0, 0)
-    canopy = blank(16, 32)
-    for y in range(32):
-        for x in range(16):
-            dx = (x - cx_) / rx
-            dy = (y - cy_) / ry
-            wob = 0.08 * math.sin(x * 1.7 + y * 0.9) + 0.06 * math.cos(y * 2.3)
-            if kind == 'YEW':
-                wob += 0.10 * math.sin(y * 1.9)
-            if dx * dx + dy * dy <= 1.0 + wob:
-                light = -(dx * 0.7 + dy * 0.9) + ((hsh(len(kind), x, y) % 100) - 50) / 160.0
-                if kind == 'WILLOW' and x % 2 == 0 and dy > 0.1:
-                    light -= 0.35
-                if kind == 'YEW' and (y % 4 == 0) and dy > -0.5:
-                    light -= 0.4
-                c = cols[3] if light > 0.55 else cols[2] if light > 0.05 else cols[1] if light > -0.55 else cols[0]
-                canopy[y][x] = c
-    if kind == 'WILLOW':
-        for x in range(1, 15, 2):
-            top = int(cy_ + 2)
-            for y in range(top, top + 6 + (hsh(x) % 5)):
-                if y < 32:
-                    canopy[y][x] = cols[1] if y % 3 else cols[2]
-    canopy = outline(canopy, cols[0])
-    paste(img, canopy, 0, 0)
-    return img
-
-
-TREE_IMG = {k: tree_image(k) for k in TREES}
-
-
 def rock_image(ore):
     r = blank(16, 16)
     for (cx_, cy_, rad) in ((8, 9, 5.8), (4.5, 11, 3.8), (11.5, 11, 3.8), (7, 6, 3.5)):
@@ -2964,65 +2723,6 @@ def rock_image(ore):
     return outline(img, WC['OUT'])
 
 
-def stump_image():
-    img = blank(16, 16)
-    for y in range(9, 15):
-        for x in range(5, 11):
-            img[y][x] = WC['K1'] if x in (6, 7) else WC['K0']
-    ellipse_fill(img, 7.5, 9.5, 3.2, 1.8, WC['H1'])
-    img[9][7] = WC['H2']
-    img[9][8] = WC['H0']
-    img[14][4] = WC['K0']
-    img[14][11] = WC['K0']
-    return outline(img, WC['K2'])
-
-
-def bush_image():
-    img = blank(16, 16)
-    for (cx_, cy_, rr) in ((8, 9, 5.5), (5, 11, 4), (11, 11, 4)):
-        for y in range(16):
-            for x in range(16):
-                if (x - cx_) ** 2 + (y - cy_) ** 2 <= rr * rr:
-                    light = -((x - 8) * 0.1 + (y - 9) * 0.15) + (hsh(3, x, y) % 10 - 5) / 20
-                    img[y][x] = WC['L3'] if light > 0.6 else WC['L1'] if light > 0 else WC['L0']
-    img[7][7] = WC['FR']
-    img[10][11] = WC['FR']
-    return outline(img, WC['L2'])
-
-
-def cactus_image():
-    img = blank(16, 16)
-    for y in range(3, 15):
-        for x in range(6, 10):
-            img[y][x] = WC['CA1'] if x == 7 else WC['CA0'] if x != 9 else WC['CA2']
-    for y in range(6, 10):
-        img[y][3] = WC['CA0']
-        img[y][4] = WC['CA1']
-    for x in range(3, 6):
-        img[10][x] = WC['CA0']
-    for y in range(4, 9):
-        img[y][12] = WC['CA0']
-        img[y][11] = WC['CA1']
-    for x in range(10, 13):
-        img[9][x] = WC['CA0']
-    img[3][7] = WC['FR']
-    return outline(img, WC['CA2'])
-
-
-def grave_image():
-    img = blank(16, 16)
-    for y in range(4, 14):
-        for x in range(5, 11):
-            if y == 4 and x in (5, 10):
-                continue
-            img[y][x] = WC['R1'] if x == 5 or y == 5 else WC['R0']
-    for x in range(7, 9):
-        img[7][x] = WC['R2']
-    for y in range(6, 10):
-        img[y][7] = WC['R2'] if y != 7 else WC['R2']
-    return outline(img, WC['OUT'])
-
-
 def firepit_image():
     img = blank(16, 16)
     for k in range(10):
@@ -3039,108 +2739,6 @@ def firepit_image():
         for x in range(8 - w - 1, 8 + w):
             img[y][x] = WC['FI1'] if abs(x - 7) < w - 1 and y > 5 else WC['FI0']
     return outline(img, WC['OUT'])
-
-
-def wall_image(t, x, y):
-    below = T_at(x, y + 1)
-    face = below not in WALLS
-    img = blank(16, 16)
-    if t == 'HWALL':
-        if face:
-            for py in range(16):
-                for px in range(16):
-                    if py < 3:
-                        c = WC['K2'] if py == 2 else WC['K0']
-                    elif px % 4 == 3 or py == 15:
-                        c = WC['K2']
-                    else:
-                        c = WC['K1'] if px % 4 == 1 else WC['K0']
-                    img[py][px] = c
-        else:
-            for py in range(16):
-                for px in range(16):
-                    img[py][px] = WC['K0'] if (py % 4) else WC['K2']
-        return img
-    c0, c1, c2, c3 = {'WALL': ('C0', 'C1', 'C2', 'C3'), 'WWALL': ('WW0', 'WW1', 'WW2', 'WW3'),
-                      'SWALL': ('SS0', 'SS1', 'SS2', 'SS3')}[t]
-    c0, c1, c2, c3 = WC[c0], WC[c1], WC[c2], WC[c3]
-    if face:
-        for py in range(16):
-            for px in range(16):
-                if py < 4:
-                    c = c1 if py < 3 else c3
-                elif py == 15:
-                    c = c3
-                else:
-                    br = (py - 4) // 4
-                    bx = (px + (4 if br % 2 else 0)) % 8
-                    if (py - 4) % 4 == 3 or bx == 7:
-                        c = c2
-                    elif (py - 4) % 4 == 0:
-                        c = c1
-                    else:
-                        c = c0
-                img[py][px] = c
-    else:
-        for py in range(16):
-            for px in range(16):
-                img[py][px] = c0 if hsh(4, px, py) % 6 else c2
-        nb = lambda dx, dy: T_at(x + dx, y + dy) not in WALLS
-        for i in range(16):
-            if nb(-1, 0):
-                img[i][0] = c3
-            if nb(1, 0):
-                img[i][15] = c3
-            if nb(0, -1):
-                img[0][i] = c3
-    return img
-
-
-def cliff_image(x, y, base):
-    img = [r[:] for r in base]
-    snowy = GR[y][x] == 'SNOW'
-    nb = lambda dx, dy: T_at(x + dx, y + dy) == 'CLIFF'
-    for py in range(16):
-        for px in range(16):
-            h = hsh(13, px // 2, py // 2, x * 3 + y) % 100
-            c = WC['R0'] if h < 55 else WC['R1'] if h < 80 else WC['R2']
-            if snowy and h < 35 + (py < 8) * 30:
-                c = WC['SN0'] if h % 3 else WC['SN1']
-            img[py][px] = c
-    if not nb(0, 1):
-        for py in range(11, 16):
-            for px in range(16):
-                img[py][px] = WC['R2'] if (px + py // 2) % 4 else WC['OUT']
-    for i in range(16):
-        if not nb(-1, 0):
-            img[i][0] = WC['R2']
-        if not nb(1, 0):
-            img[i][15] = WC['R2']
-        if not nb(0, -1):
-            img[0][i] = WC['R1']
-    return img
-
-
-def fountain_image(x, y):
-    isf = lambda dx, dy: T_at(x + dx, y + dy) == 'FOUNTAIN'
-    img = [[water_px(px, py) for px in range(16)] for py in range(16)]
-    for py in range(16):
-        for px in range(16):
-            rim = (px < 3 and not isf(-1, 0)) or (px > 12 and not isf(1, 0)) or \
-                  (py < 3 and not isf(0, -1)) or (py > 12 and not isf(0, 1))
-            if rim:
-                img[py][px] = WC['C1'] if (px + py) % 5 else WC['C0']
-                if (px == 2 and not isf(-1, 0)) or (px == 13 and not isf(1, 0)) or \
-                        (py == 2 and not isf(0, -1)) or (py == 13 and not isf(0, 1)):
-                    img[py][px] = WC['C2']
-    # central spout at the corner shared with the other fountain cells
-    for (ddx, ddy, ox, oy) in ((1, 1, 13, 13), (-1, 1, 0, 13), (1, -1, 13, 0), (-1, -1, 0, 0)):
-        if isf(ddx, 0) and isf(0, ddy) and isf(ddx, ddy):
-            for py in range(3):
-                for px in range(3):
-                    img[oy + py][ox + px] = WC['C1'] if py == 0 else WC['C0']
-            img[min(15, max(0, oy + (-1 if ddy > 0 else 3)))][ox + 1] = WC['W2']
-    return img
 
 
 def quest_art():
@@ -3285,189 +2883,25 @@ def quest_art():
 QUEST_ART = quest_art()
 
 
-_OLD = False
+LEGACY_OBJS = set(ROCKS) | {'ROCK_EMPTY', 'BOULDER', 'FIREPIT', 'STALL', 'DITCH'}
 
 
-def render_old(x, y):
-    global _OLD
-    _OLD = True
-    try:
-        return render(x, y)
-    finally:
-        _OLD = False
-
-
-def render(x, y):
+def legacy_obj(x, y, img):
+    """Countryside objects hd_art has no art of its own for, drawn over the cell's ground."""
     t = TY[y][x]
-    g = GR[y][x]
-    if (y >= OW_H or x >= OW_W) and not _OLD:
-        return render_hd(x, y)
-    var = hsh(x, y) % 3
-    nb = [G_at(x + dx, y + dy) or g for dx, dy in DIRS8]
-    nbt = [T_at(x + dx, y + dy) or t for dx, dy in DIRS8]
-    over = None
-    if t == 'WATER':
-        img = [[water_px(px, py) for px in range(16)] for py in range(16)]
-        land = [n not in ('WATER', 'BRIDGE') for n in nbt]
-        for (pass_w, colf) in ((3, lambda px, py: WC['W2']), (2, lambda px, py: WC['S0'] if hsh(px, py) % 4 else WC['S1'])):
-            for py in range(16):
-                for px in range(16):
-                    jag = (hsh(7, px, py) % 3 == 0)
-                    lim = pass_w - 1 + (1 if jag else 0)
-                    d = 99
-                    if px <= lim and land[0]:
-                        d = min(d, px)
-                    if px >= 15 - lim and land[1]:
-                        d = min(d, 15 - px)
-                    if py <= lim and land[2]:
-                        d = min(d, py)
-                    if py >= 15 - lim and land[3]:
-                        d = min(d, 15 - py)
-                    if px <= lim and py <= lim and land[4]:
-                        d = min(d, max(px, py))
-                    if px >= 15 - lim and py <= lim and land[5]:
-                        d = min(d, max(15 - px, py))
-                    if px <= lim and py >= 15 - lim and land[6]:
-                        d = min(d, max(px, 15 - py))
-                    if px >= 15 - lim and py >= 15 - lim and land[7]:
-                        d = min(d, max(15 - px, 15 - py))
-                    if d <= lim:
-                        img[py][px] = colf(px, py)
-        return img, None
-    if t == 'BRIDGE':
-        ns = nbt[0] in ('WATER',) and nbt[1] in ('WATER',)
-        img = blank(16, 16)
-        for py in range(16):
-            for px in range(16):
-                a, b = (py, px) if ns else (px, py)
-                img[py][px] = WC['K2'] if a % 4 == 3 else (WC['K1'] if b % 5 else WC['K0'])
-        if ns:
-            for py in range(16):
-                for px in (0, 15):
-                    if T_at(x + (-1 if px == 0 else 1), y) == 'WATER':
-                        img[py][px] = WC['K2']
-                        img[py][1 if px == 0 else 14] = WC['K0']
-        else:
-            for px in range(16):
-                for py in (0, 15):
-                    if T_at(x, y + (-1 if py == 0 else 1)) == 'WATER':
-                        img[py][px] = WC['K2']
-                        img[1 if py == 0 else 14][px] = WC['K0']
-        return img, None
-    if t in WALLS:
-        return wall_image(t, x, y), None
-
-    img = base_img(g, var)
-    if t == g:
-        blend(img, nb, g, var)
-    if t == 'FLOWERS':
-        fl = [WC['FY'], WC['FW'], WC['FR']]
-        for i, (fx, fy) in enumerate(((3, 4), (10, 3), (6, 10), (12, 11))):
-            c = fl[(var + i) % 3]
-            img[fy][fx] = c
-            img[fy + 1][fx] = WC['G2']
-            img[fy][fx + 1] = c if i % 2 else WC['G3']
-    elif t == 'DOOR':
-        for px in range(16):
-            img[0][px] = WC['F2']
-            img[15][px] = WC['F2']
-    elif t == 'DITCH':
+    img = [r[:] for r in img]
+    if t == 'DITCH':
         for py in range(5, 11):
             for px in range(16):
                 img[py][px] = WC['OUT'] if 6 <= py <= 9 else WC['WD2']
         for px in range(0, 16, 3):
             img[5][px] = WC['WD1']
-    elif t == 'CARPET':
-        isc = lambda dx, dy: T_at(x + dx, y + dy) == 'CARPET'
-        for i in range(16):
-            if not isc(-1, 0):
-                img[i][0] = WC['GOLD']
-                img[i][1] = WC['CP2']
-            if not isc(1, 0):
-                img[i][15] = WC['GOLD']
-                img[i][14] = WC['CP2']
-    elif t == 'FENCE':
-        isf = lambda n: n == 'FENCE'
-        L, R, U, D = isf(nbt[0]), isf(nbt[1]), isf(nbt[2]), isf(nbt[3])
-        if L or R:
-            for px in range(0 if L else 7, (15 if R else 8) + 1):
-                for py, c in ((6, 'K1'), (7, 'K2'), (10, 'K1'), (11, 'K2')):
-                    img[py][px] = WC[c]
-        if U or D:
-            for py in range(0 if U else 5, (15 if D else 10) + 1):
-                img[py][7] = WC['K1']
-                img[py][8] = WC['K2']
-        for py in range(4, 13):
-            for px in range(6, 10):
-                img[py][px] = WC['K2'] if px in (6, 9) or py in (4, 12) else WC['K0']
-        img[5][7] = WC['K1']
-    elif t in TREES:
-        ti = TREE_IMG[t]
-        sh = blank(16, 16)
-        ellipse_fill(sh, 8, 14.5, 6, 1.8, {'GRASS': WC['G2'], 'DESERT': WC['DS3'], 'SWAMP': WC['SW2'],
-                                            'WILD': WC['WD2'], 'SNOW': WC['SN1']}.get(g, WC['G2']))
-        paste(img, sh, 0, 0)
-        paste(img, ti[16:], 0, 0)
-        over = ti[:16]
-        if all(c is None for r in over for c in r):
-            over = None
-    elif t == 'STUMP':
-        paste(img, stump_image(), 0, 0)
     elif t in ROCKS or t == 'ROCK_EMPTY':
         paste(img, rock_image(None if t == 'ROCK_EMPTY' else t), 0, 0)
     elif t == 'BOULDER':
         paste(img, rock_image(None), 0, 0)
-    elif t == 'BUSH':
-        paste(img, bush_image(), 0, 0)
-    elif t == 'CACTUS':
-        paste(img, cactus_image(), 0, 0)
-    elif t == 'GRAVE':
-        paste(img, grave_image(), 0, 0)
     elif t == 'FIREPIT':
         paste(img, firepit_image(), 0, 0)
-    elif t == 'BOOTH':
-        for py in range(3, 16):
-            for px in range(16):
-                if py < 9:
-                    c = WC['K1'] if py > 3 else WC['K2']
-                elif py == 9:
-                    c = WC['GOLD']
-                elif py == 15:
-                    c = WC['K2']
-                else:
-                    c = WC['K0'] if px % 5 else WC['K2']
-                img[py][px] = c
-        for px in range(5, 11):
-            img[5][px] = WC['PAPER']
-            img[6][px] = WC['PAPER'] if px % 2 else WC['F1']
-    elif t == 'COUNTER':
-        for py in range(4, 15):
-            for px in range(16):
-                img[py][px] = WC['K1'] if py < 9 else (WC['K2'] if py in (9, 14) else WC['K0'])
-    elif t == 'RANGE':
-        for py in range(1, 15):
-            for px in range(1, 15):
-                edge = px in (1, 14) or py in (1, 14)
-                img[py][px] = WC['IR2'] if edge else (WC['IR1'] if py < 4 else WC['IR0'])
-        for (ax, ay) in ((5, 2), (10, 2)):
-            img[ay][ax] = WC['IR2']
-            img[ay][ax + 1] = WC['IR2']
-        for py in range(8, 12):
-            for px in range(4, 12):
-                img[py][px] = WC['FI1'] if (py == 10 and px % 3 == 1) else WC['FI0']
-        for px in range(4, 12):
-            img[7][px] = WC['IR2']
-    elif t == 'FOUNTAIN':
-        img = fountain_image(x, y)
-    elif t == 'CROPS':
-        for py in range(16):
-            for px in range(16):
-                if px % 4 == 3:
-                    continue
-                if py % 8 < 2:
-                    img[py][px] = WC['CR0'] if (px + py) % 2 else WC['CR1']
-                elif py % 8 < 6:
-                    img[py][px] = WC['CR1'] if px % 4 == 1 else WC['CR2']
     elif t == 'STALL':
         for py in range(9, 15):
             for px in range(1, 15):
@@ -3483,27 +2917,7 @@ def render(x, y):
         img[10][4] = WC['FR']
         img[10][9] = WC['FY']
         img[10][11] = WC['CR0']
-    elif t == 'ALTAR':
-        for py in range(5, 15):
-            for px in range(2, 14):
-                img[py][px] = WC['WW1'] if py < 7 else WC['WW2'] if py == 14 or px in (2, 13) else WC['WW0']
-        for px in range(4, 12):
-            img[7][px] = WC['CP1']
-            img[8][px] = WC['CP1'] if px in (4, 11) else WC['CP0']
-        for py in range(8, 13):
-            img[py][7] = WC['GOLD']
-            img[py][8] = WC['GOLD']
-        img[10][6] = WC['GOLD']
-        img[10][9] = WC['GOLD']
-    elif t == 'CLIFF':
-        img = cliff_image(x, y, img)
-    elif t in QUEST_ART:
-        paste(img, QUEST_ART[t], 0, 0)
-    elif t in WALKSET:
-        pass
-    else:
-        raise ValueError(t)
-    return img, over
+    return img
 
 
 # ----------------------------------------------------------------------------------------
@@ -3515,12 +2929,13 @@ import hd_art  # noqa: E402
 
 
 def theme_of(x, y):
-    z = zone_of(x, y)
-    n = ZONES[z][0] if z is not None else 'LUMBRIDGE'
-    return 'LUMBRIDGE' if n.startswith('CASTLE') else n
+    if y >= OW_H:
+        return 'LUMBRIDGE'          # the castle's upper floors
+    c = OWNER[y][x]
+    return c.name if c else 'OVERWORLD'
 
 
-def render_hd(x, y):
+def render(x, y):
     hd_art.set_theme(theme_of(x, y))
     return hd_art.render(sys.modules[__name__], x, y, QUEST_ART)
 
@@ -3537,47 +2952,11 @@ def cdist(a, b):
     return (a[0] - b[0]) ** 2 * 3 + (a[1] - b[1]) ** 2 * 4 + (a[2] - b[2]) ** 2 * 2
 
 
-def pack_palettes(tilesets, nbanks, weights=None):
-    """Greedy bank packing. Tiles that fit no bank once all banks exist are assigned to the
-    bank that represents them best; their missing colours are later remapped to the nearest
-    colour in that bank (QUANTIZED counts them)."""
-    weights = weights or [1] * len(tilesets)
-    banks = []
-    order = sorted(range(len(tilesets)), key=lambda i: -weights[i] * len(tilesets[i]))
-    assign = [None] * len(tilesets)
-    late = []
-    for i in order:
-        s = tilesets[i]
-        best, bestadd = None, 99
-        for bi, b in enumerate(banks):
-            add = len(s - set(b))
-            if len(b) + add <= 15 and add < bestadd:
-                best, bestadd = bi, add
-        if best is None:
-            if len(banks) >= nbanks:
-                late.append(i)
-                continue
-            banks.append([])
-            best = len(banks) - 1
-        for c in sorted(s):
-            if c not in banks[best]:
-                banks[best].append(c)
-        assign[i] = best
-    for i in late:
-        s = tilesets[i]
-        best, besterr = None, None
-        for bi, b in enumerate(banks):
-            err = sum(min(cdist(c, d) for d in b) for c in s if c not in b)
-            if besterr is None or err < besterr:
-                best, besterr = bi, err
-        assign[i] = best
-    return assign, banks, late
-
-
 def pack_palettes_search(tilesets, nbanks, weights, trials=int(os.environ.get('WG_TRIALS', 800)), seed=1):
-    """pack_palettes for a richer tile set: greedy packing of the maximal colour sets in many
-    orders, keeping the banks that leave the fewest map uses to quantize. WG_TRIALS=100 in the
-    environment makes a quicker (slightly worse) build while iterating on art."""
+    """Greedy packing of the maximal colour sets in many orders, keeping the banks that leave the
+    fewest map uses to quantize. Tiles that fit no bank go to the bank that represents them best;
+    their missing colours are later remapped to the nearest colour in that bank (QUANTIZED).
+    WG_TRIALS=100 in the environment makes a quicker (slightly worse) build while iterating."""
     from collections import Counter
     use = Counter()
     for s_, w in zip(tilesets, weights):
@@ -3625,13 +3004,49 @@ def flips(t):
 # ----------------------------------------------------------------------------------------
 # Build metatiles, tiles and palettes
 # ----------------------------------------------------------------------------------------
-NSETS = max(z[2] for z in ZONES) + 1   # world palette sets: 0 overworld, then one per town (hd_art.py)
+# ----------------------------------------------------------------------------------------
+# Palette sets. Banks 0..SHARED-1 are the same in every set and hold the countryside; the rest
+# belong to the towns. A town's set is loaded while the camera is near it (pal_regions in
+# src/world.c), early enough that its private banks are off screen when the swap happens; towns
+# whose regions overlap share one set.
+# ----------------------------------------------------------------------------------------
+OWNER = [[owner_of(x, y) for x in range(OW_W)] + [None] * (MW - OW_W) for y in range(OW_H)]
+CAM_W, CAM_H, CAM_PAD = 16, 11, 2       # camera window in whole cells (minus one), prefetch margin
+
+
+def assign_palette_sets():
+    """Group towns whose camera regions overlap; returns [(cam rect, set)]."""
+    reg = []
+    for c in CITIES:
+        z = c.ctx
+        reg.append([z.X0 - CAM_W - CAM_PAD, z.Y0 - CAM_H - CAM_PAD, z.X1 + CAM_PAD, z.Y1 + CAM_PAD])
+    grp = list(range(len(CITIES)))
+
+    def root(i):
+        while grp[i] != i:
+            i = grp[i]
+        return i
+    for i in range(len(reg)):
+        for j in range(i):
+            a, b = reg[i], reg[j]
+            if not (a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1]):
+                grp[root(i)] = root(j)
+    sets = {}
+    for i, c in enumerate(CITIES):
+        c.pset = sets.setdefault(root(i), len(sets) + 1)
+    return [(tuple(max(0, v) for v in reg[i]), c.pset) for i, c in enumerate(CITIES)]
+
+
+PAL_REGIONS = assign_palette_sets()
+ZONES = [(n, z, LUMBRIDGE.pset if ps is None else ps, pl_) for (n, z, ps, pl_) in ZONES]
+NSETS = max(c.pset for c in CITIES) + 1   # world palette sets: 0 countryside only, then the town groups
+SHARED = int(os.environ.get('WG_SHARED', 8))   # world banks shared by every set
 meta_imgs = []
 meta_set = []       # palette set of each metatile
 meta_index = {}
 
 
-_PSET = [[0] * MW for _ in range(MH)]
+_PSET = [[OWNER[y][x].pset if y < OW_H and OWNER[y][x] else 0 for x in range(MW)] for y in range(MH)]
 for _z in ZONES[1:]:
     for _y in range(_z[1].Y0, _z[1].Y1 + 1):
         for _x in range(_z[1].X0, _z[1].X1 + 1):
@@ -3658,17 +3073,18 @@ _cache = {}
 def render_cached(x, y):
     t, g = TY[y][x], GR[y][x]
     ps = pset_of(x, y)
-    key = (ps, t, g, hsh(x, y) % 3,
-           tuple((T_at(x + dx, y + dy), G_at(x + dx, y + dy)) for dx, dy in DIRS8))
-    if ps:
-        key = key + tuple((T_at(x + dx, y + dy), G_at(x + dx, y + dy), ROOF[y + dy][x + dx] if inb(x + dx, y + dy) else 0)
-                          for dx in (-1, 0, 1) for dy in (-3, -2, 2, 3)) + \
-            tuple(ROOF[y + dy][x + dx] if inb(x + dx, y + dy) else 0 for dx, dy in DIRS8 + [(0, 0)]) + \
-            (hsh(x, y) % 6, x & 1, y & 1, hsh(53, x, y) % 6)
-        if TY[y][x] in ('FLOWERS', 'STAIRS', 'FERN', 'BIGSTALL', 'FLOWERBED', 'VFOUNTAIN', 'SUNFLOWER'):
-            key = key + (x, y)
-    if t in ('CLIFF',):
+    # everything hd_art.render() looks at: the 3x3 neighbourhood with roofs, two rows further up
+    # and down (shadows, banks, facades), the cell's parity (8x8 tile patterns) and its hashes
+    key = (ps, theme_of(x, y), t, g,
+           tuple((T_at(x + dx, y + dy), G_at(x + dx, y + dy)) for dx, dy in DIRS8)) + \
+        tuple((T_at(x + dx, y + dy), G_at(x + dx, y + dy), ROOF[y + dy][x + dx] if inb(x + dx, y + dy) else 0)
+              for dx in (-1, 0, 1) for dy in (-3, -2, 2, 3)) + \
+        tuple(ROOF[y + dy][x + dx] if inb(x + dx, y + dy) else 0 for dx, dy in DIRS8 + [(0, 0)]) + \
+        (hsh(x, y) % 6, x & 1, y & 1, hsh(53, x, y) % 6)
+    if t in ('FLOWERS', 'STAIRS', 'FERN', 'BIGSTALL', 'FLOWERBED', 'VFOUNTAIN', 'SUNFLOWER'):
         key = key + (x, y)
+    if t == 'CLIFF':
+        key = key + (hsh(71, x, y) % 4,)        # hd_art.obj_cliff's variant
     r = _cache.get(key)
     if r is None:
         img, over = render(x, y)
@@ -3735,15 +3151,30 @@ for mi, ents in enumerate(meta_entries):
     for (ti, f) in ents:
         tile_use[ti] += _meta_use[mi]
 assign = [0] * len(tile_list)
-wbanks = []             # per set: 14 banks of up to 15 colours
+wbanks = []             # per set: 14 banks of up to 15 colours (the first SHARED_N are the shared ones)
 QUANTIZED = []
-for ps in range(NSETS):
-    ids = [i for i, (s_, t) in enumerate(tile_list) if s_ == ps]
-    a_, banks, late = (pack_palettes if ps == 0 else pack_palettes_search)(
-        [frozenset(c for r in tile_list[i][1] for c in r if c is not None) for i in ids], 14, [tile_use[i] for i in ids])
+_cols = lambda i: frozenset(c for r in tile_list[i][1] for c in r if c is not None)
+_ids = [i for i, (s_, t) in enumerate(tile_list) if s_ == 0]
+_a, SHARED_BANKS, _late = pack_palettes_search([_cols(i) for i in _ids], SHARED, [tile_use[i] for i in _ids])
+SHARED_N = len(SHARED_BANKS)
+for k, i in enumerate(_ids):
+    assign[i] = _a[k]
+QUANTIZED += [_ids[k] for k in _late]
+wbanks.append(SHARED_BANKS)
+for ps in range(1, NSETS):
+    ids = []
+    for i, (s_, t) in enumerate(tile_list):
+        if s_ != ps:
+            continue
+        home = [bi for bi, b in enumerate(SHARED_BANKS) if _cols(i) <= set(b)]
+        if home:
+            assign[i] = home[0]
+        else:
+            ids.append(i)
+    a_, banks, late = pack_palettes_search([_cols(i) for i in ids], 14 - SHARED_N, [tile_use[i] for i in ids])
     for k, i in enumerate(ids):
-        assign[i] = a_[k]
-    wbanks.append(banks)
+        assign[i] = SHARED_N + a_[k]
+    wbanks.append(SHARED_BANKS + banks)
     QUANTIZED += [ids[k] for k in late]
 idx_tiles = []
 idx_lookup = {}
@@ -3777,7 +3208,7 @@ meta_out = [[world_entry(i, f) for (i, f) in ents] for ents in meta_entries]
 world_pal = [[0] * (14 * 16) for _ in range(NSETS)]
 water_slots = [[] for _ in range(NSETS)]
 for ps in range(NSETS):
-    w1, w2 = (WC['W1'], WC['W2']) if ps == 0 else hd_art.WATER_SWAP
+    w1, w2 = hd_art.WATER_SWAP
     for bi, b in enumerate(wbanks[ps]):
         for ci, c in enumerate(b):
             world_pal[ps][bi * 16 + ci + 1] = gba(c)
@@ -3793,7 +3224,8 @@ CACHE_SLOTS = 575
 
 
 def check_window_budget():
-    """Windows are checked inside each zone only: the camera never leaves the player's zone."""
+    """Windows are checked inside each zone only: the camera never leaves the player's zone (the
+    overworld is one zone)."""
     from collections import Counter
     cell_tiles = {}
 
@@ -3810,36 +3242,44 @@ def check_window_budget():
     for (n, z, ps, pl_) in ZONES:
         for y0 in range(z.Y0, max(z.Y0, z.Y1 - WH + 1) + 1):
             cnt = Counter()
+            live = 0
+
+            def add(st, k):
+                nonlocal live
+                for t in st:
+                    v = cnt[t]
+                    live += (v == 0) - (v + k == 0)
+                    cnt[t] = v + k
             for y in range(y0, min(y0 + WH, MH)):
                 for x in range(z.X0, z.X0 + WW):
-                    cnt.update(tiles_at(x, y))
+                    add(tiles_at(x, y), 1)
             for x0 in range(z.X0, max(z.X0, z.X1 - WW + 1) + 1):
                 if x0 > z.X0:
                     for y in range(y0, min(y0 + WH, MH)):
-                        cnt.subtract(tiles_at(x0 - 1, y))
-                        cnt.update(tiles_at(x0 + WW - 1, y))
-                    cnt += Counter()
-                if len(cnt) > worst[0]:
-                    worst = (len(cnt), x0, y0)
+                        add(tiles_at(x0 - 1, y), -1)
+                        add(tiles_at(x0 + WW - 1, y), 1)
+                if live > worst[0]:
+                    worst = (live, x0, y0)
     return worst
 
 
 WINDOW_WORST = check_window_budget()
-print('palette: %d tiles quantized (%d map uses of %d)' % (len(QUANTIZED), sum(tile_use[i] for i in QUANTIZED), sum(tile_use)), file=sys.stderr)
+print('palette: %d tiles quantized (%d map uses of %d; by set %s)' % (
+    len(QUANTIZED), sum(tile_use[i] for i in QUANTIZED), sum(tile_use),
+    ' '.join('%d:%d/%d' % (ps, sum(tile_use[i] for i in QUANTIZED if tile_list[i][0] == ps),
+                          sum(tile_use[i] for i in range(len(tile_list)) if tile_list[i][0] == ps)) for ps in range(NSETS))), file=sys.stderr)
 print('world: %dx%d cells, %d metatiles, %d tiles, %s banks, %d resources, worst window %d tiles at cell %d,%d, %d reachable cells'
       % (MW, MH, len(meta_imgs), len(idx_tiles), '+'.join(str(len(b)) for b in wbanks), len(RES_ALT), WINDOW_WORST[0], WINDOW_WORST[1],
          WINDOW_WORST[2], REACHABLE), file=sys.stderr)
 if WINDOW_WORST[0] > CACHE_SLOTS:
     raise SystemExit('tile cache overflow: a camera window needs %d tiles (max %d)' % (WINDOW_WORST[0], CACHE_SLOTS))
 assert len(SPAWNS) <= 256, len(SPAWNS)   # MAX_NPCS in src/game.h
+assert len(meta_out) < 65536, ('map_meta is u16', len(meta_out))
 assert MW <= 65535 and MH <= 65535
 
 # ----------------------------------------------------------------------------------------
 # C emission
 # ----------------------------------------------------------------------------------------
-
-
-PORTAL_LIST = sorted((y * MW + x, d) for (x, y), d in PORTALS.items())
 
 
 def emit_header(h):
@@ -3857,7 +3297,7 @@ def emit_header(h):
     h.append('#define SPAWN_COUNT %d' % len(SPAWNS))
     h.append('#define FISHSPOT_COUNT %d' % len(FISH_SPOTS))
     h.append('#define REGION_COUNT %d' % len(REGIONS))
-    h.append('#define PORTAL_COUNT %d' % len(PORTAL_LIST))
+    h.append('#define PAL_REGION_COUNT %d' % len(PAL_REGIONS))
     h.append('#define ZONE_COUNT %d' % len(ZONES))
     h.append('enum { %s };' % ', '.join('ZONE_' + z[0] for z in ZONES))
     h.append('enum { %s };' % ', '.join('SHOP_' + n for n, _, _ in SHOPS))
@@ -3867,14 +3307,12 @@ def emit_header(h):
     for n in sorted(k for k in QPOS if k.startswith('TELE_')):    # teleport spell arrival cells
         h.append('#define %s_X %d' % (n, QPOS[n][0]))
         h.append('#define %s_Y %d' % (n, QPOS[n][1]))
-    h.append('#define LEGACY_COUNT %d' % len(CITIES))
     h.append('''
 typedef struct { u8 kind; u16 x, y; } Spawn;
 typedef struct { u8 kind; u16 x, y; } FishSpotDef;
 typedef struct { const char *name; u16 x0, y0, x1, y1; } Region;
-typedef struct { u32 cell; u16 x, y; u8 dir; } Portal;  // walking into cell -> (x, y), still walking dir
 typedef struct { u16 x0, y0, x1, y1; u8 pal_set, plane; } Zone;
-typedef struct { u8 x0, y0, x1, y1; s16 dx, dy; } Legacy;   // old overworld town cells -> zone (2x+dx, 2y+dy)
+typedef struct { u16 x0, y0, x1, y1; u8 pal_set; } PalRegion;   // camera cell (top-left) rect -> palette set
 extern const u32 world_tiles[WORLD_TILE_COUNT * 8];
 extern const u32 meta_tiles[META_COUNT][4];   // low 16: tile id, high 16: flip/palette attrs
 extern const u16 map_meta[MAP_W * MAP_H];
@@ -3889,9 +3327,8 @@ extern const Spawn spawns[SPAWN_COUNT];
 extern const FishSpotDef fish_spots[FISHSPOT_COUNT];
 extern const Region regions[REGION_COUNT];
 extern const u16 shop_pos[SHOP_COUNT][2];     // cell at the centre of each shop's building
-extern const Portal portals[PORTAL_COUNT];    // sorted by cell
 extern const Zone zones[ZONE_COUNT];
-extern const Legacy legacy[LEGACY_COUNT];
+extern const PalRegion pal_regions[PAL_REGION_COUNT];
 ''')
 
 
@@ -3908,8 +3345,7 @@ def emit_source(c, arr, tile_words, npc_kinds):
     c.append('};')
     c.append(arr('u16', 'map_meta[MAP_W * MAP_H]', [map_meta[y][x] for y in range(MH) for x in range(MW)], 24, '%d'))
     c.append(arr('u16', 'map_over[MAP_W * MAP_H]', [map_over[y][x] for y in range(MH) for x in range(MW)], 32, '%d'))
-    c.append(arr('u8', 'map_type[MAP_W * MAP_H]', [T['PORTAL'] if (x, y) in PORTALS else T[TY[y][x]]
-                                                  for y in range(MH) for x in range(MW)], 40, '%d'))
+    c.append(arr('u8', 'map_type[MAP_W * MAP_H]', [T[TY[y][x]] for y in range(MH) for x in range(MW)], 40, '%d'))
     c.append(arr('u8', 'map_roof[MAP_W * MAP_H]', [ROOF[y][x] for y in range(MH) for x in range(MW)], 40, '%d'))
     c.append(arr('u32', 'res_cell[RES_COUNT]', [i for i, _ in RES_ALT], 24, '%d'))
     c.append(arr('u16', 'res_alt[RES_COUNT]', [m for _, m in RES_ALT], 24, '%d'))
@@ -3937,15 +3373,9 @@ def emit_source(c, arr, tile_words, npc_kinds):
     for n, x0, y0, x1, y1 in REGIONS:
         c.append('  {"%s", %d, %d, %d, %d},' % (n.replace('"', '\\"'), x0, y0, x1, y1))
     c.append('};')
-    c.append('const Portal portals[PORTAL_COUNT] = {')
-    for cell, (x, y, d) in PORTAL_LIST:
-        c.append('  {%d, %d, %d, %d},' % (cell, x, y, d))
-    c.append('};')
-    c.append('const Legacy legacy[LEGACY_COUNT] = {')
-    for t in CITIES:
-        (ox0, oy0), (ox1, oy1) = t.ow_r
-        z = t.ctx
-        c.append('  {%d, %d, %d, %d, %d, %d},   // %s' % (ox0, oy0, ox1, oy1, z.CX0 + OW.OX - z.OX, z.CY0 + z.OY - OW.OY, t.name))
+    c.append('const PalRegion pal_regions[PAL_REGION_COUNT] = {')
+    for (x0, y0, x1, y1), ps in PAL_REGIONS:
+        c.append('  {%d, %d, %d, %d, %d},' % (x0, y0, x1, y1, ps))
     c.append('};')
     c.append('const Zone zones[ZONE_COUNT] = {')
     for n, z, ps, pl_ in ZONES:

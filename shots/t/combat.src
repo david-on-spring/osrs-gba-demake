@@ -25,7 +25,7 @@ wait 6
 press START
 wait 20
 tpz OVERWORLD 3258 3276 RIGHT
-npcpos COW OVERWORLD 3260 3276
+npcpos COW OVERWORLD 3259 3276
 wait 2
 press A
 untildead COW

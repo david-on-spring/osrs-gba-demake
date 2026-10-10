@@ -182,9 +182,9 @@ show DELRITH DEMON 3 3
 # Shared world objects
 # ============================================================================================
 obj CROPS
-  if near WHEAT_FIELD 4 goto wheat
-  if near ONION_FIELD 4 goto onion
-  if near CABBAGE_FIELD 5 goto cabbage
+  if near WHEAT_FIELD 8 goto wheat
+  if near ONION_FIELD 8 goto onion
+  if near CABBAGE_FIELD 10 goto cabbage
   chat "These crops aren't ready to be picked yet."
   end
 :wheat
@@ -219,7 +219,7 @@ obj WATER
 obj VFOUNTAIN = FOUNTAIN
 
 obj FOUNTAIN
-  if near MANOR_FOUNTAIN 2 goto manor
+  if near MANOR_FOUNTAIN 3 goto manor
 :fill
   if not has BUCKET goto none
   take BUCKET

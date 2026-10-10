@@ -4,7 +4,7 @@ newgame
 world
 clearinv
 item 0 COINS 1000
-tpz LUMBRIDGE 3211 3246 LEFT
+tpz OVERWORLD 3211 3246 LEFT
 press A
 wait 20
 expectstate SHOP

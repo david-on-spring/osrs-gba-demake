@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Render whole zones from the generated metatiles (ground + overlay, roofs shown) to PNGs, for
-reviewing a town at a glance. usage: zone_png.py OUT_DIR [ZONE ...] [--half]"""
+"""Render whole towns or zones (the castle floors, the OVERWORLD) from the generated metatiles (ground + overlay, roofs shown) to PNGs, for
+reviewing a town at a glance. usage: zone_png.py OUT_DIR [TOWN|ZONE ...] [--half]"""
 import os
 import sys
 
@@ -33,9 +33,10 @@ def render(z, half):
 
 if __name__ == '__main__':
     a = [v for v in sys.argv[1:] if not v.startswith('--')]
-    out, names = a[0], a[1:] or [z[0] for z in wg.ZONES[1:]]
+    areas = [(c.name, c.ctx) for c in wg.CITIES] + [(n, z) for (n, z, ps, pl) in wg.ZONES]
+    out, names = a[0], a[1:] or [n for (n, z) in areas if n != 'OVERWORLD']
     os.makedirs(out, exist_ok=True)
-    for (n, z, ps, pl) in wg.ZONES:
+    for (n, z) in areas:
         if n in names:
             write_png(os.path.join(out, n.lower() + '.png'), *render(z, '--half' in sys.argv))
             print('wrote', n)

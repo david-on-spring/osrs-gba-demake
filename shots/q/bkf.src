@@ -22,12 +22,12 @@ dlg
 world
 expectq BKF 1
 # a cabbage from the field south of Falador
-tpz OVERWORLD 3056 3282 LEFT
+tpz OVERWORLD 3056 3283 LEFT
 press A
 wait 10
 expectitem 9 CABBAGE
 # the guard turns away the undisguised
-tpz OVERWORLD 3008 3510 RIGHT
+tpz OVERWORLD 3009 3511 DOWN
 talk
 dlg
 world
@@ -42,19 +42,19 @@ shot shots/q/bkf_guard.png
 dlg
 world
 dump @pl 2
-tpz OVERWORLD 3026 3516 RIGHT
+tpz OVERWORLD 3029 3517 RIGHT
 press A
 dlg
 world
 expectq BKF 2
-tpz OVERWORLD 3030 3510 DOWN
+tpz OVERWORLD 3031 3507 DOWN
 press A
 dlg
 world
 expectq BKF 3
 shot shots/q/bkf_hole.png
 # leave past the guard
-tpz OVERWORLD 3012 3510 LEFT
+tpz OVERWORLD 3010 3510 LEFT
 talk
 dlg
 world

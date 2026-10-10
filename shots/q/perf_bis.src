@@ -241,7 +241,7 @@ expectitem 9 BLUE_MAIL
 #L63 expectitem 9 BLUE_MAIL
 dump @perf_max 1
 poke16 @perf_max 0
-tpz OVERWORLD 2956 3500 RIGHT
+tpz OVERWORLD 2958 3500 RIGHT
 #L64 tp 14 26 3
 dump @perf_max 1
 poke16 @perf_max 0

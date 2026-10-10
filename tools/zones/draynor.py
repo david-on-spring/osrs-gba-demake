@@ -1,5 +1,5 @@
 # Draynor Village at 1:1. Run by tools/world_gen.py in its namespace (see tools/zones/README.md).
-DRAYNOR = city('DRAYNOR', (3072, 3226, 3132, 3285), 162, ZONE_Y, 2)
+DRAYNOR = city('DRAYNOR', (3072, 3226, 3132, 3285))
 set_ctx(DRAYNOR.ctx)
 B = build_from_ref(load_ref('draynor'), dict(stone='WALL', wood='WALL', road='COBBLE', fence='FENCE',
                                              roof_stone='slate', roof_wood='slate'))

@@ -39,10 +39,9 @@ Adds to the harness commands:
   hp N                   set current hitpoints
   npcpos I|KIND [ZONE] X Y  move NPC I (see build/spawns.txt), the first of a kind (or KIND:N, the Nth), to a cell
   untildead I|KIND [N]   run until that NPC is inactive (killed), at most N frames (default 3000)
-  tpz ZONE X Y DIR       teleport to OSRS tile (X, Y) in a zone (OVERWORLD, LUMBRIDGE, CASTLE_1, CASTLE_2)
+  tpz ZONE X Y DIR       teleport to OSRS tile (X, Y) in a zone (OVERWORLD, CASTLE_1, CASTLE_2; a town's name
+                         such as LUMBRIDGE is the overworld)
   expectat ZONE X Y      PASS/FAIL check that the player stands on OSRS tile (X, Y) of a zone (ZONE CELL: a cell)
-  expectwarp ZONE X Y DIR  PASS/FAIL check that the player is where the portal next to (X, Y) in DIR leads
-                         (one step on: the player arrives mid-stride)
   face THING DIR         stand next to THING facing it (DIR is the way the player faces; another free side
                          is used if that one is blocked). THING is an NPC kind (its first spawn), obj:TYPE
                          or item:NAME (the 'stand' lines in build/spawns.txt)
@@ -135,14 +134,8 @@ for line in open(sys.argv[1]):
     elif c == 'tpz':
         x, y = zone_cell(p[1], int(p[2]), int(p[3]))
         out += tp_lines(x, y, int(p[4]) if p[4].isdigit() else DIRV[p[4]][0])
-    elif c in ('expectat', 'expectwarp'):
+    elif c == 'expectat':
         x, y = (int(p[2]), int(p[3])) if p[1] == 'CELL' else zone_cell(p[1], int(p[2]), int(p[3]))
-        if c == 'expectwarp':
-            d, dx, dy = DIRV[p[4]]
-            x, y, w, step = next((int(q[3]), int(q[4]), int(q[5]), int(q[6])) for q in spawn_lines()
-                                 if q[0] == 'portal' and int(q[1]) == x + dx and int(q[2]) == y + dy)
-            if step:    # arrives mid-stride
-                x, y = x + DIRV[['DOWN', 'UP', 'LEFT', 'RIGHT'][w]][1], y + DIRV[['DOWN', 'UP', 'LEFT', 'RIGHT'][w]][2]
         out += ['expect16 @pl %x %s_x' % (x, c), 'expect16 @pl+2 %x %s_y' % (y, c)]
     elif c == 'face':       # stand beside the thing facing it, from the side asked for if it is free
         d = DIRV[p[2]][0]

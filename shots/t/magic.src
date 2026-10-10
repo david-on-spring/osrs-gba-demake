@@ -11,7 +11,7 @@ item 1 MIND_RUNE 100
 equip WEAPON STAFF_AIR
 spell WIND_STRIKE
 tpz OVERWORLD 3286 3306 RIGHT
-npcpos COW OVERWORLD 3296 3306
+npcpos COW OVERWORLD 3291 3306
 wait 4
 press L
 wait 4
@@ -32,7 +32,7 @@ item 3 EARTH_RUNE 10
 item 4 BODY_RUNE 10
 equip WEAPON NONE
 spell NONE
-npcpos COW:2 OVERWORLD 3292 3306
+npcpos COW:2 OVERWORLD 3289 3306
 wait 4
 press L
 wait 4
@@ -98,7 +98,7 @@ expectitem 0 COINS
 expectqty 0 54
 expectitem 1 NONE
 expectxp MAGIC 2000650
-# --- dark wizards cast Water Strike (max 2) at the player: stand three cells from the stone
+# --- dark wizards cast Water Strike (max 2) at the player: stand just outside the stone
 #     circle's wizards (aggressive at this combat level) and lose some hitpoints
 press START
 wait 20
@@ -106,7 +106,7 @@ clearinv
 xp MAGIC 0
 xp DEFENCE 0
 hp 10
-tpz OVERWORLD 3236 3372 LEFT
+tpz OVERWORLD 3233 3370 LEFT
 wait 300
 shot shots/t/magic_wizard.png
 wait 300

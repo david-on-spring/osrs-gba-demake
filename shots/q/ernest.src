@@ -8,47 +8,47 @@ choose 0
 dlg
 world
 expectq ERNEST 1
-tpz OVERWORLD 3118 3366 RIGHT
+tpz OVERWORLD 3121 3369 RIGHT
 talk
 dlg
 world
 expectq ERNEST 2
 # fountain: piranhas, no gauge yet
-tpz OVERWORLD 3100 3344 LEFT
+tpz OVERWORLD 3096 3346 UP
 press A
 dlg
 world
 # spade in the hall, key from the compost heap
-tpz OVERWORLD 3098 3356 DOWN
+tpz OVERWORLD 3097 3354 DOWN
 press A
 wait 10
 expectitem 9 SPADE
-tpz OVERWORLD 3120 3344 RIGHT
+tpz OVERWORLD 3122 3348 RIGHT
 press A
 wait 10
 expectitem 10 MANOR_KEY
 # the locked west wing: the rubber tube
-tpz OVERWORLD 3100 3356 UP
+tpz OVERWORLD 3098 3354 UP
 press A
 wait 30
 shot shots/q/ernest_door.png
-tpz OVERWORLD 3100 3366 UP
+tpz OVERWORLD 3098 3369 UP
 press A
 wait 10
 expectitem 11 TUBE
-tpz OVERWORLD 3100 3360 DOWN
+tpz OVERWORLD 3098 3356 DOWN
 press A
 wait 30
 dump @pl 2
 # oil can, poison, fish food
-tpz OVERWORLD 3108 3368 UP
+tpz OVERWORLD 3102 3370 UP
 press A
 wait 10
 expectitem 12 OIL_CAN
-tpz OVERWORLD 3110 3354 UP
+tpz OVERWORLD 3103 3353 UP
 press A
 wait 10
-tpz OVERWORLD 3122 3368 UP
+tpz OVERWORLD 3123 3370 UP
 press A
 wait 10
 expectitem 13 POISON
@@ -79,12 +79,12 @@ press A
 world
 dumpq
 # poison the piranhas, take the gauge
-tpz OVERWORLD 3100 3344 LEFT
+tpz OVERWORLD 3096 3346 UP
 press A
 dlg
 world
 shot shots/q/ernest_fountain.png
-tpz OVERWORLD 3118 3366 RIGHT
+tpz OVERWORLD 3121 3369 RIGHT
 talk
 dlg
 done
