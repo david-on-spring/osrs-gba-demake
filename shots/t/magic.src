@@ -32,7 +32,7 @@ item 3 EARTH_RUNE 10
 item 4 BODY_RUNE 10
 equip WEAPON NONE
 spell NONE
-npcpos 53 182 123
+npcpos COW:2 182 123
 wait 4
 press L
 wait 4
@@ -51,7 +51,7 @@ press A
 wait 4
 press A
 wait 200
-expectcurse 53 1
+expectcurse COW:2 1
 expectqty 4 9
 expectstate WORLD
 # --- Varrock Teleport: 3 air, 1 fire, 1 law (the book stays on Confuse, the 4th spell; Varrock

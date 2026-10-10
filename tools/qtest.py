@@ -37,7 +37,7 @@ Adds to the harness commands:
   expecthp N             PASS/FAIL check of current hitpoints
   expectstate STATE      PASS/FAIL check of game_state (TITLE WORLD MENU DIALOG BANK SHOP LEVELUP QUESTDONE)
   hp N                   set current hitpoints
-  npcpos I|KIND X Y      move NPC I (see build/spawns.txt), or the first of a kind, to a cell
+  npcpos I|KIND X Y      move NPC I (see build/spawns.txt), the first of a kind (or KIND:N, the Nth), to a cell
   untildead I|KIND [N]   run until that NPC is inactive (killed), at most N frames (default 3000)
   tpz ZONE X Y DIR       teleport to OSRS tile (X, Y) in a zone (OVERWORLD, LUMBRIDGE, CASTLE_1, CASTLE_2)
   expectat ZONE X Y      PASS/FAIL check that the player stands on OSRS tile (X, Y) of a zone (ZONE CELL: a cell)
@@ -106,10 +106,13 @@ def tp_lines(x, y, d):
 DIRV = {'DOWN': (0, 0, 1), 'UP': (1, 0, -1), 'LEFT': (2, -1, 0), 'RIGHT': (3, 1, 0)}
 
 
-def npc_index(k):          # an index, or the first spawn of a kind (indices shift as NPCs are added)
+def npc_index(k):          # an index, a kind's first spawn, or KIND:N, its Nth (indices shift as NPCs are added)
     if k.isdigit():
         return int(k)
-    return next(int(ln.split()[0]) for ln in open(os.path.join(root, 'build/spawns.txt')) if ln.split()[1] == k)
+    kind, _, nth = k.partition(':')
+    hits = [int(ln.split()[0]) for ln in open(os.path.join(root, 'build/spawns.txt'))
+            if ln.split()[0].isdigit() and ln.split()[1] == kind]
+    return hits[int(nth) - 1 if nth else 0]
 
 
 out = []

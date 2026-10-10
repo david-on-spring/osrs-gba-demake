@@ -28,11 +28,11 @@ expectxp HITPOINTS 1
 expecttarget NONE
 expectat CELL 179 123
 # --- B clears the target
-npcpos 53 182 123
+npcpos COW:2 182 123
 wait 4
 press L
 wait 4
-expecttarget 53
+expecttarget COW:2
 press B
 wait 4
 expecttarget NONE
