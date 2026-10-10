@@ -361,6 +361,8 @@ static const Note s_level[] = {{N(5, C), 6}, {N(5, E), 6}, {N(5, G), 6}, {N(6, C
 // "Quest complete" fanfare
 static const Note s_quest[] = {{N(5, G), 8}, {N(6, C), 8}, {N(6, E), 8}, {N(6, G), 14}, {0, 4}, {N(6, E), 6},
                                {N(6, G), 6}, {N(7, C), 24}, {N(6, B), 8}, {N(6, A), 8}, {N(6, B), 8}, {N(7, C), 30}, {0, 0}};
+static const Note s_bow[] = {{N(6, D), 2}, {N(5, A), 3}, {0, 0}};
+static const Note s_cast[] = {{N(5, C), 3}, {N(5, G), 3}, {N(6, D), 3}, {N(6, A), 5}, {0, 0}};
 static const Note s_death[] = {{N(5, C), 10}, {N(4, G), 10}, {N(4, Ds), 10}, {N(4, C), 30}, {0, 0}};
 
 static const Note *seq1;
@@ -402,6 +404,8 @@ void sfx(int id) {
     case SFX_ERR: play1(s_err, 0, 7); break;
     case SFX_COINS: play1(s_coins, 2, 8); break;
     case SFX_QUEST: play1(s_quest, 2, 11); duck_music(190); break;
+    case SFX_BOW: play1(s_bow, 2, 7); noise(5, 1, 2, 1); break;
+    case SFX_CAST: play1(s_cast, 2, 7); break;
     }
 }
 

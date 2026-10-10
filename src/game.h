@@ -38,22 +38,32 @@ enum {
     I_KEY_TRAIBORN, I_KEY_DRAIN,
     // general store goods (appended: item ids are saved)
     I_JUG, I_KNIFE, I_BOWL, I_CAKE_TIN, I_CHISEL, I_HAMMER, I_NEWCOMER_MAP, I_SECURITY_BOOK,
+    // ranged: bows and arrows (appended: item ids are saved)
+    I_SHORTBOW, I_LONGBOW, I_OAK_SHORTBOW, I_OAK_LONGBOW, I_WILLOW_SHORTBOW, I_WILLOW_LONGBOW,
+    I_MAPLE_SHORTBOW, I_MAPLE_LONGBOW, I_BRONZE_ARROW, I_IRON_ARROW, I_STEEL_ARROW, I_MITHRIL_ARROW,
+    I_ADAMANT_ARROW,
+    // magic: runes and staves
+    I_AIR_RUNE, I_WATER_RUNE, I_EARTH_RUNE, I_FIRE_RUNE, I_MIND_RUNE, I_BODY_RUNE, I_CHAOS_RUNE,
+    I_DEATH_RUNE, I_STAFF, I_MAGIC_STAFF, I_STAFF_AIR, I_STAFF_WATER, I_STAFF_EARTH, I_STAFF_FIRE,
+    I_COSMIC_RUNE, I_LAW_RUNE, I_NATURE_RUNE, I_BLOOD_RUNE, I_SOUL_RUNE, I_WRATH_RUNE,
     I_COUNT
 };
 
-enum { IF_STACK = 1, IF_EAT = 2, IF_BURY = 4, IF_EQUIP = 8, IF_LIGHT = 16 };
-enum { EQ_HEAD, EQ_WEAPON, EQ_BODY, EQ_SHIELD, EQ_LEGS, EQ_FEET, EQ_NECK, EQ_COUNT };
+// IF_RANGED: bows (req is a Ranged level) and arrows; IF_MAGIC: staves (cast spells)
+enum { IF_STACK = 1, IF_EAT = 2, IF_BURY = 4, IF_EQUIP = 8, IF_LIGHT = 16, IF_RANGED = 32, IF_MAGIC = 64 };
+enum { EQ_HEAD, EQ_WEAPON, EQ_BODY, EQ_SHIELD, EQ_LEGS, EQ_FEET, EQ_NECK, EQ_AMMO, EQ_COUNT };
 enum { TIER_NONE, TIER_BRONZE, TIER_IRON, TIER_STEEL, TIER_LEATHER, TIER_WOOD, TIER_MITHRIL,
        TIER_ADAMANT, TIER_RUNE, TIER_COUNT };
 
 typedef struct {
     const char *name;
     const char *examine;
-    u8 icon, flags, slot, req;   // req: attack (weapons) or defence (armour) level
+    u8 icon, flags, slot, req;   // req: attack (weapons), defence (armour) or ranged (IF_RANGED) level
     s8 atk, str, def;
     u8 heal;
     u16 value;
     u8 tier;
+    s8 ratk, rstr, matk;         // ranged attack, ranged strength, magic attack
 } ItemDef;
 extern const ItemDef items[I_COUNT];
 
@@ -63,7 +73,7 @@ typedef struct { u16 id, qty; } Slot;
 // Skills
 // ---------------------------------------------------------------------------------------
 enum { SK_ATTACK, SK_STRENGTH, SK_DEFENCE, SK_HITPOINTS, SK_PRAYER, SK_WOODCUTTING,
-       SK_FIREMAKING, SK_FISHING, SK_COOKING, SK_MINING, SK_COUNT };
+       SK_FIREMAKING, SK_FISHING, SK_COOKING, SK_MINING, SK_RANGED, SK_MAGIC, SK_COUNT };
 extern const char *const skill_names[SK_COUNT];
 extern const u8 skill_icons[SK_COUNT];
 
@@ -83,6 +93,7 @@ typedef struct {
     const char *const *dialog;
 } NpcDef;
 extern const NpcDef npc_defs[NPC_KIND_COUNT];
+const char *npc_examine(int kind);
 
 #define MAX_NPCS 256
 typedef struct {
@@ -93,14 +104,19 @@ typedef struct {
     u8 hp, step, anim, attack_cd;
     u8 in_combat, lunge, hpbar_timer, state;   // state: quest use (e.g. sheared sheep timer)
     u16 timer, respawn;
+    u8 curse, bound;     // curse: CU_* bits from Confuse..Stun; bound: ticks held by Bind/Snare/Entangle
 } Npc;
+enum { CU_ATK5 = 1, CU_STR5 = 2, CU_DEF5 = 4, CU_DEF10 = 8, CU_STR10 = 16, CU_ATK10 = 32 };
 
 // ---------------------------------------------------------------------------------------
 // Player
 // ---------------------------------------------------------------------------------------
 enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
-enum { ACT_NONE, ACT_CHOP, ACT_MINE, ACT_FISH, ACT_LIGHT, ACT_COOK, ACT_COMBAT };
+enum { ACT_NONE, ACT_CHOP, ACT_MINE, ACT_FISH, ACT_LIGHT, ACT_COOK, ACT_COMBAT, ACT_TALK };
+// melee: accurate / aggressive / defensive; with a bow the same slots are accurate / rapid / longrange
 enum { STYLE_ACCURATE, STYLE_AGGRESSIVE, STYLE_DEFENSIVE };
+enum { STYLE_RAPID = 1, STYLE_LONGRANGE = 2 };
+enum { CB_MELEE, CB_RANGED, CB_MAGIC };
 
 typedef struct {
     s16 x, y, px, py;
@@ -113,10 +129,13 @@ typedef struct {
     u32 xp[SK_COUNT];            // tenths of XP
     Slot inv[28];
     u16 equip[EQ_COUNT];
+    u16 ammo_qty;                // arrows in the ammo slot (equip[EQ_AMMO])
     Slot bank[96];
     u32 playtime;                // frames
     u8 qstage[16];               // quest progress (0 = not started, QuestDef.done = complete)
     u16 qvar[16];                // per-quest flag bits / counters
+    u8 spell;                    // autocast spell (SPELL_*, 0 = none), used while a staff is wielded
+    u8 pad[3];
 } Player;
 
 extern Player pl;
@@ -124,7 +143,7 @@ extern Player pl;
 // ---------------------------------------------------------------------------------------
 // Global state
 // ---------------------------------------------------------------------------------------
-enum { GS_TITLE, GS_WORLD, GS_MENU, GS_DIALOG, GS_BANK, GS_SHOP, GS_LEVELUP, GS_QUESTDONE };
+enum { GS_TITLE, GS_WORLD, GS_MENU, GS_DIALOG, GS_BANK, GS_SHOP, GS_LEVELUP, GS_QUESTDONE, GS_TARGET };
 extern u8 game_state;
 extern u32 frame;
 extern u16 keys, keys_pressed, keys_repeat;
@@ -151,7 +170,37 @@ int inv_free(void);
 int inv_add(int id, int qty);            // returns amount added
 int inv_remove(int id, int qty);
 int has_item(int id);                    // inventory or equipped
-int equip_bonus(int which);              // 0 atk, 1 str, 2 def
+int equip_bonus(int which);              // 0 atk, 1 str, 2 def, 3 ranged atk, 4 ranged str, 5 magic atk
+int equip_item(int slot);                // wear inventory slot's item; 0 (with a message) if not allowed
+int unequip(int eq);                     // back to the inventory; 0 if there is no room
+
+// spells.c: the OSRS standard spellbook. Spells whose systems the demake lacks (enchanting,
+// orbs, most teleports...) are listed with their real data but cast as "not available yet".
+enum { SPK_COMBAT, SPK_CURSE, SPK_BIND, SPK_INSPECT, SPK_TELE, SPK_ALCH, SPK_NA };
+enum { SPG_NONE, SPG_STRIKE, SPG_BOLT, SPG_BLAST, SPG_WAVE, SPG_SURGE };
+typedef struct {
+    const char *name;
+    u8 level, kind, maxhit, group;       // group: max hits rise to the tier's best known spell
+    u8 icon, param;                      // icon: projectile; param: curse bits, bind ticks, alch %,
+                                         // teleport place (1 Lumbridge, 2 Varrock, 3 Falador), 1 = undead only
+    u16 xp;                              // base experience in tenths
+    u8 rune[4], qty[4];                  // I_* rune ids (0 = unused)
+} SpellDef;
+extern const SpellDef spells[];
+extern const u8 spell_count;
+int spell_maxhit(int s);                 // with the tier rule (Wind Strike hits 8 once Fire Strike is known)
+int spell_runes_ok(int s);               // the runes are there (an elemental staff counts as its rune)
+int spell_castable(int s, int quiet);    // level and runes, with a message unless quiet
+int spell_targeted(int s);               // cast on an NPC (combat spells, curses, binds, Monster Inspect)
+void spell_pay(int s);                   // use up the runes
+int spell_cast_self(int s);              // teleports; 1 if cast
+int spell_alch(int s, int slot);         // High / Low Level Alchemy on an inventory slot; 1 if cast
+int spell_autocast(int s);               // set the autocast spell; 0 (with a message) if not possible
+void spell_manual(int s);                // cast once at the target (from the spellbook)
+int combat_type(void);                   // CB_* for the wielded weapon, autocast or manual spell
+int attack_range(void);                  // cells (1 = melee)
+int ammo_ok(int arrow, int bow);         // the bow can fire these arrows
+
 int bank_add(int id, int qty);
 
 // gfx.c
@@ -168,6 +217,7 @@ void gfx_mark_cell_dirty(int x, int y);
 void gfx_world_update(void);
 void obj_sprite(int x, int y, int tile, int pal, int prio, int hflip, int size16, int flags);
 void obj_icon(int x, int y, int icon, int prio);
+void obj_icon_flip(int x, int y, int icon, int prio, int hflip, int vflip);
 void obj_hide_rest(void);
 void gfx_set_player_palette(void);
 void gfx_set_hl_pulse(int phase);
@@ -242,6 +292,8 @@ void player_tp(int x, int y, int dir);
 void player_warp(int x, int y, int dir);  // fade out, move, fade in (staircases)
 int world_warping(void);
 int world_zone(int x, int y);           // zones[] index of a cell
+int npc_talkable(int n);                // has dialogue or a quest script
+void player_walk_to(int npc, int act);  // pursue an NPC to fight it (ACT_COMBAT) or talk to it (ACT_TALK)
 void world_camera(void);
 int player_walk_through(void);          // step two cells ahead (through a door / past a guard)
 int player_can_walk_through(void);      // the cell two ahead is free
@@ -271,13 +323,19 @@ void levelup_update(void);
 void title_open(void);
 void title_update(void);
 void ui_set_target(int npc);
+// targeting (L cycles through NPCs on screen, B clears, A opens the target menu)
+extern s16 lock_target;                  // npc index, -1 = none
+void target_set(int npc);
+void target_cycle(void);
+void target_menu_open(void);
+void target_menu_update(void);
 void ui_draw_sprites(void);
 void dialog_run_script(void);           // show a quest script started by quest_run()
 void questdone_update(void);
 void quest_complete_popup(int q);
 
 // avatar.c (composited player sprite)
-enum { AVA_IDLE, AVA_CHOP, AVA_MINE, AVA_NET, AVA_ROD, AVA_COMBAT };
+enum { AVA_IDLE, AVA_CHOP, AVA_MINE, AVA_NET, AVA_ROD, AVA_COMBAT, AVA_SHOOT, AVA_CAST };
 void avatar_palette(u16 *pal16);
 void avatar_vblank(void);
 void avatar_draw_world(int sx, int sy, int dir, int walk_phase, int act, int t, int tool);
@@ -285,7 +343,7 @@ void avatar_draw_portrait(int x, int y, int prio);
 
 // sound.c
 enum { SFX_MOVE, SFX_OK, SFX_BACK, SFX_CHOP, SFX_MINE, SFX_SPLASH, SFX_HIT, SFX_MISS, SFX_EAT,
-       SFX_PICKUP, SFX_FIRE, SFX_LEVEL, SFX_DEATH, SFX_ERR, SFX_COINS, SFX_QUEST };
+       SFX_PICKUP, SFX_FIRE, SFX_LEVEL, SFX_DEATH, SFX_ERR, SFX_COINS, SFX_QUEST, SFX_BOW, SFX_CAST };
 void sound_init(void);
 void sound_update(void);
 void sfx(int id);

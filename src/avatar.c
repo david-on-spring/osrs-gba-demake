@@ -37,6 +37,11 @@ static const u8 look_tab[I_COUNT] = {
     [I_WOODEN_SHIELD] = LK(AVS_ROUND), [I_BRONZE_SHIELD] = LK(AVS_SQ), [I_IRON_SHIELD] = LK(AVS_SQ),
     [I_STEEL_SHIELD] = LK(AVS_SQ), [I_IRON_KITE] = LK(AVS_KITE), [I_MITHRIL_KITE] = LK(AVS_KITE),
     [I_ADAMANT_KITE] = LK(AVS_KITE), [I_RUNE_KITE] = LK(AVS_KITE),
+    [I_SHORTBOW] = LK(AVW_BOW), [I_LONGBOW] = LK(AVW_BOW), [I_OAK_SHORTBOW] = LK(AVW_BOW),
+    [I_OAK_LONGBOW] = LK(AVW_BOW), [I_WILLOW_SHORTBOW] = LK(AVW_BOW), [I_WILLOW_LONGBOW] = LK(AVW_BOW),
+    [I_MAPLE_SHORTBOW] = LK(AVW_BOW), [I_MAPLE_LONGBOW] = LK(AVW_BOW),
+    [I_STAFF] = LK(AVW_STAFF), [I_MAGIC_STAFF] = LK(AVW_STAFF), [I_STAFF_AIR] = LK(AVW_STAFF),
+    [I_STAFF_WATER] = LK(AVW_STAFF), [I_STAFF_EARTH] = LK(AVW_STAFF), [I_STAFF_FIRE] = LK(AVW_STAFF),
 };
 
 static int look_of(int id, int def) { return look_tab[id] ? look_tab[id] - 1 : def; }
@@ -67,6 +72,11 @@ void avatar_palette(u16 *p) {
     int held = world_held;
     if (held == I_NET) p[12] = rgb(27, 26, 22), p[13] = rgb(16, 13, 8);
     else if (held == I_ROD) p[12] = rgb(28, 28, 28), p[13] = rgb(14, 14, 15);
+    else if (held == I_STAFF_AIR) p[12] = rgb(28, 28, 30), p[13] = tier_dark[TIER_WOOD];   // orb colours
+    else if (held == I_STAFF_WATER) p[12] = rgb(8, 14, 30), p[13] = tier_dark[TIER_WOOD];
+    else if (held == I_STAFF_EARTH) p[12] = rgb(10, 22, 8), p[13] = tier_dark[TIER_WOOD];
+    else if (held == I_STAFF_FIRE) p[12] = rgb(31, 12, 4), p[13] = tier_dark[TIER_WOOD];
+    else if (held == I_MAGIC_STAFF) p[12] = rgb(20, 10, 28), p[13] = tier_dark[TIER_WOOD];
     else if ((t = items[held].tier)) p[12] = tier_light[t], p[13] = tier_dark[t];
     shown_held = held;
 }
@@ -262,7 +272,7 @@ void avatar_vblank(void) {
 typedef struct { s8 hx, hy; u8 ang, flags; } Grip;
 enum {
     PZ_REST, PZ_RAISE, PZ_HIGH, PZ_STRIKE, PZ_MINE, PZ_SLASH, PZ_PULL, PZ_THRUST,
-    PZ_SCOOP_UP, PZ_SCOOP_DN, PZ_CAST, PZ_HOLD, PZ_READY, PZ_FOLLOW, PZ_COUNT
+    PZ_SCOOP_UP, PZ_SCOOP_DN, PZ_CAST, PZ_HOLD, PZ_READY, PZ_FOLLOW, PZ_AIM, PZ_COUNT
 };
 static const Grip poses[PZ_COUNT][3] = {
     [PZ_REST] = {{3, 11, 7, 0}, {12, 11, 1, 0}, {10, 11, 2, 0}},
@@ -279,6 +289,7 @@ static const Grip poses[PZ_COUNT][3] = {
     [PZ_HOLD] = {{4, 11, 5, 0}, {11, 6, 0, WF_BACK}, {11, 10, 1, 0}},
     [PZ_READY] = {{3, 10, 0, 0}, {12, 10, 0, 0}, {9, 10, 1, 0}},
     [PZ_FOLLOW] = {{4, 13, 5, 0}, {11, 6, 0, WF_BACK}, {11, 12, 3, 0}},
+    [PZ_AIM] = {{5, 11, 0, 0}, {11, 8, 0, WF_BACK}, {13, 9, 0, 0}},   // bow held out, upright
 };
 
 static void base_look(Look *k, int weapon) {
@@ -331,6 +342,8 @@ void avatar_draw_world(int sx, int sy, int dir, int phase, int act, int t, int t
     case AVA_ROD:
         pose = t >= 48 ? PZ_CAST : PZ_HOLD;
         break;
+    case AVA_SHOOT: pose = t < 8 ? PZ_READY : PZ_AIM; break;   // t: frames since the last shot
+    case AVA_CAST: pose = t < 14 ? PZ_CAST : PZ_REST; break;
     case AVA_COMBAT: {
         // t: frames since the last swing (0..119); wind up over the final 20 frames
         int stab = k.wtype == 0xFF || k.wtype == AVW_SWORD || k.wtype == AVW_DAGGER;

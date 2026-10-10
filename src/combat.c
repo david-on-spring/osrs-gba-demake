@@ -1,4 +1,5 @@
-// Combat: hit rolls, single-way combat lock, player and NPC attacks, drops and deaths.
+// Combat: hit rolls, single-way combat lock, player melee / ranged / magic attacks and their
+// projectiles, NPC attacks, drops and deaths.
 #include "world_internal.h"
 
 static int style_bonus(int sk) {
@@ -33,8 +34,50 @@ void foe_release(int i) {
     if (foe == i) foe = -1;
 }
 
+// ---------------------------------------------------------------------------------------
+// Attack types. A bow shoots arrows from the ammo slot; a staff casts the autocast spell (or
+// hits like a club when none is set); anything else is melee.
+u8 cast_once;   // spell picked in the spellbook, cast once at the target
+
+int combat_type(void) {
+    int f = items[pl.equip[EQ_WEAPON]].flags;
+    if (cast_once) return CB_MAGIC;
+    if (f & IF_RANGED) return CB_RANGED;
+    if ((f & IF_MAGIC) && pl.spell) return CB_MAGIC;
+    return CB_MELEE;
+}
+
+static int is_longbow(int w) {
+    return w == I_LONGBOW || w == I_OAK_LONGBOW || w == I_WILLOW_LONGBOW || w == I_MAPLE_LONGBOW;
+}
+
+int attack_range(void) {
+    if (cast_once) return 10;
+    switch (combat_type()) {
+    case CB_RANGED: {
+        int r = is_longbow(pl.equip[EQ_WEAPON]) ? 9 : 7;
+        if (pl.style == STYLE_LONGRANGE) r += 2;
+        return r > 10 ? 10 : r;
+    }
+    case CB_MAGIC: return 10;
+    default: return 1;
+    }
+}
+
+// OSRS: bronze and iron arrows fit any bow, steel needs oak, mithril willow, adamant maple
+int ammo_ok(int arrow, int bow) {
+    int need = arrow == I_BRONZE_ARROW || arrow == I_IRON_ARROW ? 1 : arrow == I_STEEL_ARROW ? 2
+             : arrow == I_MITHRIL_ARROW ? 3 : arrow == I_ADAMANT_ARROW ? 4 : 99;
+    int have = bow == I_SHORTBOW || bow == I_LONGBOW ? 1 : bow == I_OAK_SHORTBOW || bow == I_OAK_LONGBOW ? 2
+             : bow == I_WILLOW_SHORTBOW || bow == I_WILLOW_LONGBOW ? 3 : bow == I_MAPLE_SHORTBOW || bow == I_MAPLE_LONGBOW ? 4 : 0;
+    return need <= have;
+}
+
 // ticks between swings for the wielded weapon (OSRS speeds)
 int weapon_speed(void) {
+    int cb = combat_type();   // (a manual cast also takes five ticks)
+    if (cb == CB_MAGIC) return 5;
+    if (cb == CB_RANGED) return (is_longbow(pl.equip[EQ_WEAPON]) ? 6 : 4) - (pl.style == STYLE_RAPID);
     switch (pl.equip[EQ_WEAPON]) {
     case I_BRONZE_AXE: case I_IRON_AXE: case I_STEEL_AXE: case I_MITHRIL_AXE: case I_ADAMANT_AXE:
     case I_RUNE_AXE: case I_BRONZE_PICK: case I_IRON_PICK: case I_STEEL_PICK: case I_MITHRIL_PICK:
@@ -45,44 +88,240 @@ int weapon_speed(void) {
     }
 }
 
-void player_attack(int i) {
+// the target can be hit from where the player stands: next to it for melee, else within range
+// with nothing in the way
+int npc_in_reach(int i) {
+    Npc *n = &npcs[i];
+    int r = attack_range();
+    if (r <= 1) return adjacent(pl.x, pl.y, n->x, n->y);
+    int dx = n->x - pl.x, dy = n->y - pl.y;
+    if (dx < 0) dx = -dx;
+    if (dy < 0) dy = -dy;
+    return (dx > dy ? dx : dy) <= r && clear_shot(pl.x, pl.y, n->x, n->y);
+}
+
+// Confuse/Weaken/Curse lower a stat by 5%, Vulnerability/Enfeeble/Stun by 10%
+static int cursed(const Npc *n, int base, int bit5, int bit10) {
+    int pct = (n->curse & bit10) ? 10 : (n->curse & bit5) ? 5 : 0;
+    return base * (100 - pct) / 100;
+}
+
+// a hit lands: hitsplat, XP for the attack type, maybe a kill
+static void land_hit(int i, int dmg, int cb, int spell) {
+    Npc *n = &npcs[i];
+    if (!n->active) return;
+    if (dmg > n->hp) dmg = n->hp;
+    n->hpbar_timer = 200;
+    splat_spawn(n->px, n->py, dmg);
+    sfx(dmg ? SFX_HIT : SFX_MISS);
+    if (cb == CB_MAGIC) add_xp(SK_MAGIC, spells[spell].xp + dmg * 20);   // a splash still earns the base XP
+    if (!dmg) return;
+    if (cb == CB_RANGED && pl.style == STYLE_LONGRANGE) {
+        add_xp(SK_RANGED, dmg * 20);
+        add_xp(SK_DEFENCE, dmg * 20);
+    } else if (cb == CB_RANGED) {
+        add_xp(SK_RANGED, dmg * 40);
+    } else if (cb == CB_MELEE) {
+        int sk = pl.style == STYLE_ACCURATE ? SK_ATTACK : pl.style == STYLE_AGGRESSIVE ? SK_STRENGTH : SK_DEFENCE;
+        add_xp(sk, dmg * 40);
+    }
+    add_xp(SK_HITPOINTS, dmg * 40 / 3);
+    n->hp -= dmg;
+    if (!n->hp) npc_die(i);
+}
+
+// ---------------------------------------------------------------------------------------
+// Projectiles: arrows and spells fly from the player to the target; the hit lands on arrival
+Proj projs[MAX_PROJ];
+
+static void proj_launch(int i, int dmg, int cb, int spell, int icon, int drop, int hit) {
+    Proj *p = &projs[0];
+    for (int k = 0; k < MAX_PROJ; k++)
+        if (!projs[k].active) {
+            p = &projs[k];
+            break;
+        }
+    Npc *n = &npcs[i];
+    int dx = n->x - pl.x, dy = n->y - pl.y;
+    int d = (dx < 0 ? -dx : dx) > (dy < 0 ? -dy : dy) ? (dx < 0 ? -dx : dx) : (dy < 0 ? -dy : dy);
+    p->active = 1;
+    p->npc = i;
+    p->dmg = dmg;
+    p->cb = cb;
+    p->spell = spell;
+    p->icon = icon;
+    p->drop = drop;
+    p->hit = hit;
+    p->t = 0;
+    p->dur = 6 + d * 3;
+    p->sx = pl.px;
+    p->sy = pl.py - 4;
+}
+
+void proj_update(void) {
+    for (int k = 0; k < MAX_PROJ; k++) {
+        Proj *p = &projs[k];
+        if (!p->active || ++p->t < p->dur) continue;
+        p->active = 0;
+        Npc *n = &npcs[p->npc];
+        if (!n->active) continue;
+        // most arrows can be picked up again under the target
+        if (p->drop && rnd_range(100) < 80) drop_item(n->x, n->y, p->drop, 1);
+        const SpellDef *sp = &spells[p->spell];
+        if (p->cb == CB_MAGIC && (sp->kind == SPK_CURSE || sp->kind == SPK_BIND)) {
+            // dmg holds hit (1) or splash (0) for curses; binds also deal a little damage
+            if (p->hit) {
+                if (sp->kind == SPK_CURSE) n->curse |= sp->param;
+                else n->bound = sp->param;
+            }
+            if (sp->kind == SPK_CURSE) {
+                n->hpbar_timer = 200;
+                splat_spawn(n->px, n->py, 0);
+                add_xp(SK_MAGIC, sp->xp);
+                sfx(p->hit ? SFX_HIT : SFX_MISS);
+                continue;
+            }
+        }
+        land_hit(p->npc, p->dmg, p->cb, p->spell);
+    }
+}
+
+void proj_clear(void) {
+    for (int k = 0; k < MAX_PROJ; k++) projs[k].active = 0;
+}
+
+static int npc_def_roll(int i) {
+    const Npc *n = &npcs[i];
+    const NpcDef *d = &npc_defs[n->kind];
+    return (cursed(n, d->def, CU_DEF5, CU_DEF10) + 9) * (d->defb + 64);
+}
+
+static void engage(int i) {
+    Npc *n = &npcs[i];
+    foe_engage(i);
+    n->in_combat = 1;
+    n->hpbar_timer = 200;
+    if (!n->attack_cd) n->attack_cd = 2;
+}
+
+// Delrith only takes damage from Silverlight
+static int demon_guard(int i, int dmg) {
+    if (npcs[i].kind == NPC_DELRITH && pl.equip[EQ_WEAPON] != I_SILVERLIGHT) {
+        if (dmg) msg_col("Only Silverlight can harm the demon!", TC_ORANGE);
+        return 0;
+    }
+    return dmg;
+}
+
+static int player_shoot(int i) {
+    int arrow = pl.equip[EQ_AMMO];
+    if (!arrow || !pl.ammo_qty) {
+        msg_col("There is no ammo left in your quiver.", TC_RED);
+        return 0;
+    }
+    if (!ammo_ok(arrow, pl.equip[EQ_WEAPON])) {
+        msg_col("You can't use that ammo with your bow.", TC_RED);
+        return 0;
+    }
+    int eff = skill_level(SK_RANGED) + (pl.style == STYLE_ACCURATE ? 3 : 0) + 8;
+    int a = eff * (equip_bonus(3) + 64);
+    int maxhit = (eff * (equip_bonus(4) + 64) + 320) / 640;
+    if (maxhit < 1) maxhit = 1;
+    int dmg = demon_guard(i, roll(hit_chance256(a, npc_def_roll(i))) ? rnd_range(maxhit + 1) : 0);
+    if (!--pl.ammo_qty) pl.equip[EQ_AMMO] = 0;
+    sfx(SFX_BOW);
+    proj_launch(i, dmg, CB_RANGED, 0, ICON_PROJ_ARROW_H, arrow, 1);
+    return 1;
+}
+
+static char inspect_buf[96];
+static char *sadd_c(char *p, const char *s) {
+    while (*s) *p++ = *s++;
+    *p = 0;
+    return p;
+}
+static char *sadd_n(char *p, int v) {
+    fmt_int(p, v);
+    while (*p) p++;
+    return p;
+}
+static char *sbuf_npc(const char *name) { return sadd_c(inspect_buf, name); }
+
+static int is_undead(int i) {
+    int k = npc_defs[npcs[i].kind].sprite;
+    return k == SPR_KIND_SKELETON || k == SPR_KIND_GHOST;
+}
+
+static int player_cast(int i) {
+    int s = cast_once ? cast_once : pl.spell;
+    const SpellDef *sp = &spells[s];
     Npc *n = &npcs[i];
     const NpcDef *d = &npc_defs[n->kind];
+    if (!spell_castable(s, 0)) return 0;
+    if (sp->kind == SPK_COMBAT && sp->param && !is_undead(i)) {
+        msg("This spell only affects skeletons, zombies, ghosts and shades.");
+        return 0;
+    }
+    if (sp->kind == SPK_CURSE && (n->curse & sp->param)) {
+        msg("Your target has already been affected by this spell.");
+        return 0;
+    }
+    spell_pay(s);
+    sfx(SFX_CAST);
+    if (sp->kind == SPK_INSPECT) {
+        char *p = sbuf_npc(d->name);
+        p = sadd_c(p, ": level ");
+        p = sadd_n(p, d->level);
+        p = sadd_c(p, ", hitpoints ");
+        p = sadd_n(p, n->hp);
+        p = sadd_c(p, "/");
+        p = sadd_n(p, d->hp);
+        p = sadd_c(p, ", attack ");
+        p = sadd_n(p, d->att);
+        p = sadd_c(p, ", strength ");
+        p = sadd_n(p, d->str);
+        p = sadd_c(p, ", defence ");
+        sadd_n(p, d->def);
+        msg_col(inspect_buf, TC_CYAN);
+        add_xp(SK_MAGIC, sp->xp);
+        return 2;   // a look, not an attack
+    }
+    int a = (skill_level(SK_MAGIC) + 8) * (equip_bonus(5) + 64);
+    int hit = roll(hit_chance256(a, npc_def_roll(i)));
+    int dmg = 0;
+    if (sp->kind == SPK_COMBAT || sp->kind == SPK_BIND) dmg = hit ? rnd_range(spell_maxhit(s) + 1) : 0;
+    dmg = demon_guard(i, dmg);
+    proj_launch(i, dmg, CB_MAGIC, s, sp->icon, 0, hit);
+    return 1;
+}
+
+// one attack with whatever is wielded; 0 if it could not be made (no ammo or runes)
+int player_attack(int i) {
+    int cb = combat_type();
+    if (cb != CB_MELEE) {
+        int r = cb == CB_RANGED ? player_shoot(i) : player_cast(i);
+        if (r == 1) engage(i);
+        return r != 0;
+    }
     int eff_a = skill_level(SK_ATTACK) + style_bonus(SK_ATTACK) + 8;
     int eff_s = skill_level(SK_STRENGTH) + style_bonus(SK_STRENGTH) + 8;
     int a = eff_a * (equip_bonus(0) + 64);
-    int def = (d->def + 9) * (d->defb + 64);
     int maxhit = (eff_s * (equip_bonus(1) + 64) + 320) / 640;
     if (maxhit < 1) maxhit = 1;
-    int dmg = roll(hit_chance256(a, def)) ? rnd_range(maxhit + 1) : 0;
-    if (n->kind == NPC_DELRITH && pl.equip[EQ_WEAPON] != I_SILVERLIGHT) {
-        if (dmg) msg_col("Only Silverlight can harm the demon!", TC_ORANGE);
-        dmg = 0;
-    }
-    if (dmg > n->hp) dmg = n->hp;
-    foe_engage(i);
+    int dmg = demon_guard(i, roll(hit_chance256(a, npc_def_roll(i))) ? rnd_range(maxhit + 1) : 0);
+    engage(i);
     pl.lunge = 8;
-    n->hpbar_timer = 200;
-    n->in_combat = 1;
-    if (!n->attack_cd) n->attack_cd = 2;
-    splat_spawn(n->px, n->py, dmg);
-    sfx(dmg ? SFX_HIT : SFX_MISS);
-    if (dmg) {
-        int sk = pl.style == STYLE_ACCURATE ? SK_ATTACK : pl.style == STYLE_AGGRESSIVE ? SK_STRENGTH : SK_DEFENCE;
-        add_xp(sk, dmg * 40);
-        add_xp(SK_HITPOINTS, dmg * 40 / 3);
-        n->hp -= dmg;
-        if (!n->hp) npc_die(i);
-    }
+    land_hit(i, dmg, CB_MELEE, 0);
+    return 1;
 }
 
 void npc_attack(int i) {
     Npc *n = &npcs[i];
     const NpcDef *d = &npc_defs[n->kind];
-    int a = (d->att + 9) * (d->atkb + 64);
+    int a = (cursed(n, d->att, CU_ATK5, CU_ATK10) + 9) * (d->atkb + 64);
     int eff_d = skill_level(SK_DEFENCE) + style_bonus(SK_DEFENCE) + 8;
     int def = eff_d * (equip_bonus(2) + 64);
-    int maxhit = ((d->str + 9) * (d->strb + 64) + 320) / 640;
+    int maxhit = ((cursed(n, d->str, CU_STR5, CU_STR10) + 9) * (d->strb + 64) + 320) / 640;
     if (maxhit < 1) maxhit = 1;
     int dmg = roll(hit_chance256(a, def)) ? rnd_range(maxhit + 1) : 0;
     if (dmg > pl.hp) dmg = pl.hp;
@@ -97,6 +336,7 @@ void npc_attack(int i) {
         pl.target = i;
         if (!pl.attack_cd) pl.attack_cd = 1;
         ui_set_target(i);
+        target_set(i);
     }
     if (!pl.hp) {
         msg_col("Oh dear, you are dead!", TC_RED);
@@ -109,6 +349,8 @@ void player_respawn(void) {
     for (int i = 0; i < npc_hi; i++) npcs[i].in_combat = 0;
     foe = -1;
     player_stop();
+    proj_clear();
+    target_set(-1);
     pl.x = START_X;
     pl.y = START_Y;
     pl.px = pl.x * 16;
@@ -165,8 +407,22 @@ static void npc_drops(Npc *n) {
         drop_item(x, y, I_BONES, 1);
         if (rnd_range(100) < 70) drop_item(x, y, I_COINS, 3 + rnd_range(20));
         break;
+    case NPC_DARK_WIZARD: {
+        // OSRS dark wizards carry runes
+        static const u8 runes[] = {I_AIR_RUNE, I_WATER_RUNE, I_EARTH_RUNE, I_FIRE_RUNE, I_MIND_RUNE, I_BODY_RUNE,
+                                   I_CHAOS_RUNE, I_NATURE_RUNE, I_COSMIC_RUNE, I_LAW_RUNE, I_DEATH_RUNE, I_BLOOD_RUNE};
+        static const u8 qty[] = {10, 10, 10, 10, 10, 8, 4, 3, 2, 2, 2, 1};
+        drop_item(x, y, I_BONES, 1);
+        int r = rnd_range(100);
+        if (r < 60) {
+            int k = rnd_range(sizeof(runes));
+            drop_item(x, y, runes[k], qty[k] + rnd_range(qty[k] + 1));
+        } else if (r < 80) {
+            drop_item(x, y, I_COINS, 5 + rnd_range(25));
+        }
+        break;
+    }
     case NPC_WARRIOR:
-    case NPC_DARK_WIZARD:
     case NPC_BARBARIAN: {
         drop_item(x, y, I_BONES, 1);
         int r = rnd_range(100);
@@ -207,9 +463,11 @@ static void npc_die(int i) {
     if (quest_npc_dying(i)) return;
     npc_drops(n);
     n->active = 0;
+    n->curse = n->bound = 0;
     occ_clear(n->x, n->y);
     n->in_combat = 0;
     foe_release(i);
     n->respawn = npc_defs[n->kind].respawn;
     if (pl.target == i && pl.action == ACT_COMBAT) player_stop();
+    if (lock_target == i) target_set(-1);
 }

@@ -360,7 +360,8 @@ void obj_sprite(int x, int y, int tile, int pal, int prio, int hflip, int size16
         a0 |= 3 << 8;                  // affine, double size
         a1 |= (flags & OBJF_TALL ? 2 : 1) << 14;   // 16x16 or 16x32 source
     } else {
-        if (hflip) a1 |= 1 << 12;
+        if (hflip & 1) a1 |= 1 << 12;
+        if (hflip & 2) a1 |= 1 << 13;   // vertical flip
         if (flags & OBJF_32) a1 |= 2 << 14;
         else if (flags & OBJF_TALL) a1 |= 2 << 14;
         else if (!(flags & OBJF_8x8)) a1 |= (size16 ? 1 : 0) << 14;
@@ -412,6 +413,12 @@ void obj_icon(int x, int y, int icon, int prio) {
     if (x <= -16 || x >= SCREEN_W || y <= -16 || y >= SCREEN_H || oam_n >= 128) return;
     int t = icon_vram_tile(icon);
     if (t >= 0) obj_sprite(x, y, t, 0xFF, prio, 0, 1, 0);
+}
+
+void obj_icon_flip(int x, int y, int icon, int prio, int hflip, int vflip) {
+    if (x <= -16 || x >= SCREEN_W || y <= -16 || y >= SCREEN_H || oam_n >= 128) return;
+    int t = icon_vram_tile(icon);
+    if (t >= 0) obj_sprite(x, y, t, 0xFF, prio, (hflip ? 1 : 0) | (vflip ? 2 : 0), 1, 0);
 }
 
 void obj_hide_rest(void) {

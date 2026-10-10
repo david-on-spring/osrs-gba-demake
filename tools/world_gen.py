@@ -3792,6 +3792,9 @@ def emit_header(h):
     h.append('#define SHOP_COUNT %d' % len(SHOPS))
     h.append('#define START_X %d' % START[0])
     h.append('#define START_Y %d' % START[1])
+    for n in sorted(k for k in QPOS if k.startswith('TELE_')):    # teleport spell arrival cells
+        h.append('#define %s_X %d' % (n, QPOS[n][0]))
+        h.append('#define %s_Y %d' % (n, QPOS[n][1]))
     h.append('#define LEGACY_COUNT %d' % len(CITIES))
     h.append('''
 typedef struct { u8 kind; u16 x, y; } Spawn;

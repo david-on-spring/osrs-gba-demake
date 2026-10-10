@@ -330,35 +330,54 @@ void player_start_firemaking(int slot) {
     pl.target = slot;
 }
 
+static int facing_dir(int d) {
+    return d == DIR_UP ? DIR_DOWN : d == DIR_DOWN ? DIR_UP : d == DIR_LEFT ? DIR_RIGHT : DIR_LEFT;
+}
+
+int npc_talkable(int n) {
+    const NpcDef *d = &npc_defs[npcs[n].kind];
+    return (d->flags & NF_TALK) || (!(d->flags & NF_ATTACK) && quest_talk_entry[npcs[n].kind] != 0xFFFF);
+}
+
+// talk to an NPC the player stands next to (its quest script, else its dialogue)
+void npc_talk(int n) {
+    Npc *np = &npcs[n];
+    const NpcDef *d = &npc_defs[np->kind];
+    if (quest_talk_entry[np->kind] != 0xFFFF && !(d->flags & NF_ATTACK)) {
+        if (d->sprite != SPR_KIND_SHEEP && d->sprite != SPR_KIND_COW) np->dir = facing_dir(pl.dir);
+        player_stop();
+        quest_talk(n);
+        return;
+    }
+    if (d->flags & NF_TALK) {
+        np->dir = facing_dir(pl.dir);
+        dialog_open(np->kind, n);
+    }
+}
+
+// start fighting an NPC (the swing timer keeps running: re-pressing A never makes an attack
+// come sooner)
+void npc_fight(int n) {
+    if (pl.action == ACT_COMBAT && pl.target == n) return;   // already fighting it
+    if (!foe_free(n)) {
+        msg("I'm already under attack.");
+        return;
+    }
+    pl.action = ACT_COMBAT;
+    pl.target = n;
+    foe_engage(n);
+    ui_set_target(n);
+    target_set(n);
+}
+
 void interact(void) {
     int fx = pl.x + DX[pl.dir], fy = pl.y + DY[pl.dir];
     int n = in_map(fx, fy) ? npc_at(fx, fy) : -1;
     if (n >= 0) {
         const NpcDef *d = &npc_defs[npcs[n].kind];
-        if (!(d->flags & NF_ATTACK) && quest_talk_entry[npcs[n].kind] != 0xFFFF) {
-            Npc *np = &npcs[n];
-            if (d->sprite != SPR_KIND_SHEEP && d->sprite != SPR_KIND_COW)
-                np->dir = pl.dir == DIR_UP ? DIR_DOWN : pl.dir == DIR_DOWN ? DIR_UP : pl.dir == DIR_LEFT ? DIR_RIGHT : DIR_LEFT;
-            player_stop();
-            quest_talk(n);
-            return;
-        }
-        if (d->flags & NF_ATTACK) {
-            if (pl.action == ACT_COMBAT && pl.target == n) return;   // already fighting it
-            if (!foe_free(n)) {
-                msg("I'm already under attack.");
-                return;
-            }
-            // the swing timer keeps running: re-pressing A never makes an attack come sooner
-            pl.action = ACT_COMBAT;
-            pl.target = n;
-            foe_engage(n);
-            ui_set_target(n);
-        } else if (d->flags & NF_TALK) {
-            Npc *np = &npcs[n];
-            np->dir = pl.dir == DIR_UP ? DIR_DOWN : pl.dir == DIR_DOWN ? DIR_UP : pl.dir == DIR_LEFT ? DIR_RIGHT : DIR_LEFT;
-            dialog_open(np->kind, n);
-        }
+        if (!(d->flags & NF_ATTACK) && quest_talk_entry[npcs[n].kind] != 0xFFFF) npc_talk(n);
+        else if (d->flags & NF_ATTACK) npc_fight(n);
+        else if (d->flags & NF_TALK) npc_talk(n);
         return;
     }
     int s = spot_at(fx, fy);

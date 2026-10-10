@@ -1,0 +1,48 @@
+# Targeting and Ranged: L picks the cow, A opens the target menu, Attack shoots it from five cells
+# away without walking up to it; B lets the target go.
+wait 60
+newgame
+world
+clearinv
+xp RANGED 400000
+equip WEAPON SHORTBOW
+equip AMMO BRONZE_ARROW 100
+tp 179 123 3
+npcpos COW 184 123
+wait 4
+press L
+wait 4
+expecttarget COW
+shot shots/t/ranged_target.png
+press A
+wait 4
+expectstate TARGET
+shot shots/t/ranged_menu.png
+press A
+wait 40
+shot shots/t/ranged_shot.png
+untildead COW
+world
+expectxp RANGED 400040
+expectxp HITPOINTS 1
+expecttarget NONE
+expectat CELL 179 123
+# --- B clears the target
+npcpos 53 182 123
+wait 4
+press L
+wait 4
+expecttarget 53
+press B
+wait 4
+expecttarget NONE
+# --- arrows a shortbow can't fire, then an empty quiver
+equip AMMO ADAMANT_ARROW 5
+press L
+wait 4
+press A
+wait 4
+press A
+wait 60
+expectammo ADAMANT_ARROW 5
+expectstate WORLD

@@ -146,23 +146,34 @@ journal that strikes off finished steps, and an OSRS-style quest-complete scroll
 | Black Knights' Fortress | 3 | Disguise, eavesdrop and sabotage (needs 12 QP) |
 | Demon Slayer | 3 | Three keys, Silverlight, and a boss fight against Delrith |
 
-The demake has 10 skills, so rewards that originally gave Crafting XP give Firemaking XP and
-Magic XP becomes Prayer XP.
+The demake has no Crafting skill, so rewards that originally gave Crafting XP give Firemaking XP.
 
 ### And everything you'd expect
 
-- **10 skills** on the real 2007 XP curve to 99: Attack, Strength, Defence, Hitpoints, Prayer,
-  Woodcutting, Firemaking, Fishing, Cooking and Mining. XP drops, level-up popups and jingles.
+- **12 skills** on the real 2007 XP curve to 99: Attack, Strength, Defence, Ranged, Prayer, Magic,
+  Hitpoints, Woodcutting, Firemaking, Fishing, Cooking and Mining. XP drops, level-up popups and jingles.
 - **Combat** using the 2007 accuracy and max-hit formulas, attack styles, auto-retaliate,
   hitsplats, HP bars, aggressive monsters and loot tables, including a rare mithril/adamant/rune drop.
 - **Skilling**: normal, oak, willow and yew trees that turn to stumps and regrow; copper, tin, clay
   and iron rocks; net and fly-fishing spots; fires and ranges with burn chances that fall as you level.
+- **Ranged:** shortbows and longbows from normal to maple, bronze to adamant arrows in a new ammo slot
+  (the bow decides which arrows it can fire), accurate / rapid / longrange styles, arrows you can pick
+  up again under the target, and Lowe's Archery Emporium in Varrock.
+- **Magic:** the whole OSRS standard spellbook with its real levels, runes and XP. Every Strike, Bolt,
+  Blast, Wave and Surge spell, Crumble Undead, the curses (Confuse to Stun), Bind / Snare / Entangle,
+  Monster Inspect, Low and High Level Alchemy and the Lumbridge, Varrock and Falador teleports work;
+  spells that need systems the demake doesn't have yet (enchanting, orbs, other teleports, god spells)
+  are listed and say so. Autocast with a staff, or cast once from the Spellbook at your target.
+  14 runes, staves at Zaff's, runes at Aubury's and Betty's, and dark wizards drop them.
+- **Targeting:** L picks the nearest NPC on screen and cycles outwards; the HUD shows its name and level.
+  A opens an OSRS-style right-click menu (Attack, Talk-to, Examine), and the target stays picked when
+  you walk away, so you can keep shooting or casting from range. B lets it go.
 - **Gear** across bronze, iron, steel, mithril, adamant and rune, each item with its own icon.
 - **Banks** (96 slots) in every city.
 - **Shops stocked like OSRS:** general stores in Lumbridge, Varrock, Falador, Edgeville, Al Kharid and
   Rimmington (pots, buckets, tinderboxes, hammers...) that buy anything, and the specialty shops that sell
-  tools and gear: Bob's axes, Gerrant's fishing supplies, Betty's eye of newt, Nurmof's pickaxes, Varrock's
-  swords and Horvik's armour, Peksa's helmets, Cassie's shields, Wayne's chains, Zeke's scimitars and
+  tools and gear: Bob's axes, Gerrant's fishing supplies, Betty's runes and eye of newt, Nurmof's pickaxes,
+  Varrock's swords, Horvik's armour, Lowe's bows and arrows, Zaff's staves and Aubury's runes, Peksa's helmets, Cassie's shields, Wayne's chains, Zeke's scimitars and
   Louie's legs. Prices move with stock as in OSRS: general stores sell at 130% of value minus 3% per item
   in stock and pay 40%; specialty shops sell at 100% (2% per item off normal stock) and pay 60% for what
   they stock. Sold-out items come back over time, and anything you sell drains away at one a minute.
@@ -180,10 +191,11 @@ Magic XP becomes Prayer XP.
 | Button | In the world | In menus |
 |---|---|---|
 | **D-pad** | Walk (tap to turn on the spot) | Move the cursor |
-| **A** | Interact with whatever you face: chop, mine, fish, attack, talk, cook, bank, pick up | Select |
-| **B** | Hold to run; tap to stop what you're doing | Back |
+| **A** | Interact with whatever you face: chop, mine, fish, attack, talk, cook, bank, pick up. With a target picked (and no one else in front of you), open its menu: Attack, Talk-to, Examine | Select |
+| **B** | Hold to run; tap to stop what you're doing and let go of the target | Back |
 | **START** | Open the menu (the game pauses) | Close the menu |
-| **L / R** | | Switch tabs in the bank and shops |
+| **L** | Pick a target: the nearest NPC on screen, then the next one out on each press | Switch tabs in the bank and shops |
+| **R** | | Switch tabs in the bank and shops |
 | **SELECT** | | Deposit your whole inventory at a bank |
 
 In mGBA's default keyboard layout, A is **X**, B is **Z**, START is **Enter**, SELECT is
@@ -275,7 +287,8 @@ uploads the ROM as a build artifact. Pushing a `v*` tag builds, tests and attach
 | `src/gfx.c` | VRAM layout, palettes, fades, tile streaming and OAM |
 | `src/canvas.c` | UI drawing: font, panels, bars and highlights |
 | `src/world.c` | Map state, movement, NPC AI, ground items, fires and the game tick |
-| `src/combat.c`, `src/skilling.c` | Melee combat and drops; woodcutting, mining, fishing, firemaking, cooking and the A-button interact |
+| `src/combat.c`, `src/skilling.c` | Melee, ranged and magic attacks, projectiles and drops; woodcutting, mining, fishing, firemaking, cooking and the A-button interact |
+| `src/spells.c`, `src/target.c` | The standard spellbook and its effects; L targeting and the target menu |
 | `src/world_draw.c` | Depth-sorted world sprites |
 | `src/ui.c` | UI core: shared helpers, popups, item grid, menu chrome |
 | `src/hud.c`, `src/menu.c`, `src/dialog.c` | HUD and level-ups, START menu and quest journal, the chatbox |

@@ -1,10 +1,11 @@
-// START menu: inventory, worn equipment, skills, quest list and journal, combat options
-// and settings.
+// START menu: inventory, worn equipment, skills, spellbook, quest list and journal, combat
+// options and settings.
 #include "ui_internal.h"
 
-enum { P_MAIN, P_ITEMS, P_EQUIP, P_SKILLS, P_QUESTS, P_COMBAT, P_SYSTEM };
-#define MAIN_N 6
+enum { P_MAIN, P_ITEMS, P_EQUIP, P_SKILLS, P_SPELLS, P_QUESTS, P_COMBAT, P_SYSTEM };
+#define MAIN_N 7
 static u8 page, main_sel, item_sel, eq_sel, eq_choose, eq_cand_sel, sk_sel, cb_sel, sys_sel;
+static u8 sp_sel = 1, sp_scroll = 1, sp_alch;   // spellbook: selected spell, first row shown, picking an item
 static u8 q_sel, q_view, q_scroll;
 static u8 cand[28], cand_n;
 static s8 anim;          // >0 opening, <0 closing
@@ -12,19 +13,20 @@ static u8 redraw;
 static const char *sys_note;
 u16 redraw_lines;
 
-static const char *const main_items[MAIN_N] = {"Inventory", "Worn Equipment", "Skills", "Quest List", "Combat Options", "Settings"};
+static const char *const main_items[MAIN_N] = {"Inventory", "Worn Equipment", "Skills", "Spellbook", "Quest List",
+                                               "Combat Options", "Settings"};
 static const char *const main_desc[MAIN_N] = {
-    "Use and manage items.", "Change your gear.", "Review your skills.", "Your quest journal.",
-    "Pick an attack style.", "Save and options.",
+    "Use and manage items.", "Change your gear.", "Review your skills.", "Cast and autocast spells.",
+    "Your quest journal.", "Pick an attack style.", "Save and options.",
 };
 
 static void draw_main(void) {
     draw_header("Menu");
     draw_panel(6, 22, 84, 112, 6);
     for (int i = 0; i < MAIN_N; i++) {
-        int y = 30 + i * 17;
+        int y = 29 + i * 15;
         if (i == main_sel) {
-            draw_highlight(9, y - 3, 78, 15);
+            draw_highlight(9, y - 2, 78, 13);
             cursor_to(1, y);
         }
         text_draw(16, y, main_items[i], i == main_sel ? TC_WHITE : TC_GREY);
@@ -83,7 +85,7 @@ static void draw_items(void) {
     draw_footer(sbuf, s->id ? "Use" : 0, "Back");
 }
 
-static const char *const slot_names[EQ_COUNT] = {"Head", "Weapon", "Body", "Shield", "Legs", "Feet", "Neck"};
+static const char *const slot_names[EQ_COUNT] = {"Head", "Weapon", "Body", "Shield", "Legs", "Feet", "Neck", "Ammo"};
 
 static void build_candidates(void) {
     cand_n = 0;
@@ -114,16 +116,21 @@ static void draw_equip(void) {
     draw_header("Worn Equipment");
     draw_panel(6, 20, 120, 126, 5);
     for (int i = 0; i < EQ_COUNT; i++) {
-        int y = 23 + i * 17;
+        int y = 23 + i * 15;
         int id = pl.equip[i];
         if (i == eq_sel) {
-            draw_highlight(9, y - 1, 114, 17);
-            if (!eq_choose) cursor_to(1, y + 5);
+            draw_highlight(9, y - 1, 114, 15);
+            if (!eq_choose) cursor_to(1, y + 4);
         }
-        draw_cell(12, y - 1, 18, 17, 0);
-        if (id) icon_at(13, y - 1, items[id].icon);
-        text_spaced(34, y - 1, slot_names[i], TC_CYAN, 1);
-        text_draw(34, y + 7, id ? items[id].name : "-", id ? TC_WHITE : TC_DIM);
+        draw_cell(12, y - 1, 18, 15, 0);
+        if (id) icon_at(13, y - 2, items[id].icon);
+        text_spaced(34, y - 2, slot_names[i], TC_CYAN, 1);
+        char *p = sadd(sbuf, id ? items[id].name : "-");
+        if (i == EQ_AMMO && id) {
+            p = sadd(p, " x");
+            sadd_num(p, pl.ammo_qty);
+        }
+        text_draw(34, y + 5, sbuf, id ? TC_WHITE : TC_DIM);
     }
     draw_panel(130, 20, 104, 126, 5);
     int atk = equip_bonus(0), str = equip_bonus(1), def = equip_bonus(2);
@@ -133,18 +140,29 @@ static void draw_equip(void) {
         show_portrait = 1;
         portrait_x = 166;
         portrait_y = 28;
-        draw_rule(136, 69, 92);
-        draw_bonus_row(138, 73, 88, "Attack", atk, 0, 0);
-        draw_bonus_row(138, 84, 88, "Strength", str, 0, 0);
-        draw_bonus_row(138, 95, 88, "Defence", def, 0, 0);
-        int eff_s = skill_level(SK_STRENGTH) + (pl.style == STYLE_AGGRESSIVE ? 3 : 0) + 8;
-        int maxhit = (eff_s * (str + 64) + 320) / 640;
-        text_draw(138, 110, "Max hit", TC_GREY);
+        draw_rule(136, 68, 92);
+        draw_bonus_row(138, 71, 88, "Attack", atk, 0, 0);
+        draw_bonus_row(138, 81, 88, "Strength", str, 0, 0);
+        draw_bonus_row(138, 91, 88, "Defence", def, 0, 0);
+        draw_bonus_row(138, 101, 88, "Ranged", equip_bonus(3), 0, 0);
+        draw_bonus_row(138, 111, 88, "Magic", equip_bonus(5), 0, 0);
+        // max hit for what the player would attack with now
+        int cb = combat_type(), maxhit;
+        if (cb == CB_MAGIC) {
+            maxhit = spell_maxhit(pl.spell);
+        } else if (cb == CB_RANGED) {
+            int eff = skill_level(SK_RANGED) + (pl.style == STYLE_ACCURATE ? 3 : 0) + 8;
+            maxhit = (eff * (equip_bonus(4) + 64) + 320) / 640;
+        } else {
+            int eff_s = skill_level(SK_STRENGTH) + (pl.style == STYLE_AGGRESSIVE ? 3 : 0) + 8;
+            maxhit = (eff_s * (str + 64) + 320) / 640;
+        }
+        text_draw(138, 123, "Max hit", TC_GREY);
         fmt_int(sbuf, maxhit < 1 ? 1 : maxhit);
-        text_right(226, 110, sbuf, TC_GOLD);
-        text_draw(138, 121, "Combat Lv", TC_GREY);
+        text_right(226, 123, sbuf, TC_GOLD);
+        text_draw(138, 133, "Combat Lv", TC_GREY);
         fmt_int(sbuf, combat_level());
-        text_right(226, 121, sbuf, TC_GOLD);
+        text_right(226, 133, sbuf, TC_GOLD);
         draw_footer("Pick a slot.", "Change", "Back");
     } else {
         text_spaced(138, 25, slot_names[eq_sel], TC_CYAN, 1);
@@ -167,33 +185,44 @@ static void draw_equip(void) {
         if (hover_id >= 0) {
             const ItemDef *now = &items[pl.equip[eq_sel]], *nw = &items[hover_id];
             draw_rule(136, 106, 92);
-            draw_bonus_row(138, 110, 88, "Atk", atk, nw->atk - now->atk, 1);
-            draw_bonus_row(138, 121, 88, "Str", str, nw->str - now->str, 1);
-            draw_bonus_row(138, 132, 88, "Def", def, nw->def - now->def, 1);
+            if ((nw->flags | now->flags) & IF_RANGED) {
+                draw_bonus_row(138, 110, 88, "Rng", equip_bonus(3), nw->ratk - now->ratk, 1);
+                draw_bonus_row(138, 121, 88, "R.str", equip_bonus(4), nw->rstr - now->rstr, 1);
+            } else {
+                draw_bonus_row(138, 110, 88, "Atk", atk, nw->atk - now->atk, 1);
+                draw_bonus_row(138, 121, 88, "Str", str, nw->str - now->str, 1);
+            }
+            if ((nw->flags | now->flags) & IF_MAGIC) draw_bonus_row(138, 132, 88, "Mag", equip_bonus(5), nw->matk - now->matk, 1);
+            else draw_bonus_row(138, 132, 88, "Def", def, nw->def - now->def, 1);
         }
         draw_footer("Choose an item.", "Equip", "Cancel");
     }
 }
 
+// two columns of six, in the OSRS skill tab's order (combat skills first)
+static const u8 sk_order[SK_COUNT] = {SK_ATTACK, SK_STRENGTH, SK_DEFENCE, SK_RANGED, SK_PRAYER, SK_MAGIC,
+                                      SK_HITPOINTS, SK_MINING, SK_FISHING, SK_COOKING, SK_WOODCUTTING, SK_FIREMAKING};
+
 static void draw_skills(void) {
     draw_header("Skills");
     draw_panel(6, 20, 228, 92, 5);
     for (int i = 0; i < SK_COUNT; i++) {
-        int c = i / 5, r = i % 5;
-        int x = 10 + c * 112, y = 25 + r * 17;
+        int c = i / 6, r = i % 6, k = sk_order[i];
+        int x = 10 + c * 112, y = 24 + r * 15;
         if (i == sk_sel) {
-            draw_highlight(x, y - 1, 108, 16);
-            cursor_to(x - 8, y + 4);
+            draw_highlight(x, y - 1, 108, 15);
+            cursor_to(x - 8, y + 3);
         }
-        icon_at(x + 4, y - 1, skill_icons[i]);
-        text_draw(x + 24, y + 3, skill_names[i], i == sk_sel ? TC_WHITE : TC_GREY);
-        fmt_int(sbuf, skill_level(i));
-        text_right(x + 102, y + 3, sbuf, TC_GOLD);
+        icon_at(x + 4, y - 2, skill_icons[k]);
+        text_draw(x + 24, y + 2, skill_names[k], i == sk_sel ? TC_WHITE : TC_GREY);
+        fmt_int(sbuf, skill_level(k));
+        text_right(x + 102, y + 2, sbuf, TC_GOLD);
     }
     draw_panel(6, 115, 228, 32, 4);
-    int lvl = skill_level(sk_sel);
-    u32 xp = pl.xp[sk_sel] / 10;
-    text_draw(14, 118, skill_names[sk_sel], TC_GOLD);
+    int sk = sk_order[sk_sel];
+    int lvl = skill_level(sk);
+    u32 xp = pl.xp[sk] / 10;
+    text_draw(14, 118, skill_names[sk], TC_GOLD);
     char *p = sadd(sbuf, "XP ");
     sadd_num(p, xp);
     text_draw(80, 118, sbuf, TC_WHITE);
@@ -213,8 +242,12 @@ static void draw_skills(void) {
 }
 
 static void draw_combat(void) {
-    static const char *const styles[3] = {"Accurate", "Aggressive", "Defensive"};
-    static const char *const style_xp[3] = {"Attack XP", "Strength XP", "Defence XP"};
+    static const char *const melee[3] = {"Accurate", "Aggressive", "Defensive"};
+    static const char *const melee_xp[3] = {"Attack XP", "Strength XP", "Defence XP"};
+    static const char *const ranged[3] = {"Accurate", "Rapid", "Longrange"};
+    static const char *const ranged_xp[3] = {"Ranged XP", "Ranged XP", "Ranged, Def XP"};
+    int bow = items[pl.equip[EQ_WEAPON]].flags & IF_RANGED;
+    const char *const *styles = bow ? ranged : melee, *const *style_xp = bow ? ranged_xp : melee_xp;
     draw_header("Combat Options");
     draw_panel(6, 20, 228, 44, 5);
     int w = pl.equip[EQ_WEAPON];
@@ -224,7 +257,13 @@ static void draw_combat(void) {
     char *p = sadd(sbuf, "Combat Lv ");
     sadd_num(p, combat_level());
     text_draw(36, 37, sbuf, TC_GOLD);
-    text_draw(14, 50, "Fight with a style that suits you.", TC_DIM);
+    if (items[w].flags & IF_MAGIC) {
+        char *q = sadd(sbuf, "Autocast: ");
+        sadd(q, pl.spell ? spells[pl.spell].name : "none (Spellbook)");
+        text_draw(14, 50, sbuf, pl.spell ? TC_CYAN : TC_DIM);
+    } else {
+        text_draw(14, 50, bow ? "Rapid shoots faster, longrange further." : "Fight with a style that suits you.", TC_DIM);
+    }
     draw_panel(6, 68, 228, 78, 5);
     text_spaced(14, 72, "Attack style", TC_CYAN, 1);
     draw_rule(12, 83, 216);
@@ -274,6 +313,7 @@ static void draw_system(void) {
 }
 
 static void set_page(int p);
+static void menu_close_now(void);
 
 // ---------------------------------------------------------------------------------------
 // Quest journal: list (red = not started, yellow = in progress, green = complete) and an
@@ -491,6 +531,214 @@ static void quests_input(void) {
     if (keys_pressed & KEY_B) set_page(P_MAIN), sfx(SFX_BACK);
 }
 
+
+// ---------------------------------------------------------------------------------------
+// Spellbook: every standard spell in book order. A opens Cast / Autocast; casting an alchemy
+// spell then asks for an inventory item.
+#define SP_ROWS 12
+
+static int spell_icon(int s) {
+    const SpellDef *sp = &spells[s];
+    if (sp->kind == SPK_TELE) return ICON_SPELL_TELE;
+    if (sp->kind == SPK_ALCH) return ICON_SPELL_ALCH;
+    if (sp->icon) return sp->icon;
+    return ICON_SK_MAGIC;
+}
+
+static void draw_spell_row(int k) {
+    int s = sp_scroll + k, y = 23 + k * 10;
+    if (s >= spell_count) return;
+    const SpellDef *sp = &spells[s];
+    if (s == sp_sel) {
+        draw_highlight(9, y - 1, 128, 10);
+        cursor_to(1, y + 1);
+    }
+    int col = sp->kind == SPK_NA ? TC_DIM : skill_level(SK_MAGIC) < sp->level ? TC_RED
+            : spell_runes_ok(s) ? TC_WHITE : TC_GREY;
+    if (s == sp_sel && col != TC_DIM) col = TC_YELLOW;
+    // long names are cut short of the level column
+    char *p = sadd(sbuf, sp->name);
+    if (text_width(sbuf) > 102) {
+        while (p > sbuf && text_width(sbuf) > 96) *--p = 0;
+        sadd(p, "..");
+    }
+    text_draw(14, y, sbuf, col);
+    fmt_int(sbuf, sp->level);
+    text_right(134, y, sbuf, TC_GOLD);
+}
+
+static void draw_spell_side(void) {
+    int s = sp_sel;
+    const SpellDef *sp = &spells[s];
+    icon_at(146, 24, spell_icon(s));
+    char lines[3][48];
+    int n = text_wrap(sp->name, 66, lines, 2), y = 24;
+    for (int i = 0; i < n; i++, y += 9) text_draw(164, y + (n == 1 ? 4 : 0), lines[i], TC_GOLD);
+    y = 44;
+    char *p = sadd(sbuf, "Level ");
+    sadd_num(p, sp->level);
+    text_draw(146, y, sbuf, skill_level(SK_MAGIC) >= sp->level ? TC_WHITE : TC_RED);
+    y += 11;
+    // runes: icon and have / need
+    for (int k = 0; k < 4; k++) {
+        if (!sp->rune[k]) continue;
+        int x = k & 1 ? 190 : 146, yy = y + (k >> 1) * 17;
+        icon_at(x, yy, items[sp->rune[k]].icon);
+        int have = inv_count(sp->rune[k]);
+        fmt_int(sbuf, sp->qty[k]);
+        text_draw(x + 17, yy + 4, sbuf, have >= sp->qty[k] ? TC_GREEN : TC_RED);
+    }
+    y += 36;
+    if (sp->xp) {
+        p = sadd(sbuf, "XP ");
+        p = sadd_num(p, sp->xp / 10);
+        if (sp->xp % 10) {
+            p = sadd(p, ".");
+            *p++ = '0' + sp->xp % 10;
+            *p = 0;
+        }
+        text_draw(146, y, sbuf, TC_GREY);
+        y += 10;
+    }
+    if (sp->kind == SPK_COMBAT || (sp->kind == SPK_BIND && sp->maxhit)) {
+        p = sadd(sbuf, "Max hit ");
+        sadd_num(p, spell_maxhit(s));
+        text_draw(146, y, sbuf, TC_GREY);
+        y += 10;
+    }
+    if (sp->kind == SPK_NA) text_draw(146, y, "Not available yet", TC_ORANGE);
+    else if (pl.spell == s) text_draw(146, y, "Autocasting", TC_CYAN);
+}
+
+static void draw_spells(void) {
+    if (sp_alch) {
+        draw_header(spells[sp_sel].name);
+        draw_panel(6, 20, 152, 98, 5);
+        draw_grid(pl.inv, 28, 0, item_sel);
+        draw_panel(162, 20, 72, 98, 5);
+        Slot *it = &pl.inv[item_sel];
+        draw_item_detail(it->id, it->qty, 162, 20, 72, 0, 0);
+        if (it->id) {
+            char *p = sadd_num(sbuf, items[it->id].value * spells[sp_sel].param / 100);
+            sadd(p, " gp");
+            text_draw(14, 126, "Alchemy gives", TC_GREY);
+            text_right(150, 126, sbuf, TC_GOLD);
+        }
+        draw_footer("Choose an item.", it->id ? "Cast" : 0, "Back");
+        return;
+    }
+    draw_header("Spellbook");
+    draw_panel(6, 20, 134, 126, 5);
+    for (int k = 0; k < SP_ROWS; k++) draw_spell_row(k);
+    draw_panel(140, 20, 94, 126, 5);
+    draw_spell_side();
+    char *p = sadd(sbuf, "Magic ");
+    sadd_num(p, skill_level(SK_MAGIC));
+    draw_footer(sbuf, spells[sp_sel].kind == SPK_NA ? 0 : "Cast", "Back");
+}
+
+enum { SPO_CAST, SPO_AUTO, SPO_CLEAR, SPO_CANCEL };
+
+static void spell_choose(int act) {
+    int s = sp_sel;
+    const SpellDef *sp = &spells[s];
+    switch (act) {
+    case SPO_CAST:
+        if (sp->kind == SPK_ALCH) {
+            if (!spell_castable(s, 0)) {
+                sfx(SFX_ERR);
+                break;
+            }
+            sp_alch = 1;
+            sfx(SFX_OK);
+        } else if (sp->kind == SPK_TELE) {
+            if (spell_castable(s, 0)) {
+                menu_close_now();
+                spell_cast_self(s);
+            } else {
+                sfx(SFX_ERR);
+            }
+        } else if (spell_targeted(s)) {
+            // cast once at the L target; the menu closes so the player can walk into range
+            int ok = spell_castable(s, 0) && lock_target >= 0;
+            if (ok) {
+                menu_close_now();
+                spell_manual(s);
+            } else {
+                if (spell_castable(s, 1)) msg("Pick a target with L first.");
+                sfx(SFX_ERR);
+            }
+        } else {
+            spell_castable(s, 0);
+            sfx(SFX_ERR);
+        }
+        break;
+    case SPO_AUTO: sfx(spell_autocast(s) ? SFX_OK : SFX_ERR); break;
+    case SPO_CLEAR:
+        pl.spell = 0;
+        msg("Autocast off.");
+        sfx(SFX_OK);
+        break;
+    }
+}
+
+static void spells_input(void) {
+    if (sp_alch) {
+        int c = item_sel % 7, rr = item_sel / 7;
+        if (keys_repeat & KEY_LEFT) c = (c + 6) % 7;
+        if (keys_repeat & KEY_RIGHT) c = (c + 1) % 7;
+        if (keys_repeat & KEY_UP) rr = (rr + 3) % 4;
+        if (keys_repeat & KEY_DOWN) rr = (rr + 1) % 4;
+        if (rr * 7 + c != item_sel) {
+            item_sel = rr * 7 + c;
+            sfx(SFX_MOVE);
+            redraw = 1;
+        }
+        if ((keys_pressed & KEY_A) && pl.inv[item_sel].id) {
+            if (spell_alch(sp_sel, item_sel)) sp_alch = 0;
+            redraw = 1;
+        }
+        if (keys_pressed & KEY_B) {
+            sp_alch = 0;
+            sfx(SFX_BACK);
+            redraw = 1;
+        }
+        return;
+    }
+    if (pop.open) {
+        int r = pop_input();
+        if (r >= 0 && r != SPO_CANCEL) spell_choose(r);
+        if (game_state != GS_MENU) return;
+        if (r != -1) redraw = 1;
+        return;
+    }
+    int s = sp_sel;
+    if (keys_repeat & KEY_UP) s = s > 1 ? s - 1 : spell_count - 1;
+    if (keys_repeat & KEY_DOWN) s = s < spell_count - 1 ? s + 1 : 1;
+    if (keys_repeat & KEY_LEFT) s = s > SP_ROWS ? s - SP_ROWS : 1;
+    if (keys_repeat & KEY_RIGHT) s = s + SP_ROWS < spell_count ? s + SP_ROWS : spell_count - 1;
+    if (s != sp_sel) {
+        sp_sel = s;
+        if (sp_sel < sp_scroll) sp_scroll = sp_sel;
+        if (sp_sel >= sp_scroll + SP_ROWS) sp_scroll = sp_sel - SP_ROWS + 1;
+        sfx(SFX_MOVE);
+        redraw = 1;
+    }
+    if ((keys_pressed & KEY_A) && spells[sp_sel].kind != SPK_NA) {
+        const SpellDef *sp = &spells[sp_sel];
+        pop_reset(60, 23 + (sp_sel - sp_scroll) * 10);
+        pop_add("Cast", SPO_CAST);
+        if (sp->kind == SPK_COMBAT) pop_add(pl.spell == sp_sel ? "Autocast off" : "Autocast", pl.spell == sp_sel ? SPO_CLEAR : SPO_AUTO);
+        pop_add("Cancel", SPO_CANCEL);
+        sfx(SFX_OK);
+        redraw = 1;
+    } else if (keys_pressed & KEY_A) {
+        spell_castable(sp_sel, 0);
+        sfx(SFX_ERR);
+    }
+    if (keys_pressed & KEY_B) set_page(P_MAIN), sfx(SFX_BACK);
+}
+
 static void menu_redraw(void) {
     cv_clear(&cv_text);
     cv_clear(&cv_panel);
@@ -501,6 +749,7 @@ static void menu_redraw(void) {
     case P_ITEMS: draw_items(); break;
     case P_EQUIP: draw_equip(); break;
     case P_SKILLS: draw_skills(); break;
+    case P_SPELLS: draw_spells(); break;
     case P_QUESTS: draw_quests(); break;
     case P_COMBAT: draw_combat(); break;
     case P_SYSTEM: draw_system(); break;
@@ -512,6 +761,7 @@ static void set_page(int p) {
     page = p;
     pop.open = 0;
     eq_choose = 0;
+    sp_alch = 0;
     q_view = 0;
     sys_note = 0;
     slide = 10;
@@ -580,19 +830,10 @@ static void item_action(int slot, int act) {
             player_start_firemaking(slot);
             menu_close();
         } else if (d->flags & IF_EQUIP) {
-            int need = d->slot == EQ_WEAPON ? skill_level(SK_ATTACK) : skill_level(SK_DEFENCE);
-            if (need < d->req) {
-                char *p = sadd(sbuf, d->slot == EQ_WEAPON ? "You need Attack level " : "You need Defence level ");
-                p = sadd_num(p, d->req);
-                sadd(p, ".");
-                msg_col(sbuf, TC_RED);
+            if (!equip_item(slot)) {
                 sfx(SFX_ERR);
                 break;
             }
-            int old = pl.equip[d->slot];
-            pl.equip[d->slot] = id;
-            s->id = old;
-            s->qty = old ? 1 : 0;
             gfx_set_player_palette();
             sfx(SFX_OK);
         }
@@ -639,7 +880,7 @@ static void items_input(void) {
         if (d->flags & IF_EAT) pop_add("Eat", 0);
         else if (d->flags & IF_BURY) pop_add("Bury", 0);
         else if (d->flags & IF_LIGHT) pop_add("Light", 0);
-        else if (d->flags & IF_EQUIP) pop_add(d->slot == EQ_WEAPON ? "Wield" : "Wear", 0);
+        else if (d->flags & IF_EQUIP) pop_add(d->slot == EQ_WEAPON || d->slot == EQ_AMMO ? "Wield" : "Wear", 0);
         pop_add("Drop", 1);
         pop_add("Cancel", 2);
         sfx(SFX_OK);
@@ -683,12 +924,10 @@ static void equip_input(void) {
     if ((keys_pressed & KEY_A) && n) {
         if (eq_cand_sel < cand_n) {
             item_action(cand[eq_cand_sel], 0);
-        } else if (!inv_free()) {
+        } else if (!unequip(eq_sel)) {
             msg("You don't have enough inventory space.");
             sfx(SFX_ERR);
         } else {
-            inv_add(pl.equip[eq_sel], 1);
-            pl.equip[eq_sel] = 0;
             gfx_set_player_palette();
             sfx(SFX_OK);
         }
@@ -760,13 +999,14 @@ void menu_update(void) {
     case P_ITEMS: items_input(); break;
     case P_EQUIP: equip_input(); break;
     case P_QUESTS: quests_input(); break;
+    case P_SPELLS: spells_input(); break;
     case P_SKILLS: {
-        int c = sk_sel / 5, r = sk_sel % 5;
+        int c = sk_sel / 6, r = sk_sel % 6;
         if (keys_repeat & (KEY_LEFT | KEY_RIGHT)) c ^= 1;
-        if (keys_repeat & KEY_UP) r = (r + 4) % 5;
-        if (keys_repeat & KEY_DOWN) r = (r + 1) % 5;
-        if (c * 5 + r != sk_sel) {
-            sk_sel = c * 5 + r;
+        if (keys_repeat & KEY_UP) r = (r + 5) % 6;
+        if (keys_repeat & KEY_DOWN) r = (r + 1) % 6;
+        if (c * 6 + r != sk_sel) {
+            sk_sel = c * 6 + r;
             sfx(SFX_MOVE);
             redraw = 1;
         }

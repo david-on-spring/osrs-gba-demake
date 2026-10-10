@@ -2,6 +2,10 @@
 #include "game.h"
 
 #define EQ(slot, req, a, s, d, val, tier, ex) {0, ex, 0, IF_EQUIP, slot, req, a, s, d, 0, val, tier}
+// the fields after the icon, for ranged and magic gear
+#define BOW(req, val, ratk) IF_EQUIP | IF_RANGED, EQ_WEAPON, req, 0, 0, 0, 0, val, TIER_WOOD, ratk, 0, 0
+#define ARROW(req, val, rstr, tier) IF_EQUIP | IF_RANGED | IF_STACK, EQ_AMMO, req, 0, 0, 0, 0, val, tier, 0, rstr, 0
+#define STAFF(a, s, val, matk) IF_EQUIP | IF_MAGIC, EQ_WEAPON, 1, a, s, 0, 0, val, TIER_WOOD, 0, 0, matk
 
 const ItemDef items[I_COUNT] = {
     [I_NONE] = {"", "", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
@@ -152,15 +156,50 @@ const ItemDef items[I_COUNT] = {
     [I_HAMMER] = {"Hammer", "Good for hitting things.", ICON_HAMMER, 0, 0, 0, 0, 0, 0, 0, 1, 0},
     [I_NEWCOMER_MAP] = {"Newcomer map", "Issued to all new citizens of Gielinor.", ICON_NEWCOMER_MAP, 0, 0, 0, 0, 0, 0, 0, 1, 0},
     [I_SECURITY_BOOK] = {"Security book", "An old book about keeping your account safe.", ICON_SECURITY_BOOK, 0, 0, 0, 0, 0, 0, 0, 2, 0},
+    // bows (req: Ranged level) and arrows; the last three numbers are ranged attack / strength, magic
+    [I_SHORTBOW] = {"Shortbow", "Short and effective.", ICON_SHORTBOW, BOW(1, 50, 8)},
+    [I_LONGBOW] = {"Longbow", "A nice sturdy bow.", ICON_LONGBOW, BOW(1, 80, 8)},
+    [I_OAK_SHORTBOW] = {"Oak shortbow", "A shortbow made out of oak, still effective.", ICON_OAK_SHORTBOW, BOW(5, 100, 14)},
+    [I_OAK_LONGBOW] = {"Oak longbow", "A nice sturdy bow made out of oak.", ICON_OAK_LONGBOW, BOW(5, 160, 14)},
+    [I_WILLOW_SHORTBOW] = {"Willow shortbow", "A shortbow made out of willow, still effective.", ICON_WILLOW_SHORTBOW, BOW(20, 200, 20)},
+    [I_WILLOW_LONGBOW] = {"Willow longbow", "A nice sturdy bow made out of willow.", ICON_WILLOW_LONGBOW, BOW(20, 320, 20)},
+    [I_MAPLE_SHORTBOW] = {"Maple shortbow", "A shortbow made out of maple, still effective.", ICON_MAPLE_SHORTBOW, BOW(30, 400, 29)},
+    [I_MAPLE_LONGBOW] = {"Maple longbow", "A nice sturdy bow made out of maple.", ICON_MAPLE_LONGBOW, BOW(30, 640, 29)},
+    [I_BRONZE_ARROW] = {"Bronze arrow", "Arrows with bronze heads.", ICON_BRONZE_ARROW, ARROW(1, 1, 7, TIER_BRONZE)},
+    [I_IRON_ARROW] = {"Iron arrow", "Arrows with iron heads.", ICON_IRON_ARROW, ARROW(1, 3, 10, TIER_IRON)},
+    [I_STEEL_ARROW] = {"Steel arrow", "Arrows with steel heads.", ICON_STEEL_ARROW, ARROW(5, 12, 16, TIER_STEEL)},
+    [I_MITHRIL_ARROW] = {"Mithril arrow", "Arrows with mithril heads.", ICON_MITHRIL_ARROW, ARROW(20, 32, 22, TIER_MITHRIL)},
+    [I_ADAMANT_ARROW] = {"Adamant arrow", "Arrows with adamant heads.", ICON_ADAMANT_ARROW, ARROW(30, 80, 31, TIER_ADAMANT)},
+    // runes and staves
+    [I_AIR_RUNE] = {"Air rune", "One of the 4 basic elemental Runes.", ICON_AIR_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 4, 0},
+    [I_WATER_RUNE] = {"Water rune", "One of the 4 basic elemental Runes.", ICON_WATER_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 4, 0},
+    [I_EARTH_RUNE] = {"Earth rune", "One of the 4 basic elemental Runes.", ICON_EARTH_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 4, 0},
+    [I_FIRE_RUNE] = {"Fire rune", "One of the 4 basic elemental Runes.", ICON_FIRE_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 4, 0},
+    [I_MIND_RUNE] = {"Mind rune", "Used for basic level missile spells.", ICON_MIND_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 3, 0},
+    [I_BODY_RUNE] = {"Body rune", "Used for curse spells.", ICON_BODY_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 3, 0},
+    [I_CHAOS_RUNE] = {"Chaos rune", "Used for low level missile spells.", ICON_CHAOS_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 90, 0},
+    [I_DEATH_RUNE] = {"Death rune", "Used for medium level missile spells.", ICON_DEATH_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 180, 0},
+    [I_STAFF] = {"Staff", "It's a slightly magical stick.", ICON_STAFF, STAFF(7, 7, 15, 4)},
+    [I_MAGIC_STAFF] = {"Magic staff", "A Magical staff.", ICON_MAGIC_STAFF, STAFF(7, 7, 200, 10)},
+    [I_STAFF_AIR] = {"Staff of air", "A Magical staff.", ICON_STAFF_AIR, STAFF(10, 7, 1500, 10)},
+    [I_STAFF_WATER] = {"Staff of water", "A Magical staff.", ICON_STAFF_WATER, STAFF(10, 7, 1500, 10)},
+    [I_STAFF_EARTH] = {"Staff of earth", "A Magical staff.", ICON_STAFF_EARTH, STAFF(10, 7, 1500, 10)},
+    [I_STAFF_FIRE] = {"Staff of fire", "A Magical staff.", ICON_STAFF_FIRE, STAFF(10, 7, 1500, 10)},
+    [I_COSMIC_RUNE] = {"Cosmic rune", "Used for enchant spells.", ICON_COSMIC_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 50, 0},
+    [I_LAW_RUNE] = {"Law rune", "Used for teleport spells.", ICON_LAW_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 240, 0},
+    [I_NATURE_RUNE] = {"Nature rune", "Used for alchemy spells.", ICON_NATURE_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 180, 0},
+    [I_BLOOD_RUNE] = {"Blood rune", "Used for high level missile spells.", ICON_BLOOD_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 400, 0},
+    [I_SOUL_RUNE] = {"Soul rune", "Used for high level curse spells.", ICON_SOUL_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 300, 0},
+    [I_WRATH_RUNE] = {"Wrath rune", "Used for the most powerful missile spells.", ICON_WRATH_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 400, 0},
 };
 
 const char *const skill_names[SK_COUNT] = {
     "Attack", "Strength", "Defence", "Hitpoints", "Prayer",
-    "Woodcutting", "Firemaking", "Fishing", "Cooking", "Mining",
+    "Woodcutting", "Firemaking", "Fishing", "Cooking", "Mining", "Ranged", "Magic",
 };
 const u8 skill_icons[SK_COUNT] = {
     ICON_STEEL_SWORD, ICON_SK_FIST, ICON_STEEL_SHIELD, ICON_SK_HEART, ICON_SK_STAR,
-    ICON_IRON_AXE, ICON_SK_FLAME, ICON_RAW_TROUT, ICON_SK_POT, ICON_IRON_PICK,
+    ICON_IRON_AXE, ICON_SK_FLAME, ICON_RAW_TROUT, ICON_SK_POT, ICON_IRON_PICK, ICON_SK_BOW, ICON_SK_MAGIC,
 };
 
 static const char *const dlg_guide[] = {
@@ -194,6 +233,8 @@ static const char *const dlg_wayne[] = {"Welcome to Wayne's Chains. Do you wanna
 static const char *const dlg_zeke[] = {"A thousand greetings. Would you like to buy a superior scimitar?", 0};
 static const char *const dlg_louie[] = {"Hey, wanna buy some armour? I've got the best legs in the desert.", 0};
 static const char *const dlg_nurmof[] = {"Greetings and well met! I sell the finest pickaxes in all the land.", 0};
+static const char *const dlg_lowe[] = {"Welcome to Lowe's Archery Emporium. Do you want to see my wares?", 0};
+static const char *const dlg_zaff[] = {"Would you like to buy or sell some staffs?", 0};
 
 const NpcDef npc_defs[NPC_KIND_COUNT] = {
     [NPC_COW] = {"Cow", SPR_KIND_COW, 5, 2, 8, 1, 1, 1, 0, 0, -21, NF_ATTACK, 4, 40, 0},
@@ -248,6 +289,8 @@ const NpcDef npc_defs[NPC_KIND_COUNT] = {
     [NPC_ZEKE] = {"Zeke", SPR_KIND_HUMAN, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_SHOP, 0, 0, dlg_zeke},
     [NPC_LOUIE] = {"Louie Legs", SPR_KIND_HUMAN, 1, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_SHOP, 0, 0, dlg_louie},
     [NPC_NURMOF] = {"Nurmof", SPR_KIND_HUMAN, 3, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_SHOP, 0, 0, dlg_nurmof},
+    [NPC_LOWE] = {"Lowe", SPR_KIND_HUMAN, 7, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_SHOP, 0, 0, dlg_lowe},
+    [NPC_ZAFF] = {"Zaff", SPR_KIND_WIZARD, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_SHOP, 0, 0, dlg_zaff},
     [NPC_ARIS] = {"Gypsy Aris", SPR_KIND_DRESS, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_PRYSIN] = {"Sir Prysin", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_ROVIN] = {"Captain Rovin", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
@@ -256,6 +299,24 @@ const NpcDef npc_defs[NPC_KIND_COUNT] = {
     [NPC_RAT] = {"Rat", SPR_KIND_RAT, 5, 1, 2, 1, 1, 1, 0, 0, -40, NF_ATTACK, 4, 25, 0},
     [NPC_DELRITH] = {"Delrith", SPR_KIND_DEMON, 5, 27, 35, 18, 16, 18, 10, 6, 10, NF_ATTACK | NF_AGGRO, 2, 0, 0},
 };
+
+// OSRS examine text (the target menu's Examine)
+static const char *const npc_exam[NPC_KIND_COUNT] = {
+    [NPC_COW] = "Converts grass to beef.", [NPC_CHICKEN] = "Yep, definitely a chicken.",
+    [NPC_GOBLIN] = "An ugly green creature.", [NPC_MAN] = "One of many citizens.",
+    [NPC_WOMAN] = "One of many citizens.", [NPC_GUARD] = "He tries to keep order around here.",
+    [NPC_BANKER] = "Good with money.", [NPC_SHOPKEEPER] = "Maybe he'd like to buy some of my junk.",
+    [NPC_GUIDE] = "He provides new players with useful information.", [NPC_COOK] = "The head cook of Lumbridge Castle.",
+    [NPC_HANS] = "Servant of the Duke of Lumbridge.", [NPC_WARRIOR] = "A warrior of Al Kharid.",
+    [NPC_DARK_WIZARD] = "He works evil magic.", [NPC_BARBARIAN] = "Not civilised looking.",
+    [NPC_DUKE] = "Duke Horacio of Lumbridge.", [NPC_SHEEP] = "White and fluffy.", [NPC_DAIRY_COW] = "Fat and juicy.",
+    [NPC_GHOST] = "Eeek! A ghost!", [NPC_SKELETON] = "Could do with gaining a few pounds.",
+    [NPC_IMP] = "A cheeky little imp.", [NPC_RAT] = "Overgrown vermin.", [NPC_DELRITH] = "A demon of immense power.",
+    [NPC_AUBURY] = "I think he might be a shop keeper.", [NPC_BETTY] = "A busy shop owner.",
+    [NPC_LOWE] = "The owner of the archery store.", [NPC_ZAFF] = "The owner of the staff shop.",
+    [NPC_BOB] = "An axe seller.", [NPC_HORVIK] = "An armour seller.", [NPC_BORDER_GUARD] = "Guards the toll gate.",
+};
+const char *npc_examine(int kind) { return npc_exam[kind]; }
 
 // ---------------------------------------------------------------------------------------
 static u32 rng_state = 0x2007BEEF;
@@ -310,10 +371,14 @@ int level_for_xp(u32 tenths) {
 }
 int skill_level(int sk) { return level_for_xp(pl.xp[sk]); }
 
+// OSRS: a quarter of (Defence + Hitpoints + Prayer / 2), plus the best of melee, ranged and magic
 int combat_level(void) {
     int base = 250 * (skill_level(SK_DEFENCE) + skill_level(SK_HITPOINTS) + skill_level(SK_PRAYER) / 2);
-    int melee = 325 * (skill_level(SK_ATTACK) + skill_level(SK_STRENGTH));
-    return (base + melee) / 1000;
+    int best = 325 * (skill_level(SK_ATTACK) + skill_level(SK_STRENGTH));
+    int range = 325 * (skill_level(SK_RANGED) * 3 / 2), mage = 325 * (skill_level(SK_MAGIC) * 3 / 2);
+    if (range > best) best = range;
+    if (mage > best) best = mage;
+    return (base + best) / 1000;
 }
 
 int total_level(void) {
@@ -398,9 +463,69 @@ int equip_bonus(int which) {
     int b = 0;
     for (int i = 0; i < EQ_COUNT; i++) {
         const ItemDef *d = &items[pl.equip[i]];
-        b += which == 0 ? d->atk : which == 1 ? d->str : d->def;
+        switch (which) {
+        case 0: b += d->atk; break;
+        case 1: b += d->str; break;
+        case 2: b += d->def; break;
+        case 3: b += d->ratk; break;
+        case 4: b += d->rstr; break;
+        default: b += d->matk; break;
+        }
     }
     return b;
+}
+
+// wear the item in an inventory slot (arrows go to the ammo slot as a whole stack)
+int equip_item(int slot) {
+    Slot *s = &pl.inv[slot];
+    int id = s->id;
+    const ItemDef *d = &items[id];
+    if (!(d->flags & IF_EQUIP)) return 0;
+    int sk = (d->flags & IF_RANGED) ? SK_RANGED : d->slot == EQ_WEAPON ? SK_ATTACK : SK_DEFENCE;
+    if (skill_level(sk) < d->req) {
+        char buf[48], *p = buf;
+        const char *a = "You need a ", *n = skill_names[sk];
+        while (*a) *p++ = *a++;
+        while (*n) *p++ = *n++;
+        a = " level of ";
+        while (*a) *p++ = *a++;
+        fmt_int(p, d->req);
+        while (*p) p++;
+        *p++ = '.';
+        *p = 0;
+        msg_col(buf, TC_RED);
+        return 0;
+    }
+    if (d->slot == EQ_AMMO) {
+        int old = pl.equip[EQ_AMMO], oq = pl.ammo_qty;
+        if (old == id) {
+            pl.ammo_qty += s->qty;
+            s->id = s->qty = 0;
+        } else {
+            pl.equip[EQ_AMMO] = id;
+            pl.ammo_qty = s->qty;
+            s->id = old;
+            s->qty = old ? oq : 0;
+        }
+        return 1;
+    }
+    int old = pl.equip[d->slot];
+    pl.equip[d->slot] = id;
+    s->id = old;
+    s->qty = old ? 1 : 0;
+    return 1;
+}
+
+int unequip(int eq) {
+    int id = pl.equip[eq];
+    if (!id) return 1;
+    int q = eq == EQ_AMMO ? pl.ammo_qty : 1;
+    if (!inv_count(id) && !inv_free()) return 0;
+    if (!(items[id].flags & IF_STACK) && inv_free() < q) return 0;
+    inv_add(id, q);
+    pl.equip[eq] = 0;
+    if (eq == EQ_AMMO) pl.ammo_qty = 0;
+    return 1;
 }
 
 int bank_add(int id, int qty) {

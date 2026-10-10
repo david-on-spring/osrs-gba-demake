@@ -46,3 +46,5 @@ for (X, Y) in ((3012, 3387), (3013, 3387), (3021, 3371), (3022, 3371)):
 for b in B:
     if not b['special']:
         furnish(b)
+# where the Falador Teleport spell lands
+QPOS['TELE_FALADOR'] = nearest_walk(cx(2965), cy(3379), walk_ok, 4)

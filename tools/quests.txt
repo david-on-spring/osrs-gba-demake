@@ -93,7 +93,7 @@ quest IMP "Imp Catcher"
   need 1 YELLOW_BEAD 1
   need 1 BLACK_BEAD 1
   need 1 WHITE_BEAD 1
-  reward xp PRAYER 875
+  reward xp MAGIC 875
   reward item ACCURACY 1
 end
 
@@ -170,7 +170,7 @@ quest WITCH "Witch's Potion"
   need 1 RAT_TAIL 1
   need 1 BURNT_MEAT 1
   step 2 "Hetty has put the ingredients in her cauldron. I should drink from it."
-  reward xp PRAYER 325
+  reward xp MAGIC 325
 end
 
 # NPCs that only appear during part of a quest
@@ -953,8 +953,11 @@ talk AUBURY
   if stage RUNE == 2 goto s2
   if stage RUNE == 3 goto s3
   npc "Do you want to buy some runes?"
-  player "Maybe another time."
-  npc "Come back when you have learnt to use them."
+  choice
+    option "Yes please!" aubury_buy
+    option "Oh, it's a rune shop. No thank you." end
+:aubury_buy
+  shop
   end
 :s2
   if not has PACKAGE goto none
