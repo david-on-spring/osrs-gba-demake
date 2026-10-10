@@ -13,7 +13,8 @@ images are not needed to build the game.
 .ref format (rows run north to south; all rows of a section have the same length):
   ref X0 Y0 X1 Y1               the OSRS tiles covered
   G <row>                        ground per tile:  g grass  p dirt path  c road / paving  f stone floor
-                                 w wood floor  ~ water  s sand  m swamp  # thick black wall  ? unknown
+                                 w wood floor  k chequered floor  ~ water  s sand  m swamp  # thick black
+                                 wall  ? unknown
                                  (floors are tiles enclosed by walls; everything reachable from the
                                  edge of the rectangle without crossing a wall is outdoors)
   N <row>                        edge on the north side of each tile, plus one closing row:
@@ -184,7 +185,31 @@ def extract(plane, X0, Y0, X1, Y1):
                     comp.append(n)
                     stack.append(n)
         comps.append(comp)
+    # chequered floors make one-tile regions: join tiny regions of the same class that touch across
+    # open edges into one
+    par = list(range(len(comps)))
+
+    def fnd(i):
+        while par[i] != i:
+            par[i] = par[par[i]]
+            i = par[i]
+        return i
+    for k, comp in enumerate(comps):
+        if len(comp) > 2:
+            continue                # (only one-or-two-tile regions start a merge)
+        for (c, r) in comp:
+            for (dc, dr) in ((0, -1), (0, 1), (-1, 0), (1, 0)):
+                n = (c + dc, r + dr)
+                if n in cls and len(comps[comp_of[n]]) <= 12 and cls[n] not in 'GWK' and cls[(c, r)] not in 'GWK' and \
+                        not blocked(edge_of(c, r, dc, dr)) and not diag[n]:
+                    par[fnd(k)] = fnd(comp_of[n])
+    merged_ = {}
+    for k, comp in enumerate(comps):
+        merged_.setdefault(fnd(k), []).extend(comp)
+    comps = list(merged_.values())
+    comp_of = {t: k for k, comp in enumerate(comps) for t in comp}
     out = set()
+    checker = set()
     for k, comp in enumerate(comps):
         per = walled = 0
         across = Counter()
@@ -202,7 +227,9 @@ def extract(plane, X0, Y0, X1, Y1):
                     walled += 1
                 else:
                     across[cls[n]] += 1
-        mine = cls[comp[0]]
+        mine = Counter(cls[t_] for t_ in comp).most_common(1)[0][0]
+        if len(set(dom_of[t_] for t_ in comp)) >= 2 and len(comp) > 8:
+            checker.update(comp)
         indoor = per > 0 and walled >= per * 0.6 and len(comp) <= 400 and mine not in 'WK' and not (border and len(comp) > 40)
         if indoor and mine in 'GM':
             # a green/tan/sand patch is a floor only if it differs from the ground outside its walls
@@ -226,7 +253,7 @@ def extract(plane, X0, Y0, X1, Y1):
             elif (c, r) in out:
                 g += {'G': 'g', 'T': 'p', 'S': 'c', 'B': 'p', 'W': '~', 'Y': 's', 'M': 'm'}.get(k, '?')
             else:
-                g += 'w' if k == 'B' else '~' if k == 'W' else 'f'
+                g += 'k' if (c, r) in checker else 'w' if k == 'B' else '~' if k == 'W' else 'f'
         G.append(g)
         O.append(''.join(icon[(c, r)] for c in range(W)))
         D.append(''.join('/' if diag[(c, r)] else '.' for c in range(W)))

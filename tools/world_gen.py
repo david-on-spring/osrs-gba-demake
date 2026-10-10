@@ -1677,7 +1677,7 @@ def make_portals(c):
 
 
 # ---- towns traced from the OSRS map (tools/zones/*.ref, see tools/ref_extract.py) ------------
-REF_GROUND = {'g': 'GRASS', 'p': 'PATH', 'c': 'COBBLE', 'f': 'FLOOR', 'w': 'WOODFLOOR', '~': 'WATER',
+REF_GROUND = {'g': 'GRASS', 'p': 'PATH', 'c': 'COBBLE', 'f': 'FLOOR', 'w': 'WOODFLOOR', 'k': 'CHECKER', '~': 'WATER',
               's': 'SAND', 'm': 'SWAMP', '#': 'WALL', '?': 'GRASS'}
 
 
@@ -1737,7 +1737,7 @@ def build_from_ref(ref, style):
     Wd, Ht = X1 - X0 + 1, Y1 - Y0 + 1
     G = ref['G']
     at = lambda c, r: G[r][c] if 0 <= c < Wd and 0 <= r < Ht else 'g'
-    indoor = lambda c, r: at(c, r) in 'fw'
+    indoor = lambda c, r: at(c, r) in 'fwk'
     ground = dict(REF_GROUND, c=style.get('road', 'COBBLE'), s=style.get('sand', 'SAND'))
     for r in range(Ht):
         for c in range(Wd):
@@ -3503,9 +3503,10 @@ def pack_palettes(tilesets, nbanks, weights=None):
     return assign, banks, late
 
 
-def pack_palettes_search(tilesets, nbanks, weights, trials=300, seed=1):
+def pack_palettes_search(tilesets, nbanks, weights, trials=int(os.environ.get('WG_TRIALS', 800)), seed=1):
     """pack_palettes for a richer tile set: greedy packing of the maximal colour sets in many
-    orders, keeping the banks that leave the fewest map uses to quantize."""
+    orders, keeping the banks that leave the fewest map uses to quantize. WG_TRIALS=100 in the
+    environment makes a quicker (slightly worse) build while iterating on art."""
     from collections import Counter
     use = Counter()
     for s_, w in zip(tilesets, weights):

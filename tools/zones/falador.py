@@ -3,6 +3,12 @@ FALADOR = city('FALADOR', (2935, 3307, 3065, 3398), 0, 448, 5)
 set_ctx(FALADOR.ctx)
 B = build_from_ref(load_ref('falador'), dict(stone='WWALL', wood='WWALL', road='COBBLE', fence='FENCE', city='WWALL',
                                              roof_stone='red', roof_wood='red', oaks=True))
+# the Party Room: one chequered hall entered from the south
+party = stamp(B, 3035, 3371, 3058, 3385, 'WWALL', 'CHECKER', doors=[(3045, 3371), (3046, 3371)], roof='red')
+for (X, Y) in ((3037, 3383), (3056, 3383), (3037, 3374), (3056, 3374)):
+    zput(X, Y, 'POTPLANT')
+for X in range(3043, 3049):
+    zput(X, 3383, 'TABLE')
 bank(building_at(B, 2946, 3368), 'W')                                       # west bank
 bank(building_at(B, 3013, 3356), 'S')                                       # east bank
 zshop('FALADOR', building_at(B, 2957, 3387), 'SHOPKEEPER')
