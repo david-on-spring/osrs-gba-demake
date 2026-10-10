@@ -326,6 +326,7 @@ void npc_attack(int i) {
     int dmg = roll(hit_chance256(a, def)) ? rnd_range(maxhit + 1) : 0;
     if (dmg > pl.hp) dmg = pl.hp;
     foe_engage(i);
+    home_cancel();   // combat interrupts the home teleport
     n->lunge = 8;
     pl.hpbar_timer = 200;
     splat_spawn(pl.px, pl.py, dmg);
@@ -349,6 +350,7 @@ void player_respawn(void) {
     for (int i = 0; i < npc_hi; i++) npcs[i].in_combat = 0;
     foe = -1;
     player_stop();
+    home_cancel();
     proj_clear();
     target_set(-1);
     pl.x = START_X;

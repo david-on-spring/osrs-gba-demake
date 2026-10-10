@@ -54,6 +54,7 @@ _Static_assert(__builtin_offsetof(Player, bank) == 0xD2, "qtest.py OFF_BANK");
 _Static_assert(__builtin_offsetof(Player, qstage) == 0x258, "qtest.py OFF_QSTAGE");
 _Static_assert(__builtin_offsetof(Player, qvar) == 0x268, "qtest.py OFF_QVAR");
 _Static_assert(__builtin_offsetof(Player, spell) == 0x288, "qtest.py OFF_SPELL");
+_Static_assert(__builtin_offsetof(Player, home_cd) == 0x28A, "qtest.py OFF_HOMECD");
 
 // a version 3 character in the current layout: new skills at level 1, nothing in the ammo slot
 static void from_v3(const PlayerV3 *o) {
@@ -69,7 +70,8 @@ static void from_v3(const PlayerV3 *o) {
     p->playtime = o->playtime;
     for (int i = 0; i < 16; i++) p->qstage[i] = o->qstage[i], p->qvar[i] = o->qvar[i];
     p->spell = 0;
-    p->pad[0] = p->pad[1] = p->pad[2] = 0;
+    p->pad = 0;
+    p->home_cd = 0;
 }
 
 static void sram_write(int off, const void *src, int n) {

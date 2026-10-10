@@ -61,7 +61,9 @@ typedef struct { u8 active, npc, dmg, cb, spell, icon, t, dur, hit; u16 drop; s1
 extern Proj projs[MAX_PROJ];            // arrows and spells in flight
 void proj_update(void);                 // every frame: move, land hits on arrival
 void proj_clear(void);
-extern u8 cast_once;                    // spell to cast once at the target (spellbook), 0 = none
+extern u8 cast_once;
+void home_update(void);                 // spells.c: the home teleport's cast, every frame
+void home_cancel(void);                    // spell to cast once at the target (spellbook), 0 = none
 
 // skilling.c
 typedef struct { u8 id, power, level; } Tool;

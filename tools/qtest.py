@@ -9,6 +9,8 @@ Adds to the harness commands:
   spell NAME             set the autocast spell (a src/spells.c name in capitals, e.g. WIND_STRIKE; NONE)
   expectammo NAME N      PASS/FAIL check of the ammo slot and its quantity
   expectspell NAME       PASS/FAIL check of the autocast spell
+  homecd TICKS           set the home teleport cooldown
+  expecthomecd MIN       PASS/FAIL check that the home teleport cooldown is at least MIN ticks
   expecttarget I|KIND|NONE  PASS/FAIL check of the L target (lock_target)
   expectcurse I|KIND BITS   PASS/FAIL check of an NPC's curse bits (CU_* in src/game.h)
   expectplace NAME       PASS/FAIL check that the player stands on a named cell from build/assets.h (e.g. TELE_VARROCK)
@@ -62,8 +64,8 @@ SKILLS = ['ATTACK', 'STRENGTH', 'DEFENCE', 'HITPOINTS', 'PRAYER', 'WOODCUTTING',
           'COOKING', 'MINING', 'RANGED', 'MAGIC']
 EQ = ['HEAD', 'WEAPON', 'BODY', 'SHIELD', 'LEGS', 'FEET', 'NECK', 'AMMO']
 # (src/save.c asserts these against the struct)
-OFF_XP, OFF_INV, OFF_EQUIP, OFF_AMMO, OFF_BANK, OFF_QSTAGE, OFF_QVAR, OFF_SPELL = \
-    0x20, 0x50, 0xC0, 0xD0, 0xD2, 0x258, 0x268, 0x288
+OFF_XP, OFF_INV, OFF_EQUIP, OFF_AMMO, OFF_BANK, OFF_QSTAGE, OFF_QVAR, OFF_SPELL, OFF_HOMECD = \
+    0x20, 0x50, 0xC0, 0xD0, 0xD2, 0x258, 0x268, 0x288, 0x28A
 STATES = ['TITLE', 'WORLD', 'MENU', 'DIALOG', 'BANK', 'SHOP', 'LEVELUP', 'QUESTDONE', 'TARGET']   # GS_* in src/game.h
 NPC_SIZE = 30      # sizeof(Npc), asserted in src/world.c
 # spell names in book order from src/spells.c ("Wind Strike" -> WIND_STRIKE)
@@ -163,6 +165,10 @@ for line in open(sys.argv[1]):
         x = int(re.search(r'#define %s_X (\d+)' % p[1], hdr_a).group(1))
         y = int(re.search(r'#define %s_Y (\d+)' % p[1], hdr_a).group(1))
         out += ['expect16 @pl %x %s_x' % (x, p[1]), 'expect16 @pl+2 %x %s_y' % (y, p[1])]
+    elif c == 'homecd':
+        out.append('poke16 @pl+0x%x %x' % (OFF_HOMECD, int(p[1])))
+    elif c == 'expecthomecd':
+        out.append('expectge32 @pl+0x%x %x homecd_ge_%s' % (OFF_HOMECD, int(p[1]), p[1]))
     elif c == 'expectspell':
         out.append('expect8 @pl+0x%x %x spell_%s' % (OFF_SPELL, SPELLS.index(p[1]), p[1]))
     elif c == 'stage':

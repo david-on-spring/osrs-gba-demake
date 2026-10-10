@@ -40,7 +40,10 @@ static void draw_player(int sx, int sy) {
     int act = AVA_IDLE, t = 0, tool = 0;
     int busy = game_state == GS_WORLD && !pl.moving;
     int since_tick = pl.action_timer * TICK_FRAMES + tick_frames;   // skill tick strikes at 0
-    if (busy) switch (pl.action) {
+    if (home_cast) {
+        act = AVA_HOME;
+        t = home_cast;
+    } else if (busy) switch (pl.action) {
         case ACT_CHOP:
             act = AVA_CHOP;
             tool = shown_tool(axes, 6, SK_WOODCUTTING);
@@ -109,6 +112,15 @@ void world_draw_sprites(int unused) {
             else icon = ICON_PROJ_ARROW_D, hf = dx < 0, vf = dy > 0;
         }
         obj_icon_flip(x - cam_x, y - cam_y, icon, 1, hf, vf);
+    }
+    // home teleport: blue light rising around the player once the book is closed
+    if (home_cast >= 14 * TICK_FRAMES && fx) {
+        int cx = pl.px - cam_x, cy = pl.py - cam_y + 13, fast = home_cast >= 20 * TICK_FRAMES;
+        for (int k = 0; k < (fast ? 8 : 4); k++) {
+            int span = fast ? 24 : 40, rise = (home_cast * (fast ? 2 : 1) + k * span / 2) % span;
+            int x = cx - 12 + (k & 3) * 8 + ((k >> 2) ? 4 : 0) + (((home_cast >> 3) + k) & 1);
+            obj_icon(x - 4, cy - 12 - rise, ICON_HT_SPARK, 1);
+        }
     }
     if (lock_target >= 0 && fx && npcs[lock_target].active) {
         const Npc *n = &npcs[lock_target];
@@ -196,6 +208,15 @@ void world_draw_sprites(int unused) {
             sy = npcs[ents[k].who].py;
         }
         obj_sprite(sx - cam_x, sy - cam_y + 11, SPR_SHADOW, 6, 2, 0, 0, OBJF_WIDE | OBJF_MOSAIC);
+    }
+    // home teleport: the rune circle on the ground, traced a quarter at a time, under the player
+    if (home_cast && fx && (home_cast < 20 * TICK_FRAMES || (frame & 4))) {
+        int cx = pl.px - cam_x + 8, cy = pl.py - cam_y + 13;
+        int q = home_cast / 45;   // quarters traced so far
+        obj_icon_flip(cx - 16, cy - 16, ICON_HT_RING, 2, 0, 0);
+        if (q >= 1) obj_icon_flip(cx, cy - 16, ICON_HT_RING, 2, 1, 0);
+        if (q >= 2) obj_icon_flip(cx, cy, ICON_HT_RING, 2, 1, 1);
+        if (q >= 3) obj_icon_flip(cx - 16, cy, ICON_HT_RING, 2, 0, 1);
     }
     if (!fx) return;
     for (int i = 0; i < MAX_FIRES; i++)

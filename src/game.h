@@ -134,8 +134,9 @@ typedef struct {
     u32 playtime;                // frames
     u8 qstage[16];               // quest progress (0 = not started, QuestDef.done = complete)
     u16 qvar[16];                // per-quest flag bits / counters
-    u8 spell;                    // autocast spell (SPELL_*, 0 = none), used while a staff is wielded
-    u8 pad[3];
+    u8 spell;                    // autocast spell (spells[] index, 0 = none), used while a staff is wielded
+    u8 pad;
+    u16 home_cd;                 // ticks until Lumbridge Home Teleport can be cast again (counts while playing)
 } Player;
 
 extern Player pl;
@@ -193,7 +194,10 @@ int spell_runes_ok(int s);               // the runes are there (an elemental st
 int spell_castable(int s, int quiet);    // level and runes, with a message unless quiet
 int spell_targeted(int s);               // cast on an NPC (combat spells, curses, binds, Monster Inspect)
 void spell_pay(int s);                   // use up the runes
-int spell_cast_self(int s);              // teleports; 1 if cast
+int spell_cast_self(int s);              // teleports; 1 if cast (the home teleport starts its 24-tick cast)
+extern u16 home_cast;                    // frames into the home teleport's cast, 0 = not casting
+#define HOME_CAST_FRAMES (24 * TICK_FRAMES)
+#define HOME_COOLDOWN_TICKS 3000         // 30 minutes
 int spell_alch(int s, int slot);         // High / Low Level Alchemy on an inventory slot; 1 if cast
 int spell_autocast(int s);               // set the autocast spell; 0 (with a message) if not possible
 void spell_manual(int s);                // cast once at the target (from the spellbook)
@@ -335,7 +339,7 @@ void questdone_update(void);
 void quest_complete_popup(int q);
 
 // avatar.c (composited player sprite)
-enum { AVA_IDLE, AVA_CHOP, AVA_MINE, AVA_NET, AVA_ROD, AVA_COMBAT, AVA_SHOOT, AVA_CAST };
+enum { AVA_IDLE, AVA_CHOP, AVA_MINE, AVA_NET, AVA_ROD, AVA_COMBAT, AVA_SHOOT, AVA_CAST, AVA_HOME };
 void avatar_palette(u16 *pal16);
 void avatar_vblank(void);
 void avatar_draw_world(int sx, int sy, int dir, int walk_phase, int act, int t, int tool);

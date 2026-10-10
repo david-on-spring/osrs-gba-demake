@@ -501,6 +501,12 @@ WEAPONS = {
              "m.o",
              ".m."],
             None, False),
+    # the spellbook read during the home teleport
+    'BOOK': (["MMM",
+              "Mmm",
+              "Mmm",
+              "MgM"],
+             None, True),
     'STAFF': ([".M.",
                "MmM",
                ".M.",
@@ -569,7 +575,7 @@ def tip_of(pix, gx, gy):
     return best[0] - gx, best[1] - gy
 
 
-WEAPON_ORDER = ['SWORD', 'LONG', 'SCIM', 'DAGGER', 'MACE', 'AXE', 'PICK', 'NET', 'ROD', 'BOW', 'STAFF']
+WEAPON_ORDER = ['SWORD', 'LONG', 'SCIM', 'DAGGER', 'MACE', 'AXE', 'PICK', 'NET', 'ROD', 'BOW', 'STAFF', 'BOOK']
 wpn_tab = []     # [type][angle] -> layer
 tip_tab = []
 for wname in WEAPON_ORDER:

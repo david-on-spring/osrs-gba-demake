@@ -60,6 +60,7 @@ static const u16 tier_dark[TIER_COUNT] = {
 
 static u16 shown_held = 0xFFFF;   // item whose colours are in slots 12/13 (tool or weapon)
 static u16 world_held;            // item the world sprite currently shows in hand
+#define HELD_BOOK 0xFFFE          // world_held while reading the home teleport's spellbook
 
 void avatar_palette(u16 *p) {
     for (int i = 0; i < 16; i++) p[i] = obj_pal[i];
@@ -70,14 +71,15 @@ void avatar_palette(u16 *p) {
     if ((t = items[pl.equip[EQ_FEET]].tier)) p[10] = t == TIER_LEATHER ? 0x1531 : tier_dark[t];
     if ((t = items[pl.equip[EQ_SHIELD]].tier)) p[14] = tier_light[t], p[15] = tier_dark[t];
     int held = world_held;
-    if (held == I_NET) p[12] = rgb(27, 26, 22), p[13] = rgb(16, 13, 8);
+    if (held == HELD_BOOK) p[12] = rgb(10, 18, 30), p[13] = rgb(4, 7, 18);
+    else if (held == I_NET) p[12] = rgb(27, 26, 22), p[13] = rgb(16, 13, 8);
     else if (held == I_ROD) p[12] = rgb(28, 28, 28), p[13] = rgb(14, 14, 15);
     else if (held == I_STAFF_AIR) p[12] = rgb(28, 28, 30), p[13] = tier_dark[TIER_WOOD];   // orb colours
     else if (held == I_STAFF_WATER) p[12] = rgb(8, 14, 30), p[13] = tier_dark[TIER_WOOD];
     else if (held == I_STAFF_EARTH) p[12] = rgb(10, 22, 8), p[13] = tier_dark[TIER_WOOD];
     else if (held == I_STAFF_FIRE) p[12] = rgb(31, 12, 4), p[13] = tier_dark[TIER_WOOD];
     else if (held == I_MAGIC_STAFF) p[12] = rgb(20, 10, 28), p[13] = tier_dark[TIER_WOOD];
-    else if ((t = items[held].tier)) p[12] = tier_light[t], p[13] = tier_dark[t];
+    else if (held < I_COUNT && (t = items[held].tier)) p[12] = tier_light[t], p[13] = tier_dark[t];
     shown_held = held;
 }
 
@@ -272,7 +274,8 @@ void avatar_vblank(void) {
 typedef struct { s8 hx, hy; u8 ang, flags; } Grip;
 enum {
     PZ_REST, PZ_RAISE, PZ_HIGH, PZ_STRIKE, PZ_MINE, PZ_SLASH, PZ_PULL, PZ_THRUST,
-    PZ_SCOOP_UP, PZ_SCOOP_DN, PZ_CAST, PZ_HOLD, PZ_READY, PZ_FOLLOW, PZ_AIM, PZ_COUNT
+    PZ_SCOOP_UP, PZ_SCOOP_DN, PZ_CAST, PZ_HOLD, PZ_READY, PZ_FOLLOW, PZ_AIM, PZ_DRAW1, PZ_DRAW2, PZ_READ,
+    PZ_SKYWARD, PZ_COUNT
 };
 static const Grip poses[PZ_COUNT][3] = {
     [PZ_REST] = {{3, 11, 7, 0}, {12, 11, 1, 0}, {10, 11, 2, 0}},
@@ -290,6 +293,11 @@ static const Grip poses[PZ_COUNT][3] = {
     [PZ_READY] = {{3, 10, 0, 0}, {12, 10, 0, 0}, {9, 10, 1, 0}},
     [PZ_FOLLOW] = {{4, 13, 5, 0}, {11, 6, 0, WF_BACK}, {11, 12, 3, 0}},
     [PZ_AIM] = {{5, 11, 0, 0}, {11, 8, 0, WF_BACK}, {13, 9, 0, 0}},   // bow held out, upright
+    // home teleport: a hand tracing the circle on the ground, then the book held up to read
+    [PZ_DRAW1] = {{3, 15, 4, WF_HIDE}, {12, 15, 4, WF_HIDE}, {12, 15, 3, WF_HIDE}},
+    [PZ_DRAW2] = {{6, 15, 4, WF_HIDE}, {10, 15, 4, WF_HIDE}, {9, 15, 3, WF_HIDE}},
+    [PZ_READ] = {{7, 10, 0, 0}, {8, 9, 0, WF_BACK}, {11, 9, 1, 0}},
+    [PZ_SKYWARD] = {{0, 3, 0, 0}, {15, 3, 0, 0}, {10, 1, 0, 0}},   // arm flung up, clear of the head
 };
 
 static void base_look(Look *k, int weapon) {
@@ -322,14 +330,17 @@ static int swing_pose(int t, int strike) {
 
 void avatar_draw_world(int sx, int sy, int dir, int phase, int act, int t, int tool) {
     Look k;
-    int weapon = tool ? tool : pl.equip[EQ_WEAPON];
+    int home = act == AVA_HOME;
+    int reading = home && t >= 6 * TICK_FRAMES && t < 14 * TICK_FRAMES;
+    int weapon = reading ? HELD_BOOK : tool ? tool : pl.equip[EQ_WEAPON];
     static u16 seen_equip[EQ_COUNT];
     int changed = weapon != world_held;
     for (int i = 0; i < EQ_COUNT; i++)
         if (seen_equip[i] != pl.equip[i]) seen_equip[i] = pl.equip[i], changed = 1;
     world_held = weapon;
     if (changed || shown_held != world_held) gfx_set_player_palette();
-    base_look(&k, weapon);
+    base_look(&k, weapon == HELD_BOOK ? 0 : weapon);
+    if (reading) k.wtype = AVW_BOOK;
     k.view = dir == DIR_DOWN ? V_DOWN : dir == DIR_UP ? V_UP : V_SIDE;
     k.left = dir == DIR_LEFT;
     k.legf = phase & 1;
@@ -344,6 +355,13 @@ void avatar_draw_world(int sx, int sy, int dir, int phase, int act, int t, int t
         break;
     case AVA_SHOOT: pose = t < 8 ? PZ_READY : PZ_AIM; break;   // t: frames since the last shot
     case AVA_CAST: pose = t < 14 ? PZ_CAST : PZ_REST; break;
+    case AVA_HOME:
+        // ticks 0-5 trace the circle, 6-13 read, 14-19 raise the arms, 20-23 vanish
+        if (t < 6 * TICK_FRAMES) pose = (t / 15) & 1 ? PZ_DRAW2 : PZ_DRAW1;
+        else if (t < 14 * TICK_FRAMES) pose = PZ_READ;
+        else if (t < 20 * TICK_FRAMES) pose = PZ_CAST;
+        else pose = PZ_SKYWARD;
+        break;
     case AVA_COMBAT: {
         // t: frames since the last swing (0..119); wind up over the final 20 frames
         int stab = k.wtype == 0xFF || k.wtype == AVW_SWORD || k.wtype == AVW_DAGGER;
@@ -356,13 +374,14 @@ void avatar_draw_world(int sx, int sy, int dir, int phase, int act, int t, int t
     }
     }
     set_grip(&k, pose);
+    if (home && !reading) k.wflags |= WF_HIDE;   // the weapon is put away
     if (pose == PZ_HOLD) k.line = k.view == V_SIDE ? 5 + ((t >> 4) & 1) : 3;
     // swing the arm a little while walking side-on
     if (pose == PZ_REST && k.view == V_SIDE && phase) k.hx += phase == 1 ? 1 : phase == 3 ? -1 : 0;
     update(0, &k);
     // 32x32 sprite, human cell at (8,12)
     if (oam_n >= 128) return;
-    int x = sx - AV_OX, y = sy - AV_OY;
+    int x = sx - AV_OX, y = sy - AV_OY + (home && t < 14 * TICK_FRAMES ? 2 : 0);   // kneeling
     if (x <= -32 || x >= SCREEN_W || y <= -32 || y >= SCREEN_H) return;
     ObjAttr *o = &oam_buf[oam_n++];
     o->a0 = (y & 0xFF) | (1 << 12);                            // square, mosaic

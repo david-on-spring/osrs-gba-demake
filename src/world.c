@@ -337,6 +337,7 @@ int npc_portrait_tile(int kind) {
 }
 
 void world_after_load(void) {
+    home_cancel();
     target_set(-1);
     proj_clear();
     // saves from before the 1:1 towns: an old 1:2 town is now only a view from outside
@@ -372,6 +373,7 @@ void world_new_game(void) {
     for (int i = 0; i < EQ_COUNT; i++) p->equip[i] = 0;
     p->ammo_qty = 0;
     p->spell = 0;
+    p->home_cd = 0;
     for (int i = 0; i < SK_COUNT; i++) p->xp[i] = 0;
     p->xp[SK_HITPOINTS] = xp_table[10] * 10;
     p->hp = 10;
@@ -601,6 +603,7 @@ void player_walk_to(int npc, int act) {
 static void game_tick(void) {
     // combat timers tick whatever the player is doing
     if (pl.attack_cd) pl.attack_cd--;
+    if (pl.home_cd) pl.home_cd--;
     if (foe_timer) foe_timer--;
     // player combat
     if (pl.action == ACT_COMBAT) {
@@ -761,7 +764,10 @@ void world_update(void) {
     } else if (pl.moving) {
         move_entity(&pl.px, &pl.py, pl.x, pl.y, &pl.moving, (keys & KEY_B) ? 4 : 2, &pl.anim);
     }
-    if (!pl.moving && !warp.phase) {
+    home_update();   // before input: a key press this frame interrupts the cast
+    if (home_cast && !warp.phase) {
+        // casting: the player stands still and ignores input
+    } else if (!pl.moving && !warp.phase) {
         int dir = -1;
         if (keys & KEY_UP) dir = DIR_UP;
         else if (keys & KEY_DOWN) dir = DIR_DOWN;

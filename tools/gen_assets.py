@@ -1575,6 +1575,29 @@ def icon_orb(cols, core):
     return c.done()
 
 
+def icon_home_ring():
+    """Top-left quarter of the home teleport's rune circle (an ellipse on the ground, centred on
+    the icon's bottom-right corner); the other quarters are mirrored copies."""
+    c = Canvas()
+    for i in range(80):
+        a = math.pi + (math.pi / 2) * i / 79
+        x, y = 16 + 15 * math.cos(a), 16 + 7 * math.sin(a)
+        c.set(x, y, C('#a0e0ff'))
+        c.set(x + 0.8, y + 0.6, C('#3070d0'))
+    for a in (1.15, 1.3, 1.45):     # runes around the ring
+        x, y = 16 + 12 * math.cos(math.pi * a), 16 + 5 * math.sin(math.pi * a)
+        c.set(x, y, C('#f0f8ff'))
+    return c.p
+
+
+def icon_spark():
+    c = Canvas()
+    c.line(4, 2, 4, 6, C('#a0e0ff'))
+    c.line(2, 4, 6, 4, C('#a0e0ff'))
+    c.set(4, 4, C('#ffffff'))
+    return c.p
+
+
 def icon_target():
     c = Canvas()
     c.poly([(3, 6), (13, 6), (8, 12)], C('#f8e040'))
@@ -1803,6 +1826,8 @@ ICON_DEF = [
     ('TARGET_MARK', icon_target()),
     ('SPELL_TELE', icon_teleport()),
     ('SPELL_ALCH', icon_alch()),
+    ('HT_RING', icon_home_ring()),
+    ('HT_SPARK', icon_spark()),
 ]
 
 # Icons are 8bpp sprites whose colours live in OBJ palette entries 128..255 (banks 8-15).

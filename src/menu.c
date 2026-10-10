@@ -553,7 +553,8 @@ static void draw_spell_row(int k) {
         draw_highlight(9, y - 1, 128, 10);
         cursor_to(1, y + 1);
     }
-    int col = sp->kind == SPK_NA ? TC_DIM : skill_level(SK_MAGIC) < sp->level ? TC_RED
+    int col = sp->kind == SPK_NA || (sp->kind == SPK_TELE && !sp->level && pl.home_cd) ? TC_DIM
+            : skill_level(SK_MAGIC) < sp->level ? TC_RED
             : spell_runes_ok(s) ? TC_WHITE : TC_GREY;
     if (s == sp_sel && col != TC_DIM) col = TC_YELLOW;
     // long names are cut short of the level column
@@ -606,6 +607,16 @@ static void draw_spell_side(void) {
         text_draw(146, y, sbuf, TC_GREY);
         y += 10;
     }
+    if (sp->kind == SPK_TELE && !sp->level) {
+        if (pl.home_cd) {
+            p = sadd(sbuf, "Ready in ");
+            p = sadd_num(p, (pl.home_cd + 99) / 100);
+            sadd(p, " min");
+            text_draw(146, y, sbuf, TC_ORANGE);
+        } else {
+            text_draw(146, y, "Ready", TC_GREEN);
+        }
+    }
     if (sp->kind == SPK_NA) text_draw(146, y, "Not available yet", TC_ORANGE);
     else if (pl.spell == s) text_draw(146, y, "Autocasting", TC_CYAN);
 }
@@ -651,6 +662,9 @@ static void spell_choose(int act) {
             }
             sp_alch = 1;
             sfx(SFX_OK);
+        } else if (sp->kind == SPK_TELE && !sp->level && pl.home_cd) {
+            spell_cast_self(s);   // just says how long to wait
+            sfx(SFX_ERR);
         } else if (sp->kind == SPK_TELE) {
             if (spell_castable(s, 0)) {
                 menu_close_now();

@@ -189,9 +189,65 @@ void spell_pay(int s) {
         if (sp->rune[k] && sp->rune[k] != free_rune) inv_remove(sp->rune[k], sp->qty[k]);
 }
 
+// Lumbridge Home Teleport: a 24-tick cast (kneel and draw the rune circle, read the spellbook,
+// raise the arms as blue light gathers, vanish), then a 30-minute cooldown. Moving or being
+// attacked interrupts it; it can't be started in combat.
+u16 home_cast;
+
+static int in_combat(void) {
+    if (pl.action == ACT_COMBAT || foe_timer) return 1;
+    for (int i = 0; i < npc_hi; i++)
+        if (npcs[i].active && npcs[i].in_combat) return 1;
+    return 0;
+}
+
+static int home_start(void) {
+    if (pl.home_cd) {
+        int mins = (pl.home_cd + 99) / 100;
+        char buf[64], *p = buf;
+        const char *a = "You need to wait another ";
+        while (*a) *p++ = *a++;
+        fmt_int(p, mins);
+        while (*p) p++;
+        a = mins == 1 ? " minute to cast this spell." : " minutes to cast this spell.";
+        while (*a) *p++ = *a++;
+        *p = 0;
+        msg_col(buf, TC_RED);
+        return 0;
+    }
+    if (in_combat()) {
+        msg_col("You can't use this teleport while in combat.", TC_RED);
+        return 0;
+    }
+    player_stop();
+    pl.dir = DIR_DOWN;
+    home_cast = 1;
+    sfx(SFX_CAST);
+    return 1;
+}
+
+void home_cancel(void) { home_cast = 0; }
+
+// every world frame while casting
+void home_update(void) {
+    if (!home_cast) return;
+    if (pl.moving || (keys_pressed & (KEY_UP | KEY_DOWN | KEY_LEFT | KEY_RIGHT | KEY_A | KEY_B))) {
+        home_cast = 0;   // walked off or did something else
+        return;
+    }
+    home_cast++;
+    if (home_cast == 6 * TICK_FRAMES || home_cast == 14 * TICK_FRAMES) sfx(SFX_CAST);
+    if (home_cast >= HOME_CAST_FRAMES) {
+        home_cast = 0;
+        pl.home_cd = HOME_COOLDOWN_TICKS;
+        player_warp(START_X, START_Y, DIR_DOWN);
+    }
+}
+
 int spell_cast_self(int s) {
     const SpellDef *sp = &spells[s];
     if (sp->kind != SPK_TELE || !spell_castable(s, 0)) return 0;
+    if (!sp->level) return home_start();
     spell_pay(s);
     if (sp->xp) add_xp(SK_MAGIC, sp->xp);
     player_stop();

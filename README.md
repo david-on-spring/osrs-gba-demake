@@ -161,7 +161,9 @@ The demake has no Crafting skill, so rewards that originally gave Crafting XP gi
   up again under the target, and Lowe's Archery Emporium in Varrock.
 - **Magic:** the whole OSRS standard spellbook with its real levels, runes and XP. Every Strike, Bolt,
   Blast, Wave and Surge spell, Crumble Undead, the curses (Confuse to Stun), Bind / Snare / Entangle,
-  Monster Inspect, Low and High Level Alchemy and the Lumbridge, Varrock and Falador teleports work;
+  Monster Inspect, Low and High Level Alchemy and the Lumbridge, Varrock and Falador teleports work
+  (Lumbridge Home Teleport has OSRS's 24-tick cast: trace the rune circle, read the book, raise the
+  light; walking or combat interrupts it, and it has a 30-minute cooldown);
   spells that need systems the demake doesn't have yet (enchanting, orbs, other teleports, god spells)
   are listed and say so. Autocast with a staff, or cast once from the Spellbook at your target.
   14 runes, staves at Zaff's, runes at Aubury's and Betty's, and dark wizards drop them.
