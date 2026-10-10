@@ -1,0 +1,35 @@
+# Settings: the last entry is a read-only About page (it replaced "Close menu"). A opens it, the menu
+# stays open, and B goes back to the settings list and then to the main menu.
+wait 60
+newgame
+world
+press START
+wait 24
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 16
+shot shots/t/settings_list.png
+press DOWN
+press DOWN
+press DOWN
+wait 4
+shot shots/t/settings_about_sel.png
+press A
+wait 16
+expectstate MENU
+shot shots/t/settings_about.png
+press B
+wait 16
+expectstate MENU
+shot shots/t/settings_back.png
+press B
+wait 16
+expectstate MENU
+press B
+wait 30
+expectstate WORLD

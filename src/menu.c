@@ -1,10 +1,12 @@
 // START menu: inventory, worn equipment, skills, spellbook, quest list and journal, combat
 // options and settings.
 #include "ui_internal.h"
+#include "version.h"
 
 enum { P_MAIN, P_ITEMS, P_EQUIP, P_SKILLS, P_SPELLS, P_QUESTS, P_COMBAT, P_SYSTEM };
 #define MAIN_N 7
 static u8 page, main_sel, item_sel, eq_sel, eq_choose, eq_cand_sel, sk_sel, cb_sel, sys_sel;
+static u8 sys_about;      // settings: showing the About page
 static u8 sp_sel = 1, sp_scroll = 1, sp_alch;   // spellbook: selected spell, first row shown, picking an item
 static u8 q_sel, q_view, q_scroll;
 static u8 cand[28], cand_n;
@@ -285,8 +287,38 @@ static void draw_combat(void) {
     draw_footer("Hitpoints always train.", "Set", "Back");
 }
 
+// Read-only About page (Settings > About): build version, credits and the fan-project notice.
+static void draw_about(void) {
+    static const char *const lab[4] = {"Version", "Built", "Quests", "Platform"};
+    draw_header("About");
+    draw_panel(6, 22, 228, 120, 6);
+    text_big(120, 28, "2007 Demake");
+    draw_rule(14, 48, 212);
+    for (int i = 0; i < 4; i++) {
+        int y = 54 + i * 11;
+        text_draw(16, y, lab[i], TC_GREY);
+        const char *v = sbuf;
+        if (i == 0) v = GAME_VERSION;
+        else if (i == 1) v = GAME_DATE;
+        else if (i == 2) fmt_int(sbuf, QUEST_COUNT);
+        else v = "Game Boy Advance";
+        text_right(224, y, v, TC_WHITE);
+    }
+    draw_rule(14, 100, 212);
+    text_draw(16, 105, "github.com/david-on-spring/osrs-gba-demake", TC_CYAN);
+    char lines[2][48];
+    int n = text_wrap("A fan-made demake of Old School RuneScape. Not affiliated with Jagex Ltd.", 208,
+                      lines, 2);
+    for (int i = 0; i < n; i++) text_draw(16, 117 + i * 10, lines[i], TC_DIM);
+    draw_footer("Settings > About", 0, "Back");
+}
+
 static void draw_system(void) {
-    static const char *const opts[4] = {"Save game", "Music", "Logout", "Close menu"};
+    static const char *const opts[4] = {"Save game", "Music", "Logout", "About"};
+    if (sys_about) {
+        draw_about();
+        return;
+    }
     draw_header("Settings");
     draw_panel(6, 22, 140, 84, 6);
     for (int i = 0; i < 4; i++) {
@@ -309,7 +341,9 @@ static void draw_system(void) {
         int n = text_wrap(sys_note, 70, lines, 2);
         for (int i = 0; i < n; i++) text_draw(158, 58 + i * 10, lines[i], TC_GREEN);
     }
-    draw_footer(sys_sel == 2 ? "Saves, then logs out." : "Saved to cartridge SRAM.", "Select", "Back");
+    static const char *const desc[4] = {"Saved to cartridge SRAM.", "Saved to cartridge SRAM.",
+                                        "Saves, then logs out.", "Version and credits."};
+    draw_footer(desc[sys_sel], "Select", "Back");
 }
 
 static void set_page(int p);
@@ -778,6 +812,7 @@ static void set_page(int p) {
     sp_alch = 0;
     q_view = 0;
     sys_note = 0;
+    sys_about = 0;
     slide = 10;
     cursor_hide();
     redraw = 1;
@@ -1046,6 +1081,14 @@ void menu_update(void) {
         break;
     }
     case P_SYSTEM: {
+        if (sys_about) {
+            if (keys_pressed & KEY_B) {
+                sys_about = 0;
+                sfx(SFX_BACK);
+                redraw = 1;
+            }
+            break;
+        }
         int s = sys_sel;
         if (keys_repeat & KEY_UP) s = (s + 3) % 4;
         if (keys_repeat & KEY_DOWN) s = (s + 1) % 4;
@@ -1071,8 +1114,9 @@ void menu_update(void) {
                 title_open();
                 return;
             } else {
-                menu_close();
-                return;
+                sys_about = 1;
+                sys_note = 0;
+                sfx(SFX_OK);
             }
             redraw = 1;
         }
