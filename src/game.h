@@ -89,7 +89,7 @@ typedef struct {
     const char *name;
     u8 sprite, pal, level, hp;
     u8 att, str, def;
-    s8 atkb, strb, defb;          // defb: melee defence bonus
+    s8 atkb, strb, defb;          // defb: stab defence (dslash, dcrush below)
     u8 flags, wander, respawn;
     const char *const *dialog;
     // OSRS Wiki stats for ranged and magic (monsters only; 0 elsewhere)
@@ -97,6 +97,8 @@ typedef struct {
     s8 mdef, rdef;                // magic defence, ranged (standard: arrows) defence bonuses
     u8 weak, weakpct;             // elemental weakness: ELEM_*, % more accuracy and damage
     u8 magic_max;                 // > 0: attacks with magic (Water Strike) up to this, instead of melee
+    s8 dslash, dcrush;            // slash and crush defence bonuses
+    u8 speed;                     // ticks between attacks (0 = 4)
 } NpcDef;
 extern const NpcDef npc_defs[NPC_KIND_COUNT];
 const char *npc_examine(int kind);

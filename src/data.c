@@ -236,27 +236,35 @@ static const char *const dlg_nurmof[] = {"Greetings and well met! I sell the fin
 static const char *const dlg_lowe[] = {"Welcome to Lowe's Archery Emporium. Do you want to see my wares?", 0};
 static const char *const dlg_zaff[] = {"Would you like to buy or sell some staffs?", 0};
 
-// magic level, magic defence, ranged defence (OSRS Wiki infoboxes)
-#define MR(mag, mdef, rdef) mag, mdef, rdef, ELEM_NONE, 0, 0
-#define MRW(mag, mdef, rdef, el, pct) mag, mdef, rdef, el, pct, 0
+// Monsters use their OSRS Wiki infobox stats. Before MON: level, HP, Attack, Strength, Defence,
+// attack and strength bonuses, stab defence. MON: slash and crush defence, Magic level, magic
+// and ranged (standard) defence, elemental weakness and %, magic max hit (casters), attack speed.
+#define MON(slash, crush, mag, mdef, rdef, el, pct, mmax, speed) mag, mdef, rdef, el, pct, mmax, slash, crush, speed
 
 const NpcDef npc_defs[NPC_KIND_COUNT] = {
-    [NPC_COW] = {"Cow", SPR_KIND_COW, 5, 2, 8, 1, 1, 1, 0, 0, -21, NF_ATTACK, 4, 40, 0, MR(1, -21, -21)},
-    [NPC_CHICKEN] = {"Chicken", SPR_KIND_CHICKEN, 5, 1, 3, 1, 1, 1, 0, 0, -42, NF_ATTACK, 4, 30, 0, MR(1, -42, -42)},
-    [NPC_GOBLIN] = {"Goblin", SPR_KIND_HUMAN, 3, 2, 5, 1, 1, 1, 0, 0, -15, NF_ATTACK | NF_AGGRO, 4, 40, 0, MR(1, -15, -15)},
-    [NPC_MAN] = {"Man", SPR_KIND_HUMAN, 1, 2, 7, 1, 1, 1, 0, 0, -21, NF_ATTACK, 3, 50, 0, MR(1, -21, -21)},
-    [NPC_WOMAN] = {"Woman", SPR_KIND_HUMAN, 7, 2, 7, 1, 1, 1, 0, 0, -21, NF_ATTACK, 3, 50, 0, MR(1, -21, -21)},
-    [NPC_GUARD] = {"Guard", SPR_KIND_HUMAN, 2, 21, 22, 19, 18, 14, 10, 8, 20, NF_ATTACK, 3, 80, 0, MR(1, -9, 25)},
+    [NPC_COW] = {"Cow", SPR_KIND_COW, 5, 2, 8, 1, 1, 1, -15, -15, -21, NF_ATTACK, 4, 40, 0,
+                MON(-21, -21, 1, -21, -21, ELEM_NONE, 0, 0, 4)},
+    [NPC_CHICKEN] = {"Chicken", SPR_KIND_CHICKEN, 5, 1, 3, 1, 1, 1, -47, -42, -42, NF_ATTACK, 4, 30, 0,
+                    MON(-42, -42, 1, -42, -42, ELEM_NONE, 0, 0, 4)},
+    [NPC_GOBLIN] = {"Goblin", SPR_KIND_HUMAN, 3, 2, 5, 1, 1, 1, -21, -15, -15, NF_ATTACK | NF_AGGRO, 4, 40, 0,
+                   MON(-15, -15, 1, -15, -15, ELEM_NONE, 0, 0, 4)},
+    [NPC_MAN] = {"Man", SPR_KIND_HUMAN, 1, 2, 7, 1, 1, 1, 0, 0, -21, NF_ATTACK, 3, 50, 0,
+                MON(-21, -21, 1, -21, -21, ELEM_NONE, 0, 0, 4)},
+    [NPC_WOMAN] = {"Woman", SPR_KIND_HUMAN, 7, 2, 7, 1, 1, 1, 0, 0, -21, NF_ATTACK, 3, 50, 0,
+                  MON(-21, -21, 1, -21, -21, ELEM_NONE, 0, 0, 4)},
+    [NPC_GUARD] = {"Guard", SPR_KIND_HUMAN, 2, 21, 22, 19, 18, 14, 4, 5, 24, NF_ATTACK, 3, 80, 0,
+                  MON(30, 25, 1, -9, 25, ELEM_NONE, 0, 0, 4)},
     [NPC_BANKER] = {"Banker", SPR_KIND_HUMAN, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_BANK, 0, 0, dlg_bank},
     [NPC_SHOPKEEPER] = {"Shopkeeper", SPR_KIND_HUMAN, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_SHOP, 0, 0, dlg_shop},
     [NPC_GUIDE] = {"Lumbridge Guide", SPR_KIND_HUMAN, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, dlg_guide},
     [NPC_COOK] = {"Cook", SPR_KIND_HUMAN, 7, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, dlg_cook},
     [NPC_HANS] = {"Hans", SPR_KIND_HUMAN, 1, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 4, 0, dlg_hans},
-    [NPC_WARRIOR] = {"Al Kharid warrior", SPR_KIND_HUMAN, 2, 9, 19, 7, 5, 4, 5, 5, 3, NF_ATTACK, 3, 50, 0, MR(1, -1, 12)},
-    // dark wizards cast Water Strike (max hit 2) instead of hitting in melee
-    [NPC_DARK_WIZARD] = {"Dark wizard", SPR_KIND_HUMAN, 4, 7, 12, 6, 6, 4, 4, 2, 0, NF_ATTACK | NF_AGGRO, 2, 50, 0,
-                         6, 3, 0, ELEM_NONE, 0, 2},
-    [NPC_BARBARIAN] = {"Barbarian", SPR_KIND_HUMAN, 1, 10, 14, 6, 7, 4, 4, 4, 0, NF_ATTACK, 3, 50, 0, MR(1, -3, 2)},
+    [NPC_WARRIOR] = {"Al Kharid warrior", SPR_KIND_HUMAN, 2, 9, 19, 7, 5, 4, 10, 9, 12, NF_ATTACK, 3, 50, 0,
+                    MON(15, 10, 1, -1, 12, ELEM_NONE, 0, 0, 4)},
+    [NPC_DARK_WIZARD] = {"Dark wizard", SPR_KIND_HUMAN, 4, 7, 12, 5, 2, 5, 0, 0, 0, NF_ATTACK | NF_AGGRO, 2, 50, 0,
+                        MON(0, 0, 6, 3, 0, ELEM_NONE, 0, 2, 4)},
+    [NPC_BARBARIAN] = {"Barbarian", SPR_KIND_HUMAN, 1, 10, 18, 8, 7, 3, 9, 15, 0, NF_ATTACK, 3, 50, 0,
+                      MON(3, 2, 1, -3, 2, ELEM_NONE, 0, 0, 4)},
     [NPC_DUKE] = {"Duke Horacio", SPR_KIND_HUMAN, 7, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_FRED] = {"Fred the Farmer", SPR_KIND_HUMAN, 1, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_SHEEP] = {"Sheep", SPR_KIND_SHEEP, 5, 0, 1, 1, 1, 1, 0, 0, 0, 0, 3, 0, 0},
@@ -300,10 +308,14 @@ const NpcDef npc_defs[NPC_KIND_COUNT] = {
     [NPC_ARIS] = {"Gypsy Aris", SPR_KIND_DRESS, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_PRYSIN] = {"Sir Prysin", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_ROVIN] = {"Captain Rovin", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
-    [NPC_SKELETON] = {"Skeleton", SPR_KIND_SKELETON, 5, 13, 18, 10, 10, 10, 2, 2, 2, NF_ATTACK | NF_AGGRO, 3, 0, 0, MRW(1, 0, 5, ELEM_EARTH, 35)},
-    [NPC_IMP] = {"Imp", SPR_KIND_IMP, 5, 2, 8, 1, 2, 2, 0, 0, -10, NF_ATTACK, 5, 40, 0, MRW(1, -42, -42, ELEM_WATER, 10)},
-    [NPC_RAT] = {"Rat", SPR_KIND_RAT, 5, 1, 2, 1, 1, 1, 0, 0, -40, NF_ATTACK, 4, 25, 0, MR(1, -42, -42)},
-    [NPC_DELRITH] = {"Delrith", SPR_KIND_DEMON, 5, 27, 35, 18, 16, 18, 10, 6, 10, NF_ATTACK | NF_AGGRO, 2, 0, 0, MR(1, 0, 0)},
+    [NPC_SKELETON] = {"Skeleton", SPR_KIND_SKELETON, 5, 13, 18, 10, 11, 7, 0, 0, 5, NF_ATTACK | NF_AGGRO, 3, 0, 0,
+                     MON(5, -5, 1, 0, 5, ELEM_EARTH, 35, 0, 4)},
+    [NPC_IMP] = {"Imp", SPR_KIND_IMP, 5, 2, 8, 1, 1, 1, -42, -37, -42, NF_ATTACK, 5, 40, 0,
+                MON(-42, -42, 1, -42, -42, ELEM_WATER, 10, 0, 4)},
+    [NPC_RAT] = {"Rat", SPR_KIND_RAT, 5, 1, 2, 1, 1, 1, -47, -53, -42, NF_ATTACK, 4, 25, 0,
+                MON(-42, -42, 1, -42, -42, ELEM_NONE, 0, 0, 4)},
+    [NPC_DELRITH] = {"Delrith", SPR_KIND_DEMON, 5, 27, 7, 32, 25, 27, 0, 0, 0, NF_ATTACK | NF_AGGRO, 2, 0, 0,
+                    MON(0, 0, 1, 0, 0, ELEM_NONE, 0, 0, 6)},
 };
 
 // OSRS examine text (the target menu's Examine)

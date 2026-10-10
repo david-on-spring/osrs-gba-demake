@@ -708,7 +708,7 @@ static void game_tick(void) {
             if (n->attack_cd) n->attack_cd--;
             if (!n->attack_cd && !pl.moving) {
                 npc_attack(i);
-                n->attack_cd = 4;
+                n->attack_cd = d->speed ? d->speed : 4;
             }
             continue;
         }

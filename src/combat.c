@@ -190,13 +190,32 @@ void proj_clear(void) {
     for (int k = 0; k < MAX_PROJ; k++) projs[k].active = 0;
 }
 
-// OSRS defence rolls: Defence level with the melee or ranged bonus; spells are defended with
-// the Magic level and the magic bonus (curses lower Defence, not Magic)
+// what the wielded weapon hits with in OSRS (its main style): swords, daggers and pickaxes
+// stab; scimitars, longswords and axes slash; fists, maces and staves crush
+enum { HIT_STAB, HIT_SLASH, HIT_CRUSH };
+static int melee_type(void) {
+    switch (pl.equip[EQ_WEAPON]) {
+    case I_BRONZE_SWORD: case I_IRON_SWORD: case I_STEEL_SWORD: case I_SILVERLIGHT: case I_BRONZE_DAGGER:
+    case I_BRONZE_PICK: case I_IRON_PICK: case I_STEEL_PICK: case I_MITHRIL_PICK: case I_ADAMANT_PICK:
+    case I_RUNE_PICK:
+        return HIT_STAB;
+    case I_IRON_SCIMITAR: case I_MITHRIL_SCIMITAR: case I_ADAMANT_SCIMITAR: case I_RUNE_SCIMITAR:
+    case I_STEEL_LONGSWORD: case I_RUNE_LONGSWORD: case I_BRONZE_AXE: case I_IRON_AXE: case I_STEEL_AXE:
+    case I_MITHRIL_AXE: case I_ADAMANT_AXE: case I_RUNE_AXE:
+        return HIT_SLASH;
+    default:
+        return HIT_CRUSH;
+    }
+}
+
+// OSRS defence rolls: Defence level with the stab/slash/crush or ranged bonus; spells are
+// defended with the Magic level and the magic bonus (curses lower Defence, not Magic)
 static int npc_def_roll(int i, int cb) {
     const Npc *n = &npcs[i];
     const NpcDef *d = &npc_defs[n->kind];
     if (cb == CB_MAGIC) return ((d->mag ? d->mag : 1) + 9) * (d->mdef + 64);
-    return (cursed(n, d->def, CU_DEF5, CU_DEF10) + 9) * ((cb == CB_RANGED ? d->rdef : d->defb) + 64);
+    int t = melee_type(), bonus = cb == CB_RANGED ? d->rdef : t == HIT_STAB ? d->defb : t == HIT_SLASH ? d->dslash : d->dcrush;
+    return (cursed(n, d->def, CU_DEF5, CU_DEF10) + 9) * (bonus + 64);
 }
 
 static void engage(int i) {
@@ -340,8 +359,7 @@ void npc_attack(int i) {
         a = (cursed(n, d->att, CU_ATK5, CU_ATK10) + 9) * (d->atkb + 64);
         int eff_d = skill_level(SK_DEFENCE) + style_bonus(SK_DEFENCE) + 8;
         def = eff_d * (equip_bonus(2) + 64);
-        maxhit = ((cursed(n, d->str, CU_STR5, CU_STR10) + 9) * (d->strb + 64) + 320) / 640;
-        if (maxhit < 1) maxhit = 1;
+        maxhit = ((cursed(n, d->str, CU_STR5, CU_STR10) + 9) * (d->strb + 64) + 320) / 640;   // 0 for chickens, rats, imps
     }
     int dmg = roll(hit_chance256(a, def)) ? rnd_range(maxhit + 1) : 0;
     if (dmg > pl.hp) dmg = pl.hp;
