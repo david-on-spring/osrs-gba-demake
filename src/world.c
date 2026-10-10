@@ -31,23 +31,23 @@ const s8 DY[4] = {1, -1, 0, 0};
 typedef struct { u32 cell; u16 meta, over; u8 type, mask; } Override;
 static Override ovr[MAX_OVR];
 int n_ovr;
-static EWRAM_BSS u32 ovr_bits[(MAP_W * MAP_H + 31) / 32];
 
-static const Override *ovr_find(int cell) {
-    if (!(ovr_bits[cell >> 5] & (1u << (cell & 31)))) return 0;
+static const Override *ovr_find(u32 cell) {
+    if (!ovr_marked(cell)) return 0;
     for (int i = 0; i < n_ovr; i++)
-        if (ovr[i].cell == (u32)cell) return &ovr[i];
+        if (ovr[i].cell == cell) return &ovr[i];
     return 0;
 }
 
-int ovr_set(int cell, int mask, int meta, int over, int type) {
+int ovr_set(int x, int y, int mask, int meta, int over, int type) {
+    u32 cell = map_key(x, y);
     Override *o = (Override *)ovr_find(cell);
     if (!o) {
         if (n_ovr >= MAX_OVR) return 0;
         o = &ovr[n_ovr++];
         o->cell = cell;
         o->mask = 0;
-        ovr_bits[cell >> 5] |= 1u << (cell & 31);
+        ovr_mark(cell);
     }
     o->mask |= mask;
     if (mask & OV_META) o->meta = meta;
@@ -56,40 +56,41 @@ int ovr_set(int cell, int mask, int meta, int over, int type) {
     return 1;
 }
 
-void ovr_clear(int cell, int mask) {
+void ovr_clear(int x, int y, int mask) {
+    u32 cell = map_key(x, y);
     Override *o = (Override *)ovr_find(cell);
     if (!o) return;
     o->mask &= ~mask;
     if (o->mask) return;
     *o = ovr[--n_ovr];
-    ovr_bits[cell >> 5] &= ~(1u << (cell & 31));
+    ovr_unmark(cell);
 }
 
 int world_type(int x, int y) {
     if (!in_map(x, y)) return T_WATER;
-    int c = idx(x, y);
-    const Override *o = ovr_find(c);
-    return (o && (o->mask & OV_TYPE)) ? o->type : map_type[c];
+    const Override *o = ovr_find(map_key(x, y));
+    return (o && (o->mask & OV_TYPE)) ? o->type : map_type_at(x, y);
 }
 
 int world_meta(int x, int y) {
-    int c = idx(x, y);
-    const Override *o = ovr_find(c);
-    return (o && (o->mask & OV_META)) ? o->meta : map_meta[c];
+    const Override *o = ovr_find(map_key(x, y));
+    return (o && (o->mask & OV_META)) ? o->meta : map_meta_at(x, y);
 }
 
 int world_over(int x, int y) {
-    int c = idx(x, y);
-    const Override *o = ovr_find(c);
-    return (o && (o->mask & OV_OVER)) ? o->over : map_over[c];
+    const Override *o = ovr_find(map_key(x, y));
+    return (o && (o->mask & OV_OVER)) ? o->over : map_over_at(x, y);
 }
 
-int res_alt_meta(int cell) {
+int world_roof(int x, int y) { return map_roof_at(x, y); }
+
+int res_alt_meta(int x, int y) {
+    u32 cell = map_key(x, y);
     int lo = 0, hi = RES_COUNT - 1;
     while (lo <= hi) {
         int mid = (lo + hi) >> 1;
-        if (res_cell[mid] == (u32)cell) return res_alt[mid];
-        if (res_cell[mid] < (u32)cell) lo = mid + 1;
+        if (res_cell[mid] == cell) return res_alt[mid];
+        if (res_cell[mid] < cell) lo = mid + 1;
         else hi = mid - 1;
     }
     return -1;
@@ -102,14 +103,11 @@ int fire_at(int x, int y) {
     return -1;
 }
 
-// NPC occupancy bitmap: free_tile() runs for every NPC step, so it must not scan all NPCs
-EWRAM_BSS u32 occ_bits[(MAP_W * MAP_H + 31) / 32];   // (not static: test scripts poke it)
+// NPC occupancy (map.h): free_tile() runs for every NPC step, so it must not scan all NPCs
 int npc_hi;                       // npcs[] slots in use (spawn table size)
 
 int npc_at(int x, int y) {
-    if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return -1;
-    int c = y * MAP_W + x;
-    if (!(occ_bits[c >> 5] & (1u << (c & 31)))) return -1;
+    if (!in_map(x, y) || !occ_get(x, y)) return -1;
     for (int i = 0; i < npc_hi; i++)
         if (npcs[i].active && npcs[i].x == x && npcs[i].y == y) return i;
     return -1;
@@ -153,7 +151,7 @@ static void zone_refresh(void) {
         if (zones[z].plane) gfx_set_world_palette_set(zones[z].pal_set);
         gfx_mark_world_dirty();
     }
-    int r = map_roof[idx(pl.x, pl.y)];
+    int r = world_roof(pl.x, pl.y);
     if (r != cur_roof) {
         cur_roof = r;
         gfx_set_hidden_roof(r);
@@ -195,9 +193,8 @@ int world_region(void) {
 // ---------------------------------------------------------------------------------------
 void world_init(void) {
     n_ovr = 0;
-    for (int i = 0; i < (MAP_W * MAP_H + 31) / 32; i++) ovr_bits[i] = 0;
+    map_reset();
     for (int i = 0; i < MAX_NPCS; i++) npcs[i].active = 0;
-    for (int i = 0; i < (MAP_W * MAP_H + 31) / 32; i++) occ_bits[i] = 0;
     npc_hi = SPAWN_COUNT < MAX_NPCS ? SPAWN_COUNT : MAX_NPCS;
     for (int i = 0; i < npc_hi; i++) {
         Npc *n = &npcs[i];

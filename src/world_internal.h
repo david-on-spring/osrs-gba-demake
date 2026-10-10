@@ -2,6 +2,7 @@
 // world_draw.c). The rest of the game talks to the world through game.h only.
 #pragma once
 #include "game.h"
+#include "map.h"
 
 #define MAX_FIRES 8
 #define MAX_GROUND 40
@@ -20,21 +21,18 @@ extern Splat splats[MAX_SPLATS];
 extern int tick_frames;                 // frames into the current game tick
 extern int npc_hi;                      // npcs[] slots in use (spawn table size)
 extern const s8 DX[4], DY[4];           // per DIR_*
-extern u32 occ_bits[];                  // NPC occupancy bitmap, one bit per cell
 
-static inline int idx(int x, int y) { return y * MAP_W + x; }
-static inline int in_map(int x, int y) { return x >= 0 && y >= 0 && x < MAP_W && y < MAP_H; }
-static inline void occ_set(int x, int y) { int c = y * MAP_W + x; occ_bits[c >> 5] |= 1u << (c & 31); }
-static inline void occ_clear(int x, int y) { int c = y * MAP_W + x; occ_bits[c >> 5] &= ~(1u << (c & 31)); }
+static inline int in_map(int x, int y) { return map_in(x, y); }
 static inline int roll(int p256) { return rnd_range(256) < p256; }
 
 // world.c: runtime map overrides (stumps, mined-out rocks)
 #define MAX_OVR 72
 enum { OV_META = 1, OV_OVER = 2, OV_TYPE = 4 };
 extern int n_ovr;
-int ovr_set(int cell, int mask, int meta, int over, int type);
-void ovr_clear(int cell, int mask);
-int res_alt_meta(int cell);             // depleted metatile of a resource cell, -1 if none
+int ovr_set(int x, int y, int mask, int meta, int over, int type);
+void ovr_clear(int x, int y, int mask);
+int res_alt_meta(int x, int y);         // depleted metatile of a resource cell, -1 if none
+int world_roof(int x, int y);           // roof group of a cell (0 none)
 
 // world.c: queries and helpers
 int npc_at(int x, int y);               // npc index on the cell, -1 if none

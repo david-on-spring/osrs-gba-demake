@@ -79,7 +79,7 @@ void deplete(int x, int y, int type, int respawn_ticks) {
             slot = i;
             break;
         }
-    int k = idx(x, y), alt = res_alt_meta(k);
+    int alt = res_alt_meta(x, y);
     if (slot < 0 || alt < 0 || n_ovr + 2 > MAX_OVR) return;   // table full: resource stays
     Depleted *d = &depleted[slot];
     d->active = 1;
@@ -88,20 +88,19 @@ void deplete(int x, int y, int type, int respawn_ticks) {
     d->y = y;
     d->timer = respawn_ticks;
     int is_tree = find_res(trees, NTREES, type) != 0;
-    ovr_set(k, OV_META | OV_TYPE, alt, 0, is_tree ? T_STUMP : T_ROCK_EMPTY);
+    ovr_set(x, y, OV_META | OV_TYPE, alt, 0, is_tree ? T_STUMP : T_ROCK_EMPTY);
     gfx_mark_cell_dirty(x, y);
     if (is_tree && y > 0) {
-        ovr_set(k - MAP_W, OV_OVER, 0, 0, 0);   // remove the canopy drawn on the cell above
+        ovr_set(x, y - 1, OV_OVER, 0, 0, 0);   // remove the canopy drawn on the cell above
         gfx_mark_cell_dirty(x, y - 1);
     }
 }
 
 void restore(Depleted *d) {
-    int k = idx(d->x, d->y);
-    ovr_clear(k, OV_META | OV_TYPE);
+    ovr_clear(d->x, d->y, OV_META | OV_TYPE);
     gfx_mark_cell_dirty(d->x, d->y);
     if (d->y > 0) {
-        ovr_clear(k - MAP_W, OV_OVER);
+        ovr_clear(d->x, d->y - 1, OV_OVER);
         gfx_mark_cell_dirty(d->x, d->y - 1);
     }
     d->active = 0;

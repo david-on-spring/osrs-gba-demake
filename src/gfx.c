@@ -1,5 +1,6 @@
 // Video setup, palettes (fades, water shimmer, gradient), world tilemap streaming and OAM.
 #include "game.h"
+#include "map.h"
 
 // VRAM layout
 //   0x0000-0x4B1F  text canvas tiles (600 + blank)            BG0, char base 0
@@ -267,10 +268,10 @@ static void draw_tile(int tx, int ty) {
     int i = (ty & 31) * 32 + (tx & 31);
     u32 ge = 0, oe = 0;
     int cx = tx >> 1, cy = ty >> 1;
-    if (tx >= 0 && ty >= 0 && cx < MAP_W && cy < MAP_H) {
+    if (tx >= 0 && ty >= 0 && map_in(cx, cy)) {
         int k = ((ty & 1) << 1) | (tx & 1);
         ge = meta_tiles[world_meta(cx, cy)][k];
-        if (!hidden_roof || map_roof[cy * MAP_W + cx] != hidden_roof) oe = meta_tiles[world_over(cx, cy)][k];
+        if (!hidden_roof || map_roof_at(cx, cy) != hidden_roof) oe = meta_tiles[world_over(cx, cy)][k];
     }
     u16 g = (CACHE_BASE + cache_get(ge & 0xFFFF)) | (ge >> 16);
     u16 o = (CACHE_BASE + cache_get(oe & 0xFFFF)) | (oe >> 16);
