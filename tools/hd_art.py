@@ -689,6 +689,8 @@ def door_image(env, x, y):
             for px in range(16):
                 img[15][px] = P['p2']
             return img
+        if exterior_side(env, x, y) == 'N':
+            return side_door(base, wall_t, 'N')
         # an inner door seen from above: threshold across a gap in the wall line
         img = [r[:] for r in base]
         for px in range(16):
@@ -697,12 +699,45 @@ def door_image(env, x, y):
             img[14][px] = P['h2']
             img[15][px] = P['c3']
         return img
+    s = exterior_side(env, x, y)
+    if s in ('E', 'W'):
+        return side_door(base, wall_t, s)
     img = [r[:] for r in base]
     for py in range(16):
         img[py][0] = P['c3']
         img[py][1] = P['h2']
         img[py][14] = P['h2']
         img[py][15] = P['c3']
+    return img
+
+
+def exterior_side(env, x, y):
+    """'N', 'E' or 'W' when the door leads from a roofed building out to open ground on that side
+    (the roof is cut away over it, see roof_images); None for inner doors and facade doors."""
+    for (dx, dy, s) in ((0, -1, 'N'), (1, 0, 'E'), (-1, 0, 'W')):
+        out, inn = (x + dx, y + dy), (x - dx, y - dy)
+        if env.roof(*inn) and not is_wall(env, *out) and env.roof(*out) != env.roof(*inn):
+            return s
+    return None
+
+
+def side_door(base, wall_t, s):
+    """An outer door in a north, east or west wall: wall-coloured jambs, the dark doorway, the open
+    leaf against one jamb and a worn step on the outside."""
+    img = [r[:] for r in base]
+    jamb = (P['bm0'], P['bm1']) if wall_t == 'HWALL' else (P['c1'], P['c2'])
+    for a in range(16):             # a: along the wall, b: across it (0 = outside)
+        for b in range(16):
+            if a < 3 or a > 12:
+                c = jamb[0] if a in (0, 15) or b in (0, 15) else jamb[1]
+            elif b < 2:
+                c = P['p2']                                         # step
+            elif a < 6:
+                c = P['h3'] if a == 3 else P['h2'] if (a + b) % 3 else P['h3']   # open leaf
+            else:
+                c = P['out']
+            px, py = {'N': (a, b), 'E': (15 - b, a), 'W': (b, a)}[s]
+            img[py][px] = c
     return img
 
 
@@ -721,6 +756,8 @@ def roof_images(wg, g):
     style, cells = wg.ROOFS[g]
     # the facade row (south wall facing the open) stays uncovered
     covered = set(c for c in cells if (c[0], c[1] + 1) in cells or wg.ROOF[c[1] + 1][c[0]] != 0)
+    # outer doors on the other sides stay open too, so the way in is never hidden
+    covered = set(c for c in covered if not (wg.TY[c[1]][c[0]] == 'DOOR' and exterior_side(env, *c)))
     if not covered:
         return {}
     xs, ys = [c[0] for c in covered], [c[1] for c in covered]
