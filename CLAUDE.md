@@ -10,8 +10,8 @@ make test                  # or: sh tools/run_quest_tests.sh (exit status = fail
 ./play.sh                  # build and open in mGBA (macOS)
 ```
 
-- `build/` holds generated C (`assets.c/h`, `quest_data.c/h`, `music_data.c/h`, `avatar_art.c/h`), `spawns.txt` (NPC index, kind, cell) and `rs07demake.map`. Don't edit generated files. Change the generator instead.
-- After any gameplay change, run `make test`. It takes about 10 seconds and plays 13 quests, bank/shop/skilling/combat/ranged/magic/target tests and save/reload.
+- `build/` holds generated C (`assets.c/h`, `quest_data.c/h`, `music_data.c/h`, `avatar_art.c/h`, `version.h` from `git describe`), `spawns.txt` (NPC index, kind, cell) and `rs07demake.map`. Don't edit generated files. Change the generator instead.
+- After any gameplay change, run `make test`. It takes about 10 seconds and plays 13 quests, bank/shop/skilling/combat/ranged/magic/target/settings tests and save/reload.
 - For refactors that should not change behaviour, run `python3 tools/snap.py build/snap_before` before the change and `python3 tools/snap.py build/snap_after --compare build/snap_before` after it. It runs every scenario and byte-compares about 120 screenshots.
 - To rebuild the harness: `tools/build_mgba.sh` (once, needs cmake), then `tools/build_harness.sh`. Newer checks (`expectge32`, `expectlt8`) need a harness built from the current `tools/harness.c`. `make clean` deletes `build/harness`, and the fallback `.toolchain/harness` may be older and silently ignore newer checks such as `expectge32`.
 - CI is in `.github/workflows/ci.yml` (build plus `make test` on PRs and `main`) and `release.yml` (a `v*` tag builds, tests and attaches `osrs-gba-demake.gba` to the release). Shared setup is in `.github/actions/setup`.
