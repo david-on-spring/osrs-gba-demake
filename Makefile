@@ -41,6 +41,17 @@ $(BUILD)/avatar_art.h: $(BUILD)/avatar_art.c
 $(BUILD)/%.o: src/%.c src/game.h src/gba.h src/ui_internal.h src/world_internal.h $(BUILD)/assets.h $(BUILD)/music_data.h $(BUILD)/avatar_art.h $(BUILD)/quest_data.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# version.h: the git tag (or tag-commits-hash between releases) and the commit date. Rewritten
+# only when its contents change, so a rebuild recompiles menu.o only after a new commit or tag.
+GIT_VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo unknown)
+GIT_DATE := $(shell git log -1 --format=%cs 2>/dev/null || echo unknown)
+$(BUILD)/version.h: FORCE
+	@mkdir -p $(BUILD)
+	@printf '#define GAME_VERSION "%s"\n#define GAME_DATE "%s"\n' '$(GIT_VERSION)' '$(GIT_DATE)' > $@.tmp
+	@cmp -s $@.tmp $@ && rm $@.tmp || mv $@.tmp $@
+
+$(BUILD)/menu.o: $(BUILD)/version.h
+
 $(BUILD)/assets.o: $(BUILD)/assets.c $(BUILD)/assets.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -76,4 +87,4 @@ test: $(TARGET).gba
 clean:
 	rm -rf $(BUILD) $(TARGET).gba
 
-.PHONY: all clean test
+.PHONY: all clean test FORCE
