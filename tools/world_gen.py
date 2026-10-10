@@ -1470,7 +1470,7 @@ road([(3259, 3227), (3268, 3227)], 1)                                           
 road([(3236, 3218), (3235, 3201), (3238, 3199), (3252, 3199)], 1)                 # south past Bob's
 road([(3229, 3226), (3224, 3233), (3219, 3243), (3216, 3252), (3215, 3266)], 1)   # north road
 road([(3219, 3244), (3205, 3244), (3196, 3245), (3186, 3246)], 1)                 # west to Draynor
-road([(3237, 3209), (3236, 3209)], 1)                                             # church door
+road([(3237, 3210), (3236, 3210)], 1)                                             # church door
 road([(3201, 3217), (3195, 3217), (3186, 3220)], 1)                               # west gate track
 # the castle: curtain wall around the courtyard, gate towers, keep
 CURTAIN = [(3201, 3204), (3201, 3232), (3204, 3235), (3213, 3235), (3216, 3232), (3223, 3232), (3227, 3228),
@@ -1481,11 +1481,13 @@ for Y in (3217, 3218):
     zset(3201, Y, 'PATH', 'PATH')                                                 # west gate
 for Y in (3218, 3219):
     zset(3227, Y, 'PATH', 'PATH')                                                 # main gate
-for (Y0, Y1) in ((3221, 3225), (3211, 3215)):                                     # gate towers
+for (Y0, Y1, Yd) in ((3221, 3225, 3223), (3211, 3215, 3214)):                     # gate towers, doors on the courtyard
     for X in range(3226, 3231):
         for Y in range(Y0, Y1 + 1):
             if (X, Y) not in ((3226, Y0), (3230, Y0), (3226, Y1), (3230, Y1)):
-                zset(X, Y, 'WALL', 'GRASS')
+                zset(X, Y, 'WALL', 'FLOOR')
+    zfill(3227, Y0 + 1, 3229, Y1 - 1, 'FLOOR')
+    zset(3226, Yd, 'DOOR', 'FLOOR')
     zroof('tower', [(X, Y) for X in range(3226, 3231) for Y in range(Y0, Y1 + 1)])
 # courtyard: cross paths, fountains, hedges and statues
 zfill(3221, 3208, 3222, 3229, 'PATH')
@@ -1516,19 +1518,19 @@ START = zc(3222, 3218)
 GS_LUMB = zbuild(3208, 3241, 3215, 3251, 'WALL', 'WOODFLOOR', [(3215, 3245)], roof='red')
 for (X, Y) in ((3208, 3241), (3208, 3251)):
     zset(X, Y, 'GRASS', 'GRASS')
-BOB = zbuild(3227, 3200, 3233, 3205, 'WALL', 'WOODFLOOR', [(3233, 3202)], roof='red')
+BOB = zbuild(3227, 3200, 3233, 3205, 'WALL', 'WOODFLOOR', [(3233, 3203)], roof='red')
 zbuild(3230, 3193, 3237, 3198, 'WALL', 'WOODFLOOR', [(3235, 3198)], roof='red')
-zbuild(3226, 3235, 3233, 3242, 'WALL', 'WOODFLOOR', [(3226, 3240)], roof='red')
-zbuild(3221, 3251, 3230, 3257, 'WALL', 'FLOOR', [(3225, 3251)], roof='slate')
-zbuild(3243, 3243, 3250, 3248, 'HWALL', 'WOODFLOOR', [(3246, 3243)], roof='thatch')     # goblin house (a shack)
-zbuild(3191, 3229, 3194, 3232, 'WALL', 'WOODFLOOR', [(3194, 3230)], roof='red')
+zbuild(3226, 3235, 3233, 3242, 'WALL', 'WOODFLOOR', [(3226, 3240), (3230, 3235)], roof='red')
+zbuild(3221, 3251, 3230, 3257, 'WALL', 'FLOOR', [(3225, 3251), (3226, 3251), (3221, 3254)], roof='slate')
+zbuild(3243, 3243, 3250, 3248, 'HWALL', 'WOODFLOOR', [(3246, 3243), (3250, 3245), (3249, 3248)], roof='thatch')   # goblin house
+zbuild(3191, 3229, 3194, 3232, 'WALL', 'WOODFLOOR', [], roof='red')                         # closed in OSRS
 # church and its graveyard; the graveyard's south gate opens onto the swamp
-CHURCH_L = zbuild(3239, 3203, 3249, 3215, 'WALL', 'FLOOR', [(3239, 3209)], roof='slate')
-zput(3248, 3209, 'ALTAR')
-for Y in (3205, 3207, 3211, 3213):
+CHURCH_L = zbuild(3239, 3203, 3249, 3215, 'WALL', 'FLOOR', [(3239, 3210), (3243, 3215), (3244, 3215)], roof='slate')
+zput(3248, 3210, 'ALTAR')
+for Y in (3205, 3207, 3212):
     for X in range(3242, 3246):
         zput(X, Y, 'PEW')
-zfill(3240, 3209, 3247, 3209, 'CARPET')
+zfill(3240, 3210, 3247, 3210, 'CARPET')
 AERECK = zc(3246, 3210)
 GRAVEYARD = (3237, 3189, 3254, 3201)
 zline([(3237, 3201), (3237, 3189), (3254, 3189), (3254, 3201), (3250, 3201)], 1, 'FENCE', keep=('WATER',))
@@ -1540,7 +1542,7 @@ for X in (3239, 3249):
     zset(X, 3201, 'PATH', 'PATH')                                                 # north gates
 road([(3243, 3189), (3243, 3196), (3240, 3199)], 1)
 road([(3243, 3184), (3243, 3189)], 1)
-SHED = zbuild(3247, 3190, 3253, 3196, 'WALL', 'FLOOR', [(3250, 3196)], roof='slate')    # the ghost's crypt
+SHED = zbuild(3247, 3190, 3253, 3196, 'WALL', 'FLOOR', [(3247, 3193)], roof='slate')    # the ghost's crypt
 for (X, Y) in ((3239, 3197), (3241, 3197), (3239, 3193), (3241, 3193), (3245, 3195), (3245, 3192)):
     zput(X, Y, 'GRAVE')
 # fences: Al Kharid border, cow field, sheep pen (scenery beyond the walkable town)
@@ -1677,7 +1679,7 @@ def make_portals(c):
 
 
 # ---- towns traced from the OSRS map (tools/zones/*.ref, see tools/ref_extract.py) ------------
-REF_GROUND = {'g': 'GRASS', 'p': 'PATH', 'c': 'COBBLE', 'f': 'FLOOR', 'w': 'WOODFLOOR', '~': 'WATER',
+REF_GROUND = {'g': 'GRASS', 'p': 'PATH', 'c': 'COBBLE', 'f': 'FLOOR', 'w': 'WOODFLOOR', 'k': 'CHECKER', '~': 'WATER',
               's': 'SAND', 'm': 'SWAMP', '#': 'WALL', '?': 'GRASS'}
 
 
@@ -1698,6 +1700,10 @@ def ensure_door(tiles, force=False):
     inside = lambda X, Y: (X, Y) in tiles
     good = lambda X, Y: T_(X, Y) in WALKSET and T_(X, Y) != 'DOOR' and not inside(X, Y)
     for (X, Y) in ([] if force else tiles):
+        # an open gap in the wall (floor straight onto the street) is the entrance, as in OSRS
+        if T_(X, Y) in WALKSET and T_(X, Y) != 'DOOR' and any(good(X + u, Y + v) and (X + u, Y + v) not in tiles
+                                                                for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1))):
+            return
         if T_(X, Y) == 'DOOR':
             for (u, v) in ((0, 1), (1, 0)):
                 a, b = (X - u, Y - v), (X + u, Y + v)
@@ -1718,6 +1724,34 @@ def ensure_door(tiles, force=False):
                     best = (score, X, Y)
     if best:
         zset(best[1], best[2], 'DOOR')
+        INVENTED_DOORS.append((best[1], best[2]))
+
+
+INVENTED_DOORS = []     # doors ensure_door() had to add (the trace had none that worked)
+CUR_REF = None          # the trace build_from_ref() laid last (stamp() reads its doors)
+
+
+def ref_doors(X0, Y0, X1, Y1, kinds='d'):
+    """Door tiles on a rectangle's outline where the current trace has a door mark crossing it
+    (the tile just inside the outline), so stamped buildings keep OSRS's entrances."""
+    ref = CUR_REF
+    if ref is None:
+        return []
+    rx0, ry0, rx1, ry1 = ref['rect']
+    N = lambda X, Y: ref['N'][ry1 - Y][X - rx0] if rx0 <= X <= rx1 and ry0 <= Y <= ry1 + 1 else '.'
+    W = lambda X, Y: ref['W'][ry1 - Y][X - rx0] if rx0 <= X <= rx1 + 1 and ry0 <= Y <= ry1 else '.'
+    out = []
+    # an outline tile's door mark may be on its outer or its inner edge
+    for X in range(X0, X1 + 1):
+        for (Y, e) in ((Y1, N(X, Y1)), (Y1, N(X, Y1 - 1)), (Y0, N(X, Y0 - 1)), (Y0, N(X, Y0))):
+            if e in kinds:
+                out.append((X, Y))
+    for Y in range(Y0, Y1 + 1):
+        for (X, e) in ((X0, W(X0, Y)), (X0, W(X0 + 1, Y)), (X1, W(X1 + 1, Y)), (X1, W(X1, Y))):
+            if e in kinds:
+                out.append((X, Y))
+    corners = {(X0, Y0), (X0, Y1), (X1, Y0), (X1, Y1)}
+    return sorted(set(t for t in out if t not in corners))
 
 
 def build_from_ref(ref, style):
@@ -1733,11 +1767,13 @@ def build_from_ref(ref, style):
     style: 'stone'/'wood' wall types for buildings with stone/wood floors, 'road' (ground for 'c'),
     'sand' (ground for 's'), 'fence' (walls between outdoor tiles), 'city' (thick black city
     walls), 'roof_stone'/'roof_wood' (roof styles), 'tree', 'oaks', 'desert', 'crops'."""
+    global CUR_REF
+    CUR_REF = ref
     X0, Y0, X1, Y1 = ref['rect']
     Wd, Ht = X1 - X0 + 1, Y1 - Y0 + 1
     G = ref['G']
     at = lambda c, r: G[r][c] if 0 <= c < Wd and 0 <= r < Ht else 'g'
-    indoor = lambda c, r: at(c, r) in 'fw'
+    indoor = lambda c, r: at(c, r) in 'fwk'
     ground = dict(REF_GROUND, c=style.get('road', 'COBBLE'), s=style.get('sand', 'SAND'))
     for r in range(Ht):
         for c in range(Wd):
@@ -1831,6 +1867,7 @@ def build_from_ref(ref, style):
     out = []        # buildings: dict(tiles, wood, roof, rect (OSRS), special)
     host = {}       # tile -> 'wall' / 'door' / 'fence' / 'gate'
     wall_out = set()  # walls pushed onto the outdoor tile beside a narrow passage
+    ext_doors = {}    # indoor tile -> kinds of exterior entrance edges ('d' door, 'o' gap)
 
     def run_len(t, horizontal):
         """Floor tiles in a straight line through t (across the room) without crossing an edge."""
@@ -1862,6 +1899,8 @@ def build_from_ref(ref, style):
                 ia, ib = indoor(*a), indoor(*b)
                 if ia != ib:
                     t_in, t_out = (a, b) if ia else (b, a)
+                    if door:
+                        ext_doors.setdefault(t_in, set()).add(e)
                     vert = a[1] == b[1]                    # the edge runs north-south
                     if not door and run_len(t_in, vert) <= 2 and 0 <= t_out[0] < Wd and 0 <= t_out[1] < Ht:
                         place(t_out, 'wall')               # keep a narrow passage open
@@ -1918,6 +1957,7 @@ def build_from_ref(ref, style):
                 zput(X, Y, style.get('crops', 'CROPS'))
             elif ic == '*' and at(c, r) == 'g':
                 zput(X, Y, 'FERN')
+    # entrances follow the map: door marks and the gaps in wall lines (OSRS archways) both stay open
     groups = {}
     for t in room:
         groups.setdefault(bld_of(t), []).append(t)
@@ -1930,7 +1970,7 @@ def build_from_ref(ref, style):
             continue
         wood = is_wood(comp[0])
         tiles_ = [(X0 + a, Y1 - b) for (a, b) in comp]
-        ensure_door(set(tiles_))
+        # no door is invented here: a building the map draws closed is closed in OSRS too
         g = zroof(style['roof_wood'] if wood else style['roof_stone'], tiles_)
         xs, ys = [t_[0] for t_ in tiles_], [t_[1] for t_ in tiles_]
         out.append(dict(tiles=set(tiles_), wood=wood, roof=g, rect=(min(xs), min(ys), max(xs), max(ys)), special=False))
@@ -1955,12 +1995,16 @@ def interior_of(b):
     return [t for t in sorted(b['tiles']) if TY[cy(t[1])][cx(t[0])] in WALKSET and TY[cy(t[1])][cx(t[0])] != 'DOOR']
 
 
-def stamp(blds, X0, Y0, X1, Y1, wall, floor, doors=(), roof='slate', shape=None):
+def stamp(blds, X0, Y0, X1, Y1, wall, floor, doors=None, roof='slate', shape=None):
     """Replace whatever the trace made of a rectangle with a clean building (walls on its outline,
     floor inside, the given door tiles), with its own roof. shape(X, Y) -> False cuts tiles out of
     the rectangle (chamfered corners, L shapes). Returns the building record."""
     tiles_ = [(X, Y) for X in range(X0, X1 + 1) for Y in range(Y0, Y1 + 1) if shape is None or shape(X, Y)]
     ts = set(tiles_)
+    found = ref_doors(X0, Y0, X1, Y1) or ref_doors(X0, Y0, X1, Y1, 'o')
+    if found:
+        doors = found               # the map's own entrances win over a guess
+    doors = doors or ()
     for (X, Y) in tiles_:
         x, y = cx(X), cy(Y)
         g = ROOF[y][x]
@@ -1969,9 +2013,16 @@ def stamp(blds, X0, Y0, X1, Y1, wall, floor, doors=(), roof='slate', shape=None)
             ROOF[y][x] = 0
     for b in list(blds):
         if b['tiles'] & ts:
-            b['tiles'] -= ts
-            if len(b['tiles']) < 4:
-                blds.remove(b)
+            # what the trace made of this spot goes entirely (its leftovers become open ground)
+            for (X, Y) in b['tiles'] - ts:
+                x, y = cx(X), cy(Y)
+                g = ROOF[y][x]
+                if g:
+                    ROOFS[g][1].discard((x, y))
+                    ROOF[y][x] = 0
+                if TY[y][x] in WALLS or TY[y][x] in ('DOOR',) or GR[y][x] in ('FLOOR', 'WOODFLOOR', 'CHECKER', 'RUG'):
+                    zset(X, Y, 'PATH', 'PATH')
+            blds.remove(b)
     inner = [t for t in tiles_ if all((t[0] + u, t[1] + v) in ts for u in (-1, 0, 1) for v in (-1, 0, 1))]
     for (X, Y) in tiles_:
         zset(X, Y, wall, floor)
@@ -1989,12 +2040,15 @@ def stamp(blds, X0, Y0, X1, Y1, wall, floor, doors=(), roof='slate', shape=None)
     return b
 
 
-def zshop(name, b, npc):
+def zshop(name, b, npc, _retry=False):
     """A shop in a traced building: the keeper stands at the floor tile farthest from the door,
     with a counter one step toward the door when the room stays connected."""
     from collections import deque
     floor = set(interior_of(b))
     doors = [t for t in b['tiles'] if TY[cy(t[1])][cx(t[0])] == 'DOOR']
+    if floor and not doors and not _retry:
+        ensure_door(b['tiles'])         # a shop the map draws without a door: open the street side
+        return zshop(name, b, npc, True)
     assert floor and doors, ('shop building without floor or door', name, b['rect'])
     dist = {}
     q = deque()
@@ -2010,8 +2064,9 @@ def zshop(name, b, npc):
                 q.append(n)
     reach = [t for t in floor if t in dist]
     if not reach:
+        assert not _retry, ('shop %s: no way in' % name, b['rect'])
         ensure_door(b['tiles'], force=True)
-        return zshop(name, b, npc)
+        return zshop(name, b, npc, True)
     K = max(reach, key=lambda t: (dist[t], -abs(t[0] - (b['rect'][0] + b['rect'][2]) / 2.0)))
     cand = sorted((n for n in ((K[0] + u, K[1] + v) for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1))) if n in dist),
                   key=lambda n: dist[n])
@@ -2052,6 +2107,22 @@ def deco_near(X, Y, t, r=4, on=('GRASS', 'FLOWERS', 'FERN')):
             if deco(X + u, Y + v, t, on):
                 return (X + u, Y + v)
     return None
+
+
+def ruin(blds, b, gap=3):
+    """Turn a traced building into roofless ruins: grass floor, broken walls, no roof."""
+    for (X, Y) in b['tiles']:
+        x, y = cx(X), cy(Y)
+        g = ROOF[y][x]
+        if g:
+            ROOFS[g][1].discard((x, y))
+            ROOF[y][x] = 0
+        if TY[y][x] in WALLS:
+            TY[y][x] = 'WALL' if hsh(X, Y, 3) % gap else 'GRASS'
+            GR[y][x] = 'GRASS'
+        elif TY[y][x] in WALKSET:
+            zset(X, Y, 'GRASS', 'GRASS')
+    blds.remove(b)
 
 
 def clear_inside(b):
@@ -3503,9 +3574,10 @@ def pack_palettes(tilesets, nbanks, weights=None):
     return assign, banks, late
 
 
-def pack_palettes_search(tilesets, nbanks, weights, trials=300, seed=1):
+def pack_palettes_search(tilesets, nbanks, weights, trials=int(os.environ.get('WG_TRIALS', 800)), seed=1):
     """pack_palettes for a richer tile set: greedy packing of the maximal colour sets in many
-    orders, keeping the banks that leave the fewest map uses to quantize."""
+    orders, keeping the banks that leave the fewest map uses to quantize. WG_TRIALS=100 in the
+    environment makes a quicker (slightly worse) build while iterating on art."""
     from collections import Counter
     use = Counter()
     for s_, w in zip(tilesets, weights):

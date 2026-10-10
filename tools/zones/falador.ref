@@ -1,7 +1,7 @@
 # falador: layout traced from the OSRS world map by tools/ref_extract.py (edit freely)
 ref 2926 3298 3074 3407
-G ggggg~~~~~~c~~~~~~~gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggppppppppwwwwwwwppppppppgggggggggggg
-G ggggg~~~~~~~~~c~~~~ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggppppppwppwwppppppppggggggggggggg
+G ggggg~~~~~~c~~~~~~~gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggpppppppppppppppppppppppgggggggggggg
+G ggggg~~~~~~~~~c~~~~ggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggpppppppppppppppppppggggggggggggg
 G gggggg~~~~~~~~c~~~~gggggggggggggggggggggppgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggpppppppppppppppggggggggggggggg
 G ccgggg~~~~~~~~~~~~gggggggggggggggggggggggppggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggppppppppppppppgggggggggggggggg
 G cggggg~~~~~~~~~~~~gggpggggggggggggggggggpppgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggpppppppgggggggggggggggggg
@@ -19,18 +19,18 @@ G ~~~~~~~~~~~~ggg####ggggggggggggggggggggppggggggggggggggggggggggggggggggggggggg
 G ~~~~~~~~~~~gpp##gggggggggggggggggggggggppgggggggggggggggggggppgggpgggpgggpppggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 G ~~~~~~~~~gppp##pggggggggfffffffffffggggppggggggggggggggggggggpgggggggpgggggpgggggggppppppgggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 G ~~~~~~~~ggpp##pgggggggggffffppfffffggggppggppppppppgggggggggppggppggppggppgggggggggggggggpggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
-G ~~ggggggpgg##pggggpsggffffffppfffffggggpppppgggggggpppppggggppggppggppggppggggggpgggggppggppppppggggggggggggggggggggggggggggggggggggggggggggggggggggg
-G ~~gggggppp##pppgggspggfffffffffffffggggppggggggggggggpppggggggggggggggggggggggggppggggpppgggggggpgggggggggggggggggggggggggggggggggggggggggggggggggggg
-G pppppppggp#ppppgpspsggfffffffffffffggggppgggggfffgggggggggggggggffgggggggppggggppppggggpppgggggggpggggggggggggggggggggggggggggggggggggggggggggggggggg
-G gggggggggp#ppppgspspggfffffgggfffffgggpppgggggfffgggggggggpppgg~ff~~gggggppggggggppggggpppggggggggpggggggggggggcscggggggggggggscsgggggggggggggggggggg
-G gggggggggp#pppgppspsggggpgggggggpggggpppppggggfppfffffggggpppg~~ff~~gpppgppggpppgpppggggppgg~~gggggpggggggggggcscscscscscscscscscsgggppppgggggggggggg
-G gggggggggp#ppppgspspgppgpgggggggpggggpppppggppfppfffffggggpppg~~ff~~gpppppppppppgpppggggggggg~~~~ggggfffffggggsppcscscscscscscsppcgggppppgggggggggggg
-G gggggggggg#ppppgpspsgppppppppppppppppppppppppgffffffffggggpppg~~ff~~gpppgppggpppgpppggggggggg~~~~gggffffffggggfppscscscscscscscppfgpfffpppggggggggggg
-G gggggggggg#ppppgspspspggppppggpggpppppppppppgggggggggggpggggggggffgggggggppggggggppggggggp~~~~~~~~ggsfffffggggscscscscscscscscscscppfffffppgggggggggg
-G gggggggggg#gppggpspspspgpppgggpgggppppppppppgggggggggggggggggggggggggggggppggggppppggggg~~~~~~~~~~ggpfffffgggggscscscscscscscscscpppfffffpppggggggggg
-G gggggggggg#gggggspspspsppgggggpggggpppppppppppppppppppggggggggggggpppggppggggggpppgggggg~~~~~~~~~~ggpfffgppggggcscscscscscscscscspppfffffpppggggggggg
-G gggggggggg#gggggpspspppgpggggfffggggggpppggggpgggggggppgggggggggggpppggppgppggppppggggggg~~~~~~ggggppfffgpgggggscscssssssssscscscpppfffffppgggggggggg
-G gggggggggg#gggggspspppsgpggggfffggggggpppggggpgggggggggppgggggggggpppgggggppggpggggggggggg~~~ggggggppfffffgggggcscscscscscscscscsgpp###ffppgggggggggg
+G ~~ggggggpgg##pggggkkggffffffppfffffggggpppppgggggggpppppggggppggppggppggppggggggpgggggppggppppppggggggggggggggggggggggggggggggggggggggggggggggggggggg
+G ~~gggggppp##pppgggkkggfffffffffffffggggppggggggggggggpppggggggggggggggggggggggggppggggpppgggggggpgggggggggggggggggggggggggggggggggggggggggggggggggggg
+G pppppppggp#ppppgkkkkggfffffffffffffggggppgggggfffgggggggggggggggffgggggggppggggppppggggpppgggggggpggggggggggggggggggggggggggggggggggggggggggggggggggg
+G gggggggggp#ppppgkkkkggfffffgggfffffgggpppgggggfffgggggggggpppgg~ff~~gggggppggggggppggggpppggggggggpggggggggggggcscggggggggggggscsgggggggggggggggggggg
+G gggggggggp#pppgpkkkkggggpgggggggpggggpppppggggfppfffffggggpppg~~ff~~gpppgppggpppgpppggggppgg~~gggggpggggggggggcscscscscscscscscscsgggppppgggggggggggg
+G gggggggggp#ppppgkkkkgppgpgggggggpggggpppppggppfppfffffggggpppg~~ff~~gpppppppppppgpppggggggggg~~~~ggggfffffggggsppcscscscscscscsppcgggppppgggggggggggg
+G gggggggggg#ppppgkkkkgppppppppppppppppppppppppgffffffffggggpppg~~ff~~gpppgppggpppgpppggggggggg~~~~gggffffffggggcppscscscscscscscppsgpfffpppggggggggggg
+G gggggggggg#ppppgkkkkkkggppppggpggpppppppppppgggggggggggpggggggggffgggggggppggggggppggggggp~~~~~~~~ggsfffffggggscscscscscscscscscscppfffffppgggggggggg
+G gggggggggg#gppggkkkkkkkgpppgggpgggppppppppppgggggggggggggggggggggggggggggppggggppppggggg~~~~~~~~~~ggpfffffgggggscscscscscscscscscpppfffffpppggggggggg
+G gggggggggg#gggggkkkkkkkppgggggpggggpppppppppppppppppppggggggggggggpppggppggggggpppgggggg~~~~~~~~~~ggpfffgppggggcscscscscscscscscspppfffffpppggggggggg
+G gggggggggg#gggggkkkkkkkgpggggfffggggggpppggggpgggggggppgggggggggggpppggppgppggppppggggggg~~~~~~ggggppfffgpgggggscscssssssssscscscpppfffffppgggggggggg
+G gggggggggg#gggggkkkkkkkgpggggfffggggggpppggggpgggggggggppgggggggggpppgggggppggpggggggggggg~~~ggggggppfffffgggggcscscscscscscscscsgpp###ffppgggggggggg
 G gggggggggg#gggggggggggggpggggfffggggggppggggffffggggggggppgggggppgggggggggggggppggggggggggg~~gggggggffffffgggggscscscscscscscscscgppww#ffpggggggggggg
 G gggggggggg#gggggggggppppppgggffffffgggppggggffffggggggggggppggggggpgggggggggggggppggpppppgggggggggggsfffffgggggcscscscscscscscscsggpppfffgggggggggggg
 G gggggggggg#ggggppppppgggppgffffffffgggppggggffffffffgggggggppgggggppgggggggggwwwppggpppppggggggggggppgggggggggcscscscscscscscscscsgggggpggggggggggggg
@@ -58,10 +58,10 @@ G pppgggppgg#ggggggggggppgggg~~~~pppffffppffffggggggggggggfffppgppppp~~~~ggggggg
 G pggggggggg#gggggggggppggggg~~~~ppgfffsppsfffgggggggggggfffffppgppppp~~~~~gggggggppgggggggppppppgggggfppfffggpppppppppppppfppfgggggggggggggggggggggggg
 G gggggggggg#ggggggggppgggggg~~~ppggfffppppfffpggggggggggffppfggpggpppp~~~~~gggggggpggggggggppppppppggggggggggpppppppppppppppgggggggggggggggggggggggggg
 G gggggggggg#ggggggggppggggg~~~pggggfffgppgffffffffffffffffppfggggggpppp~~~~~ggggggpggggggggpppgggppppgggggggppppppppppppppppgggggggggggggggggggggggggg
-G gggggggggg#ggggggggppggggg~~~gggggfgggppgffffffffffffffsfffsggggggggggg~~~~~~ggggpggggggggfffffffgppggggggppgpppppppppppppffffggggggggggggggggggggggp
+G gggggggggg#ggggggggppggggg~~~gggggfgggppgffffffffffffffffffsggggggggggg~~~~~~ggggpggggggggfffffffgppggggggppgpppppppppppppffffggggggggggggggggggggggp
 G gggggggggg#gggggggggpgggg~~~ggggggfgggppgggggggpggsffffffffggggggggggggg~~~~~~ggppggggggggfffffffpggpgggggppggppppppppppffffffggggggggggggggggggggggg
 G gggggggggg#gggggggggppggg~~~gggggffgggppggppgpppgggfffffffffggggggggggggg~~~~~ggpggggggggfffffffffffffgggppggggpggppppppffffffggggggggggggggggggggggg
-G gggggggggg#gggggggggppgg~~~ggggggsfgggppggppggppggggpggfffsffffffggggggggg~~~~~gpggggggfffffffffffffffgggppggffffffppppfffffggggggggggggcgggggggggggg
+G gggggggggg#gggggggggppgg~~~ggggggffgggppggppggppggggpggfffsffffffggggggggg~~~~~gpggggggfffffffffffffffgggppggffffffppppfffffggggggggggggcgggggggggggg
 G gggggggggg#gggggggggpggg~~~gggggfffggggppgggggppggggpggffffsfffffggggggggggg~~~gpgggggfffffffffffpppffgggppggffffffpppffffffggggggggggggcgggggggggggg
 G gggggggggg#gggggggggpgg~~~~gggggfffggggppppppppppggppggffffffffffgggfffggggg~~~gppgppffffffffffffpppfffggppggppffffpppffffffggggggggggggggggggggggggg
 G gggggggggg#ggggggggppgg~~~ggggggfffffggggpppppppppppgggsffffffffffgfffffggggg~~ppppppfffffffppfffppffffggppggppffffggpffffffggggggggggggggggggggggggg
@@ -109,7 +109,7 @@ G gggggggggggccccgggccccgggggggggggggggggggggggggggggggggggggggggggggggggggggggc
 G gggggggggggcgggggggggcccgggggggggggggggggggggggggggggggggggggggggggggggggggggccccggggggggppppppgggggggggggggggpgggggggggggggggppggggggggggggggggggggg
 G gggggggggcccgggggggggpccccgggggggggggggggggggggggggggggggggggggggggggggggggggggccggggggggppppppgggggggggggggggpgggggggggggggggppggggggggggggggggggggg
 G gggggggcccgggggggggggppgcccggggggggggggggggggggggggggggggggggggggggggggggggggggcccgggggggppppppggggggggggggggggpggggggwwwwwwwwwwwwwwwwwwggggggggggggg
-G gggggggcgggggggggggggppppcccgggggggggggggggggggggggggggggggggggggggggggggggggggcccggggggggppppfgggggggggggggggggpggggwggwwwwwwwwwwwwwwwwwwwwwwggggggg
+G gggggggcgggggggggggggppppcccgggggggggggggggggggggggggggggggggggggggggggggggggggcccggggggggwwwwfgggggggggggggggggpggggwggwwwwwwwwwwwwwwwwwwwwwwggggggg
 N ..................................................................................................................................-..................
 N .....................................................................................................................................................
 N ...........................................................................................................................-oo--.....................

@@ -836,7 +836,10 @@ def tree_image(kind):
                 if 0 <= x < 16:
                     img[y][x] = P['tk0']
         return outline(img, P['tk2'])
-    if kind == 'OAK':
+    if kind == 'YEW':
+        cols = (P['t4'], P['t4'], P['t0'], P['t1'], P['t2'])
+        cx_, cy_, rx, ry = 7.5, 11.0, 7.8, 10.5
+    elif kind == 'OAK':
         cols = (P['o3'], P['o0'], P['o1'], P['o2'], P['o4'])
         cx_, cy_, rx, ry = 7.5, 12.0, 7.6, 9.5
     else:
@@ -848,6 +851,9 @@ def tree_image(kind):
     img[30][5] = img[30][10] = P['tk0']
     can = [[None] * 16 for _ in range(32)]
     lobes = ((cx_, cy_ - 3, 5.0), (cx_ - 3.2, cy_ + 1.5, 4.3), (cx_ + 3.2, cy_ + 1.5, 4.3), (cx_, cy_ + 3, 4.6))
+    if kind == 'YEW':      # a broad dark yew: layered tiers
+        lobes = ((cx_, cy_ - 5, 3.8), (cx_ - 2.5, cy_ - 1, 4.8), (cx_ + 2.5, cy_ - 1, 4.8), (cx_ - 4, cy_ + 3.5, 4.2),
+                 (cx_ + 4, cy_ + 3.5, 4.2), (cx_, cy_ + 4.5, 5.0))
     for y in range(32):
         for x in range(16):
             best = None
@@ -875,7 +881,7 @@ TREE_IMG = {}
 
 def tree(kind):
     if kind not in TREE_IMG:
-        TREE_IMG[kind] = tree_image(kind if kind in ('OAK', 'DEADTREE') else 'TREE')
+        TREE_IMG[kind] = tree_image(kind if kind in ('OAK', 'DEADTREE', 'YEW') else 'TREE')
     return TREE_IMG[kind]
 
 
