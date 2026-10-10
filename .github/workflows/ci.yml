@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup
+
+      - name: Build ROM
+        run: ./build.sh
+
+      - name: Run test suite
+        run: |
+          set -o pipefail
+          sh tools/run_quest_tests.sh | tee test-results.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ROM"
+            if [ -f rs07demake.gba ]; then
+              echo "\`rs07demake.gba\`: $(stat -c %s rs07demake.gba) bytes"
+            else
+              echo "build failed"
+            fi
+            echo
+            echo "### Tests"
+            echo '```'
+            cat test-results.txt 2>/dev/null || echo "not run"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload ROM
+        uses: actions/upload-artifact@v4
+        with:
+          name: osrs-gba-demake-${{ github.sha }}
+          path: rs07demake.gba
+          if-no-files-found: ignore
+
+      - name: Upload test screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-shots-${{ github.sha }}
+          path: |
+            shots/**/*.png
+            shots/**/*.txt
+          if-no-files-found: ignore

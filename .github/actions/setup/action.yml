@@ -1,0 +1,41 @@
+name: Set up build and test tools
+description: Arm GNU toolchain, gbafix, libmgba and the headless test harness (all cached).
+runs:
+  using: composite
+  steps:
+    - name: Cache Arm GNU toolchain
+      id: toolchain
+      uses: actions/cache@v4
+      with:
+        path: .toolchain/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi
+        key: arm-gnu-toolchain-15.2.rel1-x86_64
+
+    - name: Download Arm GNU toolchain
+      if: steps.toolchain.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        mkdir -p .toolchain
+        curl -fsSL https://developer.arm.com/-/media/Files/downloads/gnu/15.2.rel1/binrel/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz | tar xJ -C .toolchain
+
+    - name: Build gbafix
+      shell: bash
+      run: |
+        # pinned devkitPro/gba-tools commit
+        curl -fsSL https://raw.githubusercontent.com/devkitPro/gba-tools/054d507f90d32784274b6cf7e03f1c43d02d7a57/src/gbafix.c -o .toolchain/gbafix.c
+        cc -O2 .toolchain/gbafix.c -o .toolchain/gbafix
+
+    - name: Cache libmgba
+      id: mgba
+      uses: actions/cache@v4
+      with:
+        path: .toolchain/mgba-0.10.5
+        key: libmgba-0.10.5-${{ runner.os }}-${{ hashFiles('tools/build_mgba.sh') }}
+
+    - name: Build libmgba
+      if: steps.mgba.outputs.cache-hit != 'true'
+      shell: bash
+      run: sh tools/build_mgba.sh
+
+    - name: Build test harness
+      shell: bash
+      run: sh tools/build_harness.sh

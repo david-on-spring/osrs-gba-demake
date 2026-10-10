@@ -214,10 +214,15 @@ screenshots and WAV audio. Scenario scripts can teleport the player and edit gam
 `@symbol` addresses from the linker map.
 
 ```bash
-tools/build_harness.sh          # needs libmgba 0.10.5 built in .toolchain/mgba-0.10.5/build
+tools/build_mgba.sh             # download and build libmgba 0.10.5 into .toolchain/ (needs cmake)
+tools/build_harness.sh          # build the harness against it
 make test                       # plays all 13 quests end to end, bank/shop/skilling/combat tests, save/reload
 python3 tools/snap.py build/snap_after --compare build/snap_before   # screenshot regression check
 ```
+
+GitHub Actions builds the ROM and runs the test suite on every pull request and push to `main`, and
+uploads the ROM as a build artifact. Pushing a `v*` tag builds, tests and attaches
+`osrs-gba-demake.gba` to that tag's release (a draft is created if the release doesn't exist yet).
 
 ---
 
