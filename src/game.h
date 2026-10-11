@@ -46,24 +46,54 @@ enum {
     I_AIR_RUNE, I_WATER_RUNE, I_EARTH_RUNE, I_FIRE_RUNE, I_MIND_RUNE, I_BODY_RUNE, I_CHAOS_RUNE,
     I_DEATH_RUNE, I_STAFF, I_MAGIC_STAFF, I_STAFF_AIR, I_STAFF_WATER, I_STAFF_EARTH, I_STAFF_FIRE,
     I_COSMIC_RUNE, I_LAW_RUNE, I_NATURE_RUNE, I_BLOOD_RUNE, I_SOUL_RUNE, I_WRATH_RUNE,
+    // smithing: bars, ores, and everything the anvils make (appended: item ids are saved)
+    I_BRONZE_BAR, I_IRON_BAR, I_STEEL_BAR, I_SILVER_BAR, I_MITHRIL_BAR, I_ADAMANT_BAR, I_RUNE_BAR,
+    I_COAL, I_SILVER_ORE, I_GOLD_ORE, I_MITHRIL_ORE, I_ADAMANT_ORE, I_RUNE_ORE, I_BRONZE_SCIMITAR,
+    I_BRONZE_LONGSWORD, I_BRONZE_2H, I_BRONZE_MACE, I_BRONZE_WARHAMMER, I_BRONZE_BATTLEAXE,
+    I_BRONZE_CLAWS, I_BRONZE_KITE, I_BRONZE_NAILS, I_BRONZE_DART_TIP, I_BRONZE_ARROWTIPS,
+    I_BRONZE_KNIFE, I_BRONZE_JAVELIN_TIPS, I_BRONZE_BOLTS, I_BRONZE_LIMBS, I_BRONZE_WIRE,
+    I_IRON_DAGGER, I_IRON_LONGSWORD, I_IRON_2H, I_IRON_WARHAMMER, I_IRON_BATTLEAXE, I_IRON_CLAWS,
+    I_IRON_NAILS, I_IRON_DART_TIP, I_IRON_ARROWTIPS, I_IRON_KNIFE, I_IRON_JAVELIN_TIPS,
+    I_IRON_BOLTS, I_IRON_LIMBS, I_IRON_SPIT, I_OIL_LANTERN_FRAME, I_STEEL_DAGGER, I_STEEL_SCIMITAR,
+    I_STEEL_2H, I_STEEL_MACE, I_STEEL_WARHAMMER, I_STEEL_BATTLEAXE, I_STEEL_CLAWS,
+    I_STEEL_CHAINBODY, I_STEEL_SKIRT, I_STEEL_FULL_HELM, I_STEEL_KITE, I_STEEL_NAILS,
+    I_STEEL_DART_TIP, I_STEEL_ARROWTIPS, I_STEEL_KNIFE, I_STEEL_JAVELIN_TIPS, I_STEEL_BOLTS,
+    I_STEEL_LIMBS, I_STEEL_STUDS, I_MITHRIL_DAGGER, I_MITHRIL_SWORD, I_MITHRIL_LONGSWORD,
+    I_MITHRIL_2H, I_MITHRIL_MACE, I_MITHRIL_WARHAMMER, I_MITHRIL_BATTLEAXE, I_MITHRIL_CLAWS,
+    I_MITHRIL_CHAINBODY, I_MITHRIL_SKIRT, I_MITHRIL_HELM, I_MITHRIL_SHIELD, I_MITHRIL_NAILS,
+    I_MITHRIL_DART_TIP, I_MITHRIL_ARROWTIPS, I_MITHRIL_KNIFE, I_MITHRIL_JAVELIN_TIPS,
+    I_MITHRIL_BOLTS, I_MITHRIL_LIMBS, I_ADAMANT_DAGGER, I_ADAMANT_SWORD, I_ADAMANT_LONGSWORD,
+    I_ADAMANT_2H, I_ADAMANT_MACE, I_ADAMANT_WARHAMMER, I_ADAMANT_BATTLEAXE, I_ADAMANT_CLAWS,
+    I_ADAMANT_CHAINBODY, I_ADAMANT_SKIRT, I_ADAMANT_HELM, I_ADAMANT_SHIELD, I_ADAMANT_NAILS,
+    I_ADAMANT_DART_TIP, I_ADAMANT_ARROWTIPS, I_ADAMANT_KNIFE, I_ADAMANT_JAVELIN_TIPS,
+    I_ADAMANT_BOLTS, I_ADAMANT_LIMBS, I_RUNE_DAGGER, I_RUNE_SWORD, I_RUNE_2H, I_RUNE_MACE,
+    I_RUNE_WARHAMMER, I_RUNE_BATTLEAXE, I_RUNE_CLAWS, I_RUNE_CHAINBODY, I_RUNE_SKIRT, I_RUNE_HELM,
+    I_RUNE_SHIELD, I_RUNE_NAILS, I_RUNE_DART_TIP, I_RUNE_ARROWTIPS, I_RUNE_KNIFE,
+    I_RUNE_JAVELIN_TIPS, I_RUNE_BOLTS, I_RUNE_LIMBS,
     I_COUNT
 };
 
-// IF_RANGED: bows (req is a Ranged level) and arrows; IF_MAGIC: staves (cast spells)
-enum { IF_STACK = 1, IF_EAT = 2, IF_BURY = 4, IF_EQUIP = 8, IF_LIGHT = 16, IF_RANGED = 32, IF_MAGIC = 64 };
+// IF_RANGED: bows (req is a Ranged level) and arrows; IF_MAGIC: staves (cast spells);
+// IF_2H: two-handed weapons (2h swords, claws) that leave no hand for a shield
+enum { IF_STACK = 1, IF_EAT = 2, IF_BURY = 4, IF_EQUIP = 8, IF_LIGHT = 16, IF_RANGED = 32, IF_MAGIC = 64, IF_2H = 128 };
 enum { EQ_HEAD, EQ_WEAPON, EQ_BODY, EQ_SHIELD, EQ_LEGS, EQ_FEET, EQ_NECK, EQ_AMMO, EQ_COUNT };
 enum { TIER_NONE, TIER_BRONZE, TIER_IRON, TIER_STEEL, TIER_LEATHER, TIER_WOOD, TIER_MITHRIL,
        TIER_ADAMANT, TIER_RUNE, TIER_COUNT };
+// melee weapon classes (OSRS attack speed and main attack style); W_NONE: unarmed or not a weapon
+enum { W_NONE, W_DAGGER, W_SWORD, W_SCIM, W_LONG, W_2H, W_AXE, W_BATTLEAXE, W_MACE, W_WARHAMMER, W_CLAWS,
+       W_PICK };
 
 typedef struct {
     const char *name;
     const char *examine;
-    u8 icon, flags, slot, req;   // req: attack (weapons), defence (armour) or ranged (IF_RANGED) level
+    u16 icon;
+    u8 flags, slot, req;         // req: attack (weapons), defence (armour) or ranged (IF_RANGED) level
     s8 atk, str, def;
     u8 heal;
     u16 value;
     u8 tier;
     s8 ratk, rstr, matk;         // ranged attack, ranged strength, magic attack
+    u8 wclass;                   // W_* for melee weapons
 } ItemDef;
 extern const ItemDef items[I_COUNT];
 
@@ -73,9 +103,9 @@ typedef struct { u16 id, qty; } Slot;
 // Skills
 // ---------------------------------------------------------------------------------------
 enum { SK_ATTACK, SK_STRENGTH, SK_DEFENCE, SK_HITPOINTS, SK_PRAYER, SK_WOODCUTTING,
-       SK_FIREMAKING, SK_FISHING, SK_COOKING, SK_MINING, SK_RANGED, SK_MAGIC, SK_COUNT };
+       SK_FIREMAKING, SK_FISHING, SK_COOKING, SK_MINING, SK_RANGED, SK_MAGIC, SK_SMITHING, SK_COUNT };
 extern const char *const skill_names[SK_COUNT];
-extern const u8 skill_icons[SK_COUNT];
+extern const u16 skill_icons[SK_COUNT];
 
 // ---------------------------------------------------------------------------------------
 // NPCs
@@ -121,7 +151,7 @@ enum { CU_ATK5 = 1, CU_STR5 = 2, CU_DEF5 = 4, CU_DEF10 = 8, CU_STR10 = 16, CU_AT
 // Player
 // ---------------------------------------------------------------------------------------
 enum { DIR_DOWN, DIR_UP, DIR_LEFT, DIR_RIGHT };
-enum { ACT_NONE, ACT_CHOP, ACT_MINE, ACT_FISH, ACT_LIGHT, ACT_COOK, ACT_COMBAT, ACT_TALK };
+enum { ACT_NONE, ACT_CHOP, ACT_MINE, ACT_FISH, ACT_LIGHT, ACT_COOK, ACT_COMBAT, ACT_TALK, ACT_SMELT, ACT_SMITH };
 // melee: accurate / aggressive / defensive; with a bow the same slots are accurate / rapid / longrange
 enum { STYLE_ACCURATE, STYLE_AGGRESSIVE, STYLE_DEFENSIVE };
 enum { STYLE_RAPID = 1, STYLE_LONGRANGE = 2 };
@@ -153,7 +183,7 @@ extern Player pl;
 // ---------------------------------------------------------------------------------------
 // Global state
 // ---------------------------------------------------------------------------------------
-enum { GS_TITLE, GS_WORLD, GS_MENU, GS_DIALOG, GS_BANK, GS_SHOP, GS_LEVELUP, GS_QUESTDONE, GS_TARGET };
+enum { GS_TITLE, GS_WORLD, GS_MENU, GS_DIALOG, GS_BANK, GS_SHOP, GS_LEVELUP, GS_QUESTDONE, GS_TARGET, GS_SMITH };
 extern u8 game_state;
 extern u32 frame;
 extern u16 keys, keys_pressed, keys_repeat;
@@ -186,7 +216,7 @@ int unequip(int eq);                     // back to the inventory; 0 if there is
 
 // spells.c: the OSRS standard spellbook. Spells whose systems the demake lacks (enchanting,
 // orbs, most teleports...) are listed with their real data but cast as "not available yet".
-enum { SPK_COMBAT, SPK_CURSE, SPK_BIND, SPK_INSPECT, SPK_TELE, SPK_ALCH, SPK_NA };
+enum { SPK_COMBAT, SPK_CURSE, SPK_BIND, SPK_INSPECT, SPK_TELE, SPK_ALCH, SPK_HEAT, SPK_NA };
 enum { SPG_NONE, SPG_STRIKE, SPG_BOLT, SPG_BLAST, SPG_WAVE, SPG_SURGE };
 typedef struct {
     const char *name;
@@ -208,6 +238,8 @@ extern u16 home_cast;                    // frames into the home teleport's cast
 #define HOME_CAST_FRAMES (24 * TICK_FRAMES)
 #define HOME_COOLDOWN_TICKS 3000         // 30 minutes
 int spell_alch(int s, int slot);         // High / Low Level Alchemy on an inventory slot; 1 if cast
+int spell_superheat(int s, int slot);    // Superheat Item on an ore; 1 if cast
+int spell_on_item(int s);                // cast on an inventory item (alchemy, Superheat Item)
 int spell_autocast(int s);               // set the autocast spell; 0 (with a message) if not possible
 void spell_manual(int s);                // cast once at the target (from the spellbook)
 int combat_type(void);                   // CB_* for the wielded weapon, autocast or manual spell
@@ -215,6 +247,21 @@ int attack_range(void);                  // cells (1 = melee)
 int ammo_ok(int arrow, int bow);         // the bow can fire these arrows
 
 int bank_add(int id, int qty);
+
+// smithing.c: furnaces, anvils and Superheat Item (levels, XP, ticks: OSRS Wiki)
+typedef struct { u16 bar, ore, ore2; u8 n2, level, ticks; u16 xp; } SmeltDef;   // ore2 x n2: tin or coal
+typedef struct { u16 item; u8 level, bars, qty; } SmithDef;
+typedef struct { u16 bar, xp; const char *metal; const SmithDef *list; u8 n; } AnvilTier;   // xp per bar
+#define SMELT_N 8
+#define ANVIL_TIERS 6
+extern const SmeltDef smelt_defs[SMELT_N];
+extern const AnvilTier anvil_tiers[ANVIL_TIERS];
+int smelt_max(int k);                    // bars of smelt_defs[k] the inventory has ore for
+int smith_max(int t, int i);             // how many of anvil_tiers[t].list[i] the bars make
+int anvil_tier_owned(void);              // best tier the player has bars of, -1 = none
+int smith_start(int furnace, int k, int i, int count);   // at the facility in front; 0 (with a message) if not possible
+void smithy_open(int furnace);           // the "What would you like to make?" screen (smithy.c)
+void smithy_update(void);
 
 // gfx.c
 typedef struct { u16 a0, a1, a2, a3; } ObjAttr;

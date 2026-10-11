@@ -881,6 +881,179 @@ def icon_kite(m):
     return c.done()
 
 
+def icon_twohand(m):
+    c = Canvas()
+    c.line(4, 11, 14, 1, m[1], 3)
+    c.line(5, 10, 14, 1, m[0])
+    c.line(2, 8, 7, 13, C('#c8a040'), 2)
+    c.line(0, 15, 4, 11, C('#5e3a1e'), 2)
+    return c.done()
+
+
+def icon_warhammer(m, w=WOOD):
+    c = Canvas()
+    c.line(2, 14, 9, 7, w[1], 2)
+    c.line(2, 13, 8, 7, w[0])
+    c.poly([(7, 3), (11, 0), (15, 5), (11, 8)], m[1])
+    c.line(11, 0, 15, 5, m[0])
+    c.line(7, 3, 11, 8, m[2])
+    return c.done()
+
+
+def icon_battleaxe(m, w=WOOD):
+    c = Canvas()
+    c.line(3, 15, 12, 2, w[1], 2)
+    c.line(3, 14, 11, 2, w[0])
+    c.poly([(6, 1), (10, 4), (14, 2), (15, 8), (11, 7), (8, 10), (5, 6)], m[1])
+    c.line(14, 2, 15, 8, m[0])
+    c.line(6, 1, 5, 6, m[0])
+    c.line(9, 4, 10, 6, m[2])
+    return c.done()
+
+
+def icon_claws(m):
+    c = Canvas()
+    c.rect(2, 10, 8, 14, C('#5e3a1e'))
+    c.line(2, 10, 8, 10, C('#8a5a2e'))
+    for k in range(3):
+        x0 = 3 + k * 2
+        for i in range(8):
+            t = i / 7
+            c.set(x0 + 7 * t, 9 - 8 * t + 2 * t * t, m[1] if i < 6 else m[0])
+            c.set(x0 + 7 * t + 1, 9 - 8 * t + 2 * t * t, m[2])
+    return c.done()
+
+
+def icon_nails(m):
+    c = Canvas()
+    for (x, y) in ((3, 4), (8, 2), (11, 7), (5, 9)):
+        c.line(x, y, x + 3, y + 5, m[1])
+        c.line(x - 1, y, x + 1, y - 1, m[0])
+        c.set(x + 3, y + 5, m[2])
+    return c.done()
+
+
+def icon_darttip(m):
+    c = Canvas()
+    for (x, y) in ((3, 9), (8, 4), (10, 11)):
+        c.poly([(x, y + 3), (x + 4, y - 1), (x + 5, y), (x + 1, y + 4)], m[1])
+        c.line(x + 4, y - 1, x + 5, y - 2, m[0])
+        c.set(x, y + 4, m[2])
+    return c.done()
+
+
+def icon_arrowtips(m):
+    c = Canvas()
+    for (x, y) in ((2, 10), (7, 5), (10, 12), (12, 3)):
+        c.poly([(x, y), (x + 3, y - 1.5), (x + 3, y + 1.5)], m[1])
+        c.set(x, y, m[0])
+        c.set(x + 3, y + 1, m[2])
+    return c.done()
+
+
+def icon_tknife(m):
+    c = Canvas()
+    for (dx, dy) in ((0, 0), (3, 3)):
+        c.line(2 + dx, 11 + dy, 5 + dx, 8 + dy, C('#5e3a1e'), 2)
+        c.poly([(5 + dx, 8 + dy), (11 + dx, 1 + dy), (12 + dx, 2 + dy), (7 + dx, 9 + dy)], m[1])
+        c.line(6 + dx, 7 + dy, 11 + dx, 1 + dy, m[0])
+    return c.done()
+
+
+def icon_javelin(m):
+    c = Canvas()
+    for (x, y) in ((2, 12), (6, 13), (10, 14)):
+        c.poly([(x, y), (x + 1.5, y - 8), (x + 3, y)], m[1])
+        c.line(x + 1.5, y - 8, x + 1.5, y - 1, m[0])
+        c.line(x, y, x + 3, y, m[2])
+    return c.done()
+
+
+def icon_bolts(m):
+    c = Canvas()
+    for (x, y) in ((2, 13), (5, 14), (8, 15)):
+        c.line(x, y, x + 6, y - 9, C('#8a6a48'))
+        c.line(x + 6, y - 9, x + 7, y - 11, m[1])
+        c.set(x + 7, y - 12, m[0])
+        c.set(x + 5, y - 9, m[2])
+    return c.done()
+
+
+def icon_limbs(m):
+    c = Canvas()
+    for i in range(31):
+        t = i / 30
+        x, y = 1 + 14 * t, 4 + 7 * math.sin(t * math.pi)
+        c.set(x, y, m[1])
+        c.set(x, y + 1, m[2])
+        c.set(x, y - 1, m[0] if 0.2 < t < 0.8 else m[1])
+    c.rect(6, 9, 9, 12, m[2])
+    return c.done()
+
+
+def icon_wire():
+    c = Canvas()
+    b = METAL['bronze']
+    for k in range(4):
+        c.ell(5 + k * 2, 8, 2.5, 5, b[1])
+        c.ell(5 + k * 2, 8, 1.5, 4, None)
+        c.set(4 + k * 2, 4, b[0])
+    c.line(12, 8, 15, 12, b[2])
+    return c.done()
+
+
+def icon_spit():
+    c = Canvas()
+    i = METAL['iron']
+    c.line(1, 14, 14, 1, i[1], 2)
+    c.line(2, 14, 14, 2, i[0])
+    c.ell(3, 12.5, 2.2, 2.2, i[2])
+    c.ell(3, 12.5, 1, 1, None)
+    return c.done()
+
+
+def icon_lantern():
+    c = Canvas()
+    i = METAL['iron']
+    c.rect(4, 4, 11, 13, i[2])
+    c.rect(5, 5, 10, 12, None)
+    c.line(7, 5, 7, 12, i[1])
+    c.line(8, 5, 8, 12, i[1])
+    c.rect(3, 13, 12, 14, i[1])
+    c.poly([(4, 4), (8, 1), (11, 4)], i[1])
+    c.ell(8, 1, 1.4, 1, i[0])
+    return c.done()
+
+
+def icon_studs():
+    c = Canvas()
+    st = METAL['steel']
+    for (x, y) in ((4, 4), (10, 5), (5, 10), (11, 11), (8, 8)):
+        c.ell(x, y, 2, 2, None, shade=st)
+    return c.done()
+
+
+def icon_anvil():
+    c = Canvas()
+    m = METAL['iron']
+    c.poly([(1, 4), (12, 4), (15, 3), (14, 6), (11, 7), (11, 8), (5, 8), (5, 7), (2, 7)], m[1])
+    c.line(1, 4, 13, 4, m[0])
+    c.rect(6, 8, 10, 11, m[2])
+    c.rect(3, 11, 13, 13, m[1])
+    c.line(3, 13, 13, 13, m[2])
+    return c.done()
+
+
+def icon_superheat():
+    c = Canvas()
+    c.ell(7, 10, 5.5, 4.5, None, shade=(C('#9c9084'), C('#7c7066'), C('#544a42')))
+    for (x, y) in ((5, 9), (8, 11), (9, 8)):
+        c.set(x, y, C('#b06048'))
+    c.poly([(10, 9), (12, 3), (13, 6), (15, 1), (15, 9)], C('#f06010'))
+    c.poly([(12, 9), (13, 6), (14, 9)], C('#f8d040'))
+    return c.done()
+
+
 def icon_fish(body, belly, stripe, scale=1.0):
     c = Canvas()
     c.ell(7, 8, 5.5 * scale, 3 * scale, body[1])
@@ -1879,6 +2052,129 @@ ICON_DEF = [
     ('SPELL_ALCH', icon_alch()),
     ('HT_RING', icon_home_ring()),
     ('HT_SPARK', icon_spark()),
+    # smithing (appended so existing icon ids stay put): bars, ores, skill and spell pictures,
+    # then the anvils' products
+    ('BRONZE_BAR', icon_bar(METAL['bronze'])),
+    ('IRON_BAR', icon_bar(METAL['iron'])),
+    ('STEEL_BAR', icon_bar(METAL['steel'])),
+    ('SILVER_BAR', icon_bar(WHITE3)),
+    ('MITHRIL_BAR', icon_bar(METAL['mithril'])),
+    ('ADAMANT_BAR', icon_bar(METAL['adamant'])),
+    ('RUNE_BAR', icon_bar(METAL['rune'])),
+    ('COAL', icon_ore(C('#303030'), C('#141414'))),
+    ('SILVER_ORE', icon_ore(C('#f0f0f8'), C('#a8a8b8'))),
+    ('GOLD_ORE', icon_ore(C('#f8d848'), C('#b08820'))),
+    ('MITHRIL_ORE', icon_ore(C('#7a7ad8'), C('#3a3a80'))),
+    ('ADAMANT_ORE', icon_ore(C('#60a868'), C('#2a5a30'))),
+    ('RUNE_ORE', icon_ore(C('#78d8f0'), C('#3a8aa8'))),
+    ('SK_ANVIL', icon_anvil()),
+    ('SPELL_HEAT', icon_superheat()),
+    ('BRONZE_SCIMITAR', icon_scimitar(METAL['bronze'])),
+    ('BRONZE_LONGSWORD', icon_longsword(METAL['bronze'])),
+    ('BRONZE_2H', icon_twohand(METAL['bronze'])),
+    ('BRONZE_MACE', icon_mace(METAL['bronze'])),
+    ('BRONZE_WARHAMMER', icon_warhammer(METAL['bronze'])),
+    ('BRONZE_BATTLEAXE', icon_battleaxe(METAL['bronze'])),
+    ('BRONZE_CLAWS', icon_claws(METAL['bronze'])),
+    ('BRONZE_KITE', icon_kite(METAL['bronze'])),
+    ('BRONZE_NAILS', icon_nails(METAL['bronze'])),
+    ('BRONZE_DART_TIP', icon_darttip(METAL['bronze'])),
+    ('BRONZE_ARROWTIPS', icon_arrowtips(METAL['bronze'])),
+    ('BRONZE_KNIFE', icon_tknife(METAL['bronze'])),
+    ('BRONZE_JAVELIN_TIPS', icon_javelin(METAL['bronze'])),
+    ('BRONZE_BOLTS', icon_bolts(METAL['bronze'])),
+    ('BRONZE_LIMBS', icon_limbs(METAL['bronze'])),
+    ('BRONZE_WIRE', icon_wire()),
+    ('IRON_DAGGER', icon_dagger(METAL['iron'])),
+    ('IRON_LONGSWORD', icon_longsword(METAL['iron'])),
+    ('IRON_2H', icon_twohand(METAL['iron'])),
+    ('IRON_WARHAMMER', icon_warhammer(METAL['iron'])),
+    ('IRON_BATTLEAXE', icon_battleaxe(METAL['iron'])),
+    ('IRON_CLAWS', icon_claws(METAL['iron'])),
+    ('IRON_NAILS', icon_nails(METAL['iron'])),
+    ('IRON_DART_TIP', icon_darttip(METAL['iron'])),
+    ('IRON_ARROWTIPS', icon_arrowtips(METAL['iron'])),
+    ('IRON_KNIFE', icon_tknife(METAL['iron'])),
+    ('IRON_JAVELIN_TIPS', icon_javelin(METAL['iron'])),
+    ('IRON_BOLTS', icon_bolts(METAL['iron'])),
+    ('IRON_LIMBS', icon_limbs(METAL['iron'])),
+    ('IRON_SPIT', icon_spit()),
+    ('OIL_LANTERN_FRAME', icon_lantern()),
+    ('STEEL_DAGGER', icon_dagger(METAL['steel'])),
+    ('STEEL_SCIMITAR', icon_scimitar(METAL['steel'])),
+    ('STEEL_2H', icon_twohand(METAL['steel'])),
+    ('STEEL_MACE', icon_mace(METAL['steel'])),
+    ('STEEL_WARHAMMER', icon_warhammer(METAL['steel'])),
+    ('STEEL_BATTLEAXE', icon_battleaxe(METAL['steel'])),
+    ('STEEL_CLAWS', icon_claws(METAL['steel'])),
+    ('STEEL_CHAINBODY', icon_chainbody(METAL['steel'])),
+    ('STEEL_SKIRT', icon_skirt(METAL['steel'])),
+    ('STEEL_FULL_HELM', icon_fullhelm(METAL['steel'])),
+    ('STEEL_KITE', icon_kite(METAL['steel'])),
+    ('STEEL_NAILS', icon_nails(METAL['steel'])),
+    ('STEEL_DART_TIP', icon_darttip(METAL['steel'])),
+    ('STEEL_ARROWTIPS', icon_arrowtips(METAL['steel'])),
+    ('STEEL_KNIFE', icon_tknife(METAL['steel'])),
+    ('STEEL_JAVELIN_TIPS', icon_javelin(METAL['steel'])),
+    ('STEEL_BOLTS', icon_bolts(METAL['steel'])),
+    ('STEEL_LIMBS', icon_limbs(METAL['steel'])),
+    ('STEEL_STUDS', icon_studs()),
+    ('MITHRIL_DAGGER', icon_dagger(METAL['mithril'])),
+    ('MITHRIL_SWORD', icon_sword(METAL['mithril'])),
+    ('MITHRIL_LONGSWORD', icon_longsword(METAL['mithril'])),
+    ('MITHRIL_2H', icon_twohand(METAL['mithril'])),
+    ('MITHRIL_MACE', icon_mace(METAL['mithril'])),
+    ('MITHRIL_WARHAMMER', icon_warhammer(METAL['mithril'])),
+    ('MITHRIL_BATTLEAXE', icon_battleaxe(METAL['mithril'])),
+    ('MITHRIL_CLAWS', icon_claws(METAL['mithril'])),
+    ('MITHRIL_CHAINBODY', icon_chainbody(METAL['mithril'])),
+    ('MITHRIL_SKIRT', icon_skirt(METAL['mithril'])),
+    ('MITHRIL_HELM', icon_helm(METAL['mithril'])),
+    ('MITHRIL_SHIELD', icon_sqshield(METAL['mithril'])),
+    ('MITHRIL_NAILS', icon_nails(METAL['mithril'])),
+    ('MITHRIL_DART_TIP', icon_darttip(METAL['mithril'])),
+    ('MITHRIL_ARROWTIPS', icon_arrowtips(METAL['mithril'])),
+    ('MITHRIL_KNIFE', icon_tknife(METAL['mithril'])),
+    ('MITHRIL_JAVELIN_TIPS', icon_javelin(METAL['mithril'])),
+    ('MITHRIL_BOLTS', icon_bolts(METAL['mithril'])),
+    ('MITHRIL_LIMBS', icon_limbs(METAL['mithril'])),
+    ('ADAMANT_DAGGER', icon_dagger(METAL['adamant'])),
+    ('ADAMANT_SWORD', icon_sword(METAL['adamant'])),
+    ('ADAMANT_LONGSWORD', icon_longsword(METAL['adamant'])),
+    ('ADAMANT_2H', icon_twohand(METAL['adamant'])),
+    ('ADAMANT_MACE', icon_mace(METAL['adamant'])),
+    ('ADAMANT_WARHAMMER', icon_warhammer(METAL['adamant'])),
+    ('ADAMANT_BATTLEAXE', icon_battleaxe(METAL['adamant'])),
+    ('ADAMANT_CLAWS', icon_claws(METAL['adamant'])),
+    ('ADAMANT_CHAINBODY', icon_chainbody(METAL['adamant'])),
+    ('ADAMANT_SKIRT', icon_skirt(METAL['adamant'])),
+    ('ADAMANT_HELM', icon_helm(METAL['adamant'])),
+    ('ADAMANT_SHIELD', icon_sqshield(METAL['adamant'])),
+    ('ADAMANT_NAILS', icon_nails(METAL['adamant'])),
+    ('ADAMANT_DART_TIP', icon_darttip(METAL['adamant'])),
+    ('ADAMANT_ARROWTIPS', icon_arrowtips(METAL['adamant'])),
+    ('ADAMANT_KNIFE', icon_tknife(METAL['adamant'])),
+    ('ADAMANT_JAVELIN_TIPS', icon_javelin(METAL['adamant'])),
+    ('ADAMANT_BOLTS', icon_bolts(METAL['adamant'])),
+    ('ADAMANT_LIMBS', icon_limbs(METAL['adamant'])),
+    ('RUNE_DAGGER', icon_dagger(METAL['rune'])),
+    ('RUNE_SWORD', icon_sword(METAL['rune'])),
+    ('RUNE_2H', icon_twohand(METAL['rune'])),
+    ('RUNE_MACE', icon_mace(METAL['rune'])),
+    ('RUNE_WARHAMMER', icon_warhammer(METAL['rune'])),
+    ('RUNE_BATTLEAXE', icon_battleaxe(METAL['rune'])),
+    ('RUNE_CLAWS', icon_claws(METAL['rune'])),
+    ('RUNE_CHAINBODY', icon_chainbody(METAL['rune'])),
+    ('RUNE_SKIRT', icon_skirt(METAL['rune'])),
+    ('RUNE_HELM', icon_helm(METAL['rune'])),
+    ('RUNE_SHIELD', icon_sqshield(METAL['rune'])),
+    ('RUNE_NAILS', icon_nails(METAL['rune'])),
+    ('RUNE_DART_TIP', icon_darttip(METAL['rune'])),
+    ('RUNE_ARROWTIPS', icon_arrowtips(METAL['rune'])),
+    ('RUNE_KNIFE', icon_tknife(METAL['rune'])),
+    ('RUNE_JAVELIN_TIPS', icon_javelin(METAL['rune'])),
+    ('RUNE_BOLTS', icon_bolts(METAL['rune'])),
+    ('RUNE_LIMBS', icon_limbs(METAL['rune'])),
 ]
 
 # Icons are 8bpp sprites whose colours live in OBJ palette entries 128..255 (banks 8-15).
@@ -2168,11 +2464,13 @@ with open(os.path.join(OUT, 'spawns.txt'), 'w') as f:
         f.write('item %s %d %d %d\n' % ((it,) + O(x, y)))
     for n, (x, y) in sorted(world.QPOS.items()):
         f.write('place %s %d %d %d\n' % ((n,) + O(x, y)))
+    for n, x, y in world.FORGES:
+        f.write('obj %s %d %d %d\n' % ((world.TY[y][x],) + O(x, y)))
     # where the player can stand to face each NPC / object / item (DIR the player faces)
     wk = lambda x, y: 0 <= x < world.MW and 0 <= y < world.MH and world.TY[y][x] in world.WALKSET
     done = set()
     for name, x, y in ([(k, x, y) for (k, x, y) in world.SPAWNS] + [('obj:' + t, x, y) for (t, x, y) in world.QUEST_OBJS] +
-                       [('item:' + it, x, y) for (it, x, y) in world.ITEM_SPAWNS]):
+                       [('item:' + it, x, y) for (it, x, y) in world.ITEM_SPAWNS] + list(world.FORGES)):
         if name in done:
             continue
         done.add(name)

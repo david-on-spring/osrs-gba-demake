@@ -8,7 +8,7 @@ wait 2
 press A
 wait 1500
 shot shots/map/play_yew.png
-dump @pl+0x50 40
+dump @pl+0x54 40
 tpz OVERWORLD 3294 3320 DOWN
 press A
 wait 400
@@ -17,12 +17,12 @@ tpz DRAYNOR 3086 3230 DOWN
 press A
 wait 700
 shot shots/map/play_fish.png
-dump @pl+0x50 40
+dump @pl+0x54 40
 tpz ALKHARID 3272 3180 UP
 press A
 wait 500
 shot shots/map/play_cook.png
-dump @pl+0x50 40
+dump @pl+0x54 40
 tpz VARROCK 3184 3446 DOWN
 press A
 wait 30

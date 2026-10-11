@@ -21,7 +21,7 @@ furnish(palace, ['THRONE', 'TABLE', 'TABLE', 'CHAIR', 'CHAIR', 'POTPLANT', 'POTP
 karim = building_at(B, 3273, 3180)
 furnish(karim, ['RANGE', 'TABLE', 'BARREL', 'SACKS'])
 smelt = building_at(B, 3277, 3187)
-furnish(smelt, ['FURNACE', 'BARREL', 'CRATE'])
+furnish(smelt, ['BARREL', 'CRATE'])            # its furnace: world_gen.forge()
 deco_near(3293, 3189, 'WELL', on=('DESERT', 'SAND', 'PATH'))               # the well before the palace
 for b in B:
     if not b['special']:

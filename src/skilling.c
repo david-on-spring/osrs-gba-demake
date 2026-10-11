@@ -1,9 +1,10 @@
-// Skilling (woodcutting, mining, fishing, firemaking, cooking) and the A-button interact.
+// Skilling (woodcutting, mining, fishing, firemaking, cooking) and the A-button interact
+// (smithing lives in smithing.c).
 #include "world_internal.h"
 
 // ---------------------------------------------------------------------------------------
 // Resource tables
-typedef struct { u8 type, level; u16 xp; u8 low, high; u8 item, deplete, respawn; } Resource;
+typedef struct { u8 type, level; u16 xp; u8 low, high; u16 item; u8 deplete; u16 respawn; } Resource;
 static const Resource trees[] = {
     {T_TREE, 1, 250, 64, 200, I_LOGS, 255, 20},
     {T_OAK, 15, 375, 32, 100, I_OAK_LOGS, 40, 30},
@@ -17,6 +18,19 @@ static const Resource rocks[] = {
     {T_TIN, 1, 175, 100, 250, I_TIN_ORE, 255, 8},
     {T_IRON, 15, 350, 96, 255, I_IRON_ORE, 255, 16},
     {T_CLAY, 1, 50, 128, 255, I_CLAY, 255, 8},
+    // the ores smithing needs (OSRS levels, XP and respawn times)
+    {T_COAL, 30, 500, 16, 100, I_COAL, 255, 50},
+    {T_SILVER, 20, 400, 25, 200, I_SILVER_ORE, 255, 100},
+    {T_GOLD, 40, 650, 7, 75, I_GOLD_ORE, 255, 100},
+    {T_MITHRIL, 55, 800, 4, 50, I_MITHRIL_ORE, 255, 200},
+    {T_ADAMANTITE, 70, 950, 2, 25, I_ADAMANT_ORE, 255, 400},
+    {T_RUNITE, 85, 1250, 1, 18, I_RUNE_ORE, 255, 1200},
+};
+static const char *const rock_msgs[] = {
+    "You manage to mine some copper.", "You manage to mine some tin.", "You manage to mine some iron.",
+    "You manage to mine some clay.", "You manage to mine some coal.", "You manage to mine some silver.",
+    "You manage to mine some gold.", "You manage to mine some mithril.", "You manage to mine some adamantite.",
+    "You manage to mine some runite.",
 };
 #define NROCKS (int)(sizeof(rocks) / sizeof(rocks[0]))
 typedef struct { u8 raw, cooked, burnt, level; u16 xp; u8 low; u16 high; } Recipe;
@@ -163,8 +177,7 @@ void skill_tick(void) {
         int p = chance256(r->low, r->high, lvl) * (4 + pick_power()) / 4;
         if (roll(p)) {
             inv_add(r->item, 1);
-            msg(r->item == I_COPPER_ORE ? "You manage to mine some copper." : r->item == I_TIN_ORE ? "You manage to mine some tin." :
-                r->item == I_CLAY ? "You manage to mine some clay." : "You manage to mine some iron.");
+            msg(rock_msgs[r - rocks]);
             add_xp(SK_MINING, r->xp);
             deplete(pl.tx, pl.ty, pl.plane, r->type, r->respawn);
             player_stop();
@@ -466,7 +479,12 @@ void interact(void) {
             return;
         }
         if (skill_level(SK_MINING) < r->level) {
-            msg("You need a Mining level of 15 to mine this rock.");
+            char buf[48], *p = buf;
+            for (const char *a = "You need a Mining level of "; *a;) *p++ = *a++;
+            fmt_int(p, r->level);
+            while (*p) p++;
+            for (const char *a = " to mine this rock."; (*p++ = *a++);) {}
+            msg(buf);
             sfx(SFX_ERR);
             return;
         }
@@ -480,6 +498,10 @@ void interact(void) {
     }
     if (t == T_STUMP) {
         msg("This tree has been cut down.");
+        return;
+    }
+    if (t == T_FURNACE || t == T_ANVIL) {
+        smith_interact(t, fx, fy);
         return;
     }
     if (t == T_BOOTH) {

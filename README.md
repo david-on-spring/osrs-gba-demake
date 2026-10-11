@@ -152,18 +152,28 @@ The demake has no Crafting skill, so rewards that originally gave Crafting XP gi
 
 ### And everything you'd expect
 
-- **12 skills** on the real 2007 XP curve to 99: Attack, Strength, Defence, Ranged, Prayer, Magic,
-  Hitpoints, Woodcutting, Firemaking, Fishing, Cooking and Mining. XP drops, level-up popups and jingles.
+- **13 skills** on the real 2007 XP curve to 99: Attack, Strength, Defence, Ranged, Prayer, Magic,
+  Hitpoints, Mining, Smithing, Fishing, Cooking, Firemaking and Woodcutting. XP drops, level-up popups and jingles.
 - **Combat** using the 2007 accuracy and max-hit formulas, attack styles, auto-retaliate,
   hitsplats, HP bars, aggressive monsters and loot tables, including a rare mithril/adamant/rune drop.
-- **Skilling**: normal, oak, willow and yew trees that turn to stumps and regrow; copper, tin, clay
-  and iron rocks; net and fly-fishing spots; fires and ranges with burn chances that fall as you level.
+- **Skilling**: normal, oak, willow and yew trees that turn to stumps and regrow; copper, tin, clay,
+  iron, coal, silver, gold, mithril and adamantite rocks where OSRS has them (Al Kharid, Barbarian
+  Village, Rimmington, Lumbridge Swamp, Varrock); net and fly-fishing spots; fires and ranges with burn
+  chances that fall as you level.
+- **Smithing:** the furnaces in Lumbridge, Al Kharid, Falador and Edgeville smelt bronze, iron (half the
+  time, as in OSRS), silver, steel, gold, mithril, adamantite and runite bars; the anvils in Varrock and
+  at Doric's house (once Doric's Quest is done) hammer them into every item OSRS's anvil makes, from
+  daggers to platebodies, 2h swords, claws and warhammers to nails, arrowtips, dart tips, knives,
+  javelin tips, unfinished bolts and crossbow limbs, plus bronze wire, iron spits, oil lantern frames
+  and steel studs. Levels, bars, XP and ticks come from the OSRS Wiki. Facing a furnace or anvil and
+  pressing A opens a one-screen picker: L/R switch metal, A then 1 / 5 / 10 / All (it remembers your
+  last amount), and you keep working until done. Superheat Item smelts ore anywhere.
 - **Ranged:** shortbows and longbows from normal to maple, bronze to adamant arrows in a new ammo slot
   (the bow decides which arrows it can fire), accurate / rapid / longrange styles, arrows you can pick
   up again under the target, and Lowe's Archery Emporium in Varrock.
 - **Magic:** the whole OSRS standard spellbook with its real levels, runes and XP. Every Strike, Bolt,
   Blast, Wave and Surge spell, Crumble Undead, the curses (Confuse to Stun), Bind / Snare / Entangle,
-  Monster Inspect, Low and High Level Alchemy and the Lumbridge, Varrock and Falador teleports work
+  Monster Inspect, Low and High Level Alchemy, Superheat Item and the Lumbridge, Varrock and Falador teleports work
   (Lumbridge Home Teleport has OSRS's 24-tick cast: trace the rune circle, read the book, raise the
   light; walking or combat interrupts it, and it has a 30-minute cooldown);
   spells that need systems the demake doesn't have yet (enchanting, orbs, other teleports, god spells)
@@ -262,7 +272,7 @@ screenshots and WAV audio. Scenario scripts can teleport the player and edit gam
 ```bash
 tools/build_mgba.sh             # download and build libmgba 0.10.5 into .toolchain/ (needs cmake)
 tools/build_harness.sh          # build the harness against it
-make test                       # plays all 13 quests end to end, bank/shop/skilling/combat tests, save/reload
+make test                       # plays all 13 quests end to end, bank/shop/skilling/smithing/combat tests, save/reload
 python3 tools/snap.py build/snap_after --compare build/snap_before   # screenshot regression check
 ```
 
@@ -292,6 +302,7 @@ uploads the ROM as a build artifact. Pushing a `v*` tag builds, tests and attach
 | `src/canvas.c` | UI drawing: font, panels, bars and highlights |
 | `src/world.c` | Map state, movement, NPC AI, ground items, fires and the game tick |
 | `src/combat.c`, `src/skilling.c` | Melee, ranged and magic attacks, projectiles and drops; woodcutting, mining, fishing, firemaking, cooking and the A-button interact |
+| `src/smithing.c`, `src/smithy.c` | Smelting, anvil smithing and Superheat Item; the furnace / anvil screen |
 | `src/spells.c`, `src/target.c` | The standard spellbook and its effects; L targeting and the target menu |
 | `src/world_draw.c` | Depth-sorted world sprites |
 | `src/ui.c` | UI core: shared helpers, popups, item grid, menu chrome |

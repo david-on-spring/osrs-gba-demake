@@ -59,6 +59,7 @@ int main(void) {
         case GS_LEVELUP: levelup_update(); break;
         case GS_QUESTDONE: questdone_update(); break;
         case GS_TARGET: target_menu_update(); break;
+        case GS_SMITH: smithy_update(); break;
         }
 
         ui_draw_sprites();

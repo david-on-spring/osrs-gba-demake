@@ -1,0 +1,171 @@
+# Smithing: smelt bronze and steel at the Lumbridge furnace, smith a platebody and arrowtips at
+# Varrock's west anvils, Doric's anvils before his quest, and Superheat Item.
+wait 60
+newgame
+world
+clearinv
+xp SMITHING 0
+# --- coal (Mining 30) at the Barbarian Village mine; level 29 can't mine it
+item 0 MITHRIL_PICK
+xp MINING 123880
+tpz OVERWORLD 3077 3421 LEFT
+press A
+wait 60
+expectitem 1 NONE
+xp MINING 133630
+press A
+wait 1500
+expectitem 1 COAL
+expectxp MINING 134130
+clearinv
+# --- Lumbridge furnace: three bronze bars (copper + tin, 6.2 XP each), "Smelt All" by default
+item 0 COPPER_ORE
+item 1 TIN_ORE
+item 2 COPPER_ORE
+item 3 TIN_ORE
+item 4 COPPER_ORE
+item 5 TIN_ORE
+face FURNACE_LUMBRIDGE UP
+press A
+wait 8
+expectstate SMITH
+shot shots/t/smithing_furnace.png
+press A
+wait 4
+shot shots/t/smithing_amount.png
+press A
+wait 100
+shot shots/t/smithing_smelt.png
+wait 500
+world
+expecthas BRONZE_BAR
+expectxp SMITHING 186
+# --- iron needs level 15: the screen says so and stays open
+clearinv
+item 0 IRON_ORE
+press A
+wait 8
+press RIGHT
+press A
+wait 4
+expectstate SMITH
+shot shots/t/smithing_level.png
+press B
+wait 8
+# --- level 30: iron ore and two coal make steel (the furnace picks the best bar it can)
+xp SMITHING 133630
+item 1 COAL
+item 2 COAL
+press A
+wait 8
+press A
+wait 4
+press A
+wait 200
+world
+expectitem 0 STEEL_BAR
+expectitem 1 NONE
+expectxp SMITHING 133805
+# --- an anvil needs a hammer
+clearinv
+item 0 BRONZE_BAR
+face ANVIL_VARROCK_W1 LEFT
+press A
+wait 8
+expectstate WORLD
+# --- bronze platebody: 5 bars, level 18, 62.5 XP (row 2, column 7 of the bronze list)
+xp SMITHING 44700
+item 0 HAMMER
+item 1 BRONZE_BAR
+item 2 BRONZE_BAR
+item 3 BRONZE_BAR
+item 4 BRONZE_BAR
+item 5 BRONZE_BAR
+press A
+wait 8
+expectstate SMITH
+press DOWN
+press LEFT
+shot shots/t/smithing_anvil.png
+press A
+wait 4
+press A
+wait 75
+shot shots/t/smithing_work.png
+wait 125
+world
+expectitem 1 BRONZE_BODY
+expectitem 2 NONE
+expectxp SMITHING 45325
+# --- bronze arrowtips: one bar makes 15 (row 3, column 7: the screen remembers the platebody)
+item 2 BRONZE_BAR
+press A
+wait 8
+press DOWN
+press A
+wait 4
+press A
+wait 200
+world
+expectitem 2 BRONZE_ARROWTIPS
+expectqty 2 15
+# --- R switches the anvil to iron; with no iron bars nothing can be made
+item 3 BRONZE_BAR
+press A
+wait 8
+press R
+wait 4
+shot shots/t/smithing_iron.png
+press B
+wait 8
+# --- Doric's anvils are his until Doric's Quest is done
+stage DORIC 0
+face ANVIL_DORIC1 DOWN
+press A
+wait 8
+expectstate WORLD
+stage DORIC 2
+press A
+wait 8
+expectstate SMITH
+press B
+wait 8
+# --- Superheat Item (spell 34, level 43): iron ore with two coal becomes steel, never failing
+clearinv
+xp MAGIC 503390
+xp SMITHING 133630
+item 0 NATURE_RUNE 1
+item 1 FIRE_RUNE 4
+item 2 IRON_ORE
+item 3 COAL
+item 4 COAL
+press START
+wait 24
+press DOWN
+press DOWN
+press DOWN
+press A
+wait 16
+press RIGHT
+press RIGHT
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+press DOWN
+shot shots/t/smithing_superheat.png
+press A
+wait 4
+press A
+wait 10
+press RIGHT
+press RIGHT
+press A
+wait 10
+expecthas STEEL_BAR
+expectitem 3 NONE
+expectxp MAGIC 503920
+expectxp SMITHING 133805

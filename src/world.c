@@ -682,6 +682,12 @@ static void game_tick(void) {
             pl.action = ACT_NONE;
             npc_talk(pl.target);
         }
+    } else if (pl.action == ACT_SMELT || pl.action == ACT_SMITH) {
+        if (!pl.moving) {
+            int d = dir_toward(pl.x, pl.y, pl.tx, pl.ty, 0);
+            if (d >= 0) pl.dir = d;
+            smith_tick();
+        }
     } else if (pl.action != ACT_NONE && !pl.moving) {
         if (pl.action != ACT_LIGHT) {
             int d = dir_toward(pl.x, pl.y, pl.tx, pl.ty, 0);

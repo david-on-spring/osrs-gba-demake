@@ -261,12 +261,13 @@ void ui_init(void) {
 }
 
 // what the UI is waiting for (read by test scripts): 1 dialogue page shown, 2 choice box,
-// 3 quest complete scroll, 4 level-up popup, 5 free in the world, 6 target menu
+// 3 quest complete scroll, 4 level-up popup, 5 free in the world, 6 target menu, 7 furnace / anvil screen
 u8 ui_wait;
 
 void ui_draw_sprites(void) {
     ui_wait = game_state == GS_DIALOG ? dialog_wait_state()
-            : game_state == GS_QUESTDONE ? 3 : game_state == GS_LEVELUP ? 4 : game_state == GS_WORLD ? 5 : game_state == GS_TARGET ? 6 : 0;
+            : game_state == GS_QUESTDONE ? 3 : game_state == GS_LEVELUP ? 4 : game_state == GS_WORLD ? 5 : game_state == GS_TARGET ? 6
+            : game_state == GS_SMITH ? 7 : 0;
     // (no pointer sprite: like OSRS, the hovered row itself shows the selection)
     if (game_state == GS_WORLD) hud_draw_sprites();
     for (int i = 0; i < ui_icon_n; i++) {

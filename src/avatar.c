@@ -42,6 +42,30 @@ static const u8 look_tab[I_COUNT] = {
     [I_MAPLE_SHORTBOW] = LK(AVW_BOW), [I_MAPLE_LONGBOW] = LK(AVW_BOW),
     [I_STAFF] = LK(AVW_STAFF), [I_MAGIC_STAFF] = LK(AVW_STAFF), [I_STAFF_AIR] = LK(AVW_STAFF),
     [I_STAFF_WATER] = LK(AVW_STAFF), [I_STAFF_EARTH] = LK(AVW_STAFF), [I_STAFF_FIRE] = LK(AVW_STAFF),
+    [I_HAMMER] = LK(AVW_MACE),   // held while smithing
+    // smithing: 2h swords show as longswords, battleaxes as axes, warhammers as maces, claws as daggers
+    [I_BRONZE_SCIMITAR] = LK(AVW_SCIM), [I_BRONZE_LONGSWORD] = LK(AVW_LONG), [I_BRONZE_2H] = LK(AVW_LONG),
+    [I_BRONZE_MACE] = LK(AVW_MACE), [I_BRONZE_WARHAMMER] = LK(AVW_MACE), [I_BRONZE_BATTLEAXE] = LK(AVW_AXE),
+    [I_BRONZE_CLAWS] = LK(AVW_DAGGER), [I_BRONZE_KITE] = LK(AVS_KITE), [I_IRON_DAGGER] = LK(AVW_DAGGER),
+    [I_IRON_LONGSWORD] = LK(AVW_LONG), [I_IRON_2H] = LK(AVW_LONG), [I_IRON_WARHAMMER] = LK(AVW_MACE),
+    [I_IRON_BATTLEAXE] = LK(AVW_AXE), [I_IRON_CLAWS] = LK(AVW_DAGGER), [I_STEEL_DAGGER] = LK(AVW_DAGGER),
+    [I_STEEL_SCIMITAR] = LK(AVW_SCIM), [I_STEEL_2H] = LK(AVW_LONG), [I_STEEL_MACE] = LK(AVW_MACE),
+    [I_STEEL_WARHAMMER] = LK(AVW_MACE), [I_STEEL_BATTLEAXE] = LK(AVW_AXE), [I_STEEL_CLAWS] = LK(AVW_DAGGER),
+    [I_STEEL_CHAINBODY] = LK(AVT_CHAIN), [I_STEEL_SKIRT] = LK(AVG_SKIRT), [I_STEEL_FULL_HELM] = LK(AVH_FULL),
+    [I_STEEL_KITE] = LK(AVS_KITE), [I_MITHRIL_DAGGER] = LK(AVW_DAGGER), [I_MITHRIL_SWORD] = LK(AVW_SWORD),
+    [I_MITHRIL_LONGSWORD] = LK(AVW_LONG), [I_MITHRIL_2H] = LK(AVW_LONG), [I_MITHRIL_MACE] = LK(AVW_MACE),
+    [I_MITHRIL_WARHAMMER] = LK(AVW_MACE), [I_MITHRIL_BATTLEAXE] = LK(AVW_AXE),
+    [I_MITHRIL_CLAWS] = LK(AVW_DAGGER), [I_MITHRIL_CHAINBODY] = LK(AVT_CHAIN),
+    [I_MITHRIL_SKIRT] = LK(AVG_SKIRT), [I_MITHRIL_HELM] = LK(AVH_MED), [I_MITHRIL_SHIELD] = LK(AVS_SQ),
+    [I_ADAMANT_DAGGER] = LK(AVW_DAGGER), [I_ADAMANT_SWORD] = LK(AVW_SWORD),
+    [I_ADAMANT_LONGSWORD] = LK(AVW_LONG), [I_ADAMANT_2H] = LK(AVW_LONG), [I_ADAMANT_MACE] = LK(AVW_MACE),
+    [I_ADAMANT_WARHAMMER] = LK(AVW_MACE), [I_ADAMANT_BATTLEAXE] = LK(AVW_AXE),
+    [I_ADAMANT_CLAWS] = LK(AVW_DAGGER), [I_ADAMANT_CHAINBODY] = LK(AVT_CHAIN),
+    [I_ADAMANT_SKIRT] = LK(AVG_SKIRT), [I_ADAMANT_HELM] = LK(AVH_MED), [I_ADAMANT_SHIELD] = LK(AVS_SQ),
+    [I_RUNE_DAGGER] = LK(AVW_DAGGER), [I_RUNE_SWORD] = LK(AVW_SWORD), [I_RUNE_2H] = LK(AVW_LONG),
+    [I_RUNE_MACE] = LK(AVW_MACE), [I_RUNE_WARHAMMER] = LK(AVW_MACE), [I_RUNE_BATTLEAXE] = LK(AVW_AXE),
+    [I_RUNE_CLAWS] = LK(AVW_DAGGER), [I_RUNE_CHAINBODY] = LK(AVT_CHAIN), [I_RUNE_SKIRT] = LK(AVG_SKIRT),
+    [I_RUNE_HELM] = LK(AVH_MED), [I_RUNE_SHIELD] = LK(AVS_SQ),
 };
 
 static int look_of(int id, int def) { return look_tab[id] ? look_tab[id] - 1 : def; }
@@ -79,6 +103,7 @@ void avatar_palette(u16 *p) {
     else if (held == I_STAFF_EARTH) p[12] = rgb(10, 22, 8), p[13] = tier_dark[TIER_WOOD];
     else if (held == I_STAFF_FIRE) p[12] = rgb(31, 12, 4), p[13] = tier_dark[TIER_WOOD];
     else if (held == I_MAGIC_STAFF) p[12] = rgb(20, 10, 28), p[13] = tier_dark[TIER_WOOD];
+    else if (held == I_HAMMER) p[12] = tier_light[TIER_IRON], p[13] = tier_dark[TIER_WOOD];   // iron head, wooden haft
     else if (held < I_COUNT && (t = items[held].tier)) p[12] = tier_light[t], p[13] = tier_dark[t];
     shown_held = held;
 }

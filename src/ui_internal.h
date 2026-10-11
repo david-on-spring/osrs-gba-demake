@@ -10,7 +10,7 @@ char *sadd_num(char *p, u32 v);
 void text_center_ns(int xc, int y, const char *s, int col);   // centred, no shadow (on parchment)
 
 // ui.c: UI sprite list (icons, cursor, portrait) rebuilt by page redraws, emitted every frame
-typedef struct { s16 x, y; u8 icon; } UiIcon;
+typedef struct { s16 x, y; u16 icon; } UiIcon;
 extern UiIcon ui_icons[40];
 extern int ui_icon_n;
 extern s16 cursor_x, cursor_y, cursor_tx, cursor_ty;

@@ -1,6 +1,6 @@
 // The OSRS standard spellbook (levels, runes and XP from the OSRS Wiki), in book order.
-// Combat spells, curses, binds, Monster Inspect, Low / High Level Alchemy and the Lumbridge,
-// Varrock and Falador teleports work; spells that need systems the demake does not have yet
+// Combat spells, curses, binds, Monster Inspect, Low / High Level Alchemy, Superheat Item and the
+// Lumbridge, Varrock and Falador teleports work; spells that need systems the demake does not have yet
 // (enchanting, orbs, god staffs, other destinations...) are listed and say so when cast.
 #include "world_internal.h"
 
@@ -65,7 +65,7 @@ const SpellDef spells[] = {
     NA("Teleport to House", 40, 300, R(AIR, EARTH, LAW), R(1, 1, 1)),
     CB("Wind Blast", 41, 13, SPG_BLAST, PW, 255, R(AIR, DEATH), R(3, 1)),
     {"Monster Inspect", 42, SPK_INSPECT, 0, SPG_NONE, 0, 0, 305, R(BODY, MIND), R(2, 2)},
-    NA("Superheat Item", 43, 530, R(FIRE, NATURE), R(4, 1)),
+    {"Superheat Item", 43, SPK_HEAT, 0, SPG_NONE, 0, 0, 530, R(FIRE, NATURE), R(4, 1)},
     NA("Camelot Teleport", 45, 555, R(AIR, LAW), R(5, 1)),
     CB("Water Blast", 47, 14, SPG_BLAST, PA, 285, R(AIR, WATER, DEATH), R(3, 3, 1)),
     NA("Kourend Castle Teleport", 48, 580, R(FIRE, WATER, LAW), R(1, 1, 2)),
@@ -261,6 +261,8 @@ int spell_cast_self(int s) {
 }
 
 // coins can't be alched, nor can quest items
+int spell_on_item(int s) { return spells[s].kind == SPK_ALCH || spells[s].kind == SPK_HEAT; }
+
 int spell_alch(int s, int slot) {
     const SpellDef *sp = &spells[s];
     Slot *it = &pl.inv[slot];
