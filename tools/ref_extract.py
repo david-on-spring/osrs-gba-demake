@@ -282,7 +282,10 @@ def fetch(tiles):
         dst = os.path.join(REF, '%d_%d_%d.png' % (p, x, y))
         if not os.path.exists(dst):
             try:
-                urllib.request.urlretrieve(URL % (p, x, y), dst)
+                # the tile server refuses urllib's default user agent (403)
+                req = urllib.request.Request(URL % (p, x, y), headers={'User-Agent': 'Mozilla/5.0 osrs-gba-demake ref'})
+                with urllib.request.urlopen(req) as r_, open(dst, 'wb') as f:
+                    f.write(r_.read())
             except Exception as e:
                 print('missing', p, x, y, e)
 

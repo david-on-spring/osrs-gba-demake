@@ -36,8 +36,8 @@ is done, and what it costs on the hardware.
    - Al Kharid palace courtyard and fountain.
    - The Edgeville mansion ruins.
    - Shop counters and shelves that match OSRS.
-7. **Next: upper floors elsewhere**: Varrock Palace, the White Knights' Castle, the Wizards'
-   Tower and Draynor Manor.
+7. **Upper floors elsewhere**: Varrock Palace is done (item 13). Next: the White Knights'
+   Castle, the Wizards' Tower and Draynor Manor.
 8. **The countryside at 1:1** (done, item 10): fields, woods, swamp, desert, the Wilderness and
    Ice Mountain use the same terrain field, with an `OVERWORLD` theme.
 9. **Next: tracing fixes**: a hand pass over each `.ref` where the map's furniture lines confused
@@ -70,6 +70,17 @@ is done, and what it costs on the hardware.
     rooms show when the roof hides, and its full-height facade (windows, front doors) is drawn with
     the roof, which sits on the walls. Lumbridge Castle (three floors, the curtain wall and the
     cellar on plane 5) and the Lumbridge houses are laid out from the OSRS map.
+
+13. **Varrock on its OSRS footprints** (done). `build_from_ref(..., exact=True)` keeps what the
+    other towns' traces simplify: a short wall run that carries a wall past a door or spans between
+    two walls stays (only free-standing counters and booths go), a closet with its own door stays a
+    room, and a tile a diagonal wall crosses at a building's corner is left outside, with the walls
+    on its edges (OSRS's chamfered corners). The church is on its floor with the altar room. Varrock
+    Palace has its first and second floors and the tops of the north-west and south-east towers
+    (planes 6, 7, 8, zones `PALACE_1..3`, from `tools/zones/varrock_palace<N>.ref`), joined by four
+    staircases and two ladders as on the map. The Grand Exchange is laid out from the map: the
+    round plaza, the inner octagon open on four sides, bank booths on its diagonals and the clerks'
+    desk, with ways in from the Edgeville road, through the gap in Varrock's wall and from the east.
 
 ## Hardware budget
 

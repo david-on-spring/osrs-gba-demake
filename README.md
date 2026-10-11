@@ -336,7 +336,7 @@ uploads the ROM as a build artifact. Pushing a `v*` tag builds, tests and attach
 - Standing directly north of a tree hides your character behind its leaves.
 - Walls take a whole tile in the 1:1 towns where OSRS draws them on tile edges, so rooms are a
   tile smaller on each side, and interiors are furnished from typical OSRS homes rather than
-  object by object. Only Lumbridge Castle has upper floors so far.
+  object by object. Only Lumbridge Castle and Varrock Palace have upper floors so far.
 
 ## Support
 

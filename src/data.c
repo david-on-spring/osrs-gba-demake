@@ -353,6 +353,7 @@ static const char *const dlg_cook[] = {
     0};
 static const char *const dlg_shop[] = {"Can I help you at all?", 0};
 static const char *const dlg_bank[] = {"Good day. How may I help you?", 0};
+static const char *const dlg_ge[] = {"Welcome to the Grand Exchange. I can open your bank for you.", 0};
 static const char *const dlg_bob[] = {"Hello. I'm Bob. I sell axes, and a pickaxe or two for the miners.", 0};
 static const char *const dlg_gerrant[] = {"Welcome! You can buy fishing equipment at my store. We'll also buy fish that you catch off you.", 0};
 static const char *const dlg_betty[] = {"Welcome to the Magic Emporium. Eye of newt for your potions?", 0};
@@ -436,6 +437,7 @@ const NpcDef npc_defs[NPC_KIND_COUNT] = {
     [NPC_NURMOF] = {"Nurmof", SPR_KIND_HUMAN, 3, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_SHOP, 0, 0, dlg_nurmof},
     [NPC_LOWE] = {"Lowe", SPR_KIND_HUMAN, 7, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_SHOP, 0, 0, dlg_lowe},
     [NPC_ZAFF] = {"Zaff", SPR_KIND_WIZARD, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_SHOP, 0, 0, dlg_zaff},
+    [NPC_GE_CLERK] = {"Grand Exchange clerk", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK | NF_BANK, 0, 0, dlg_ge},
     [NPC_ARIS] = {"Gypsy Aris", SPR_KIND_DRESS, 4, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_PRYSIN] = {"Sir Prysin", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
     [NPC_ROVIN] = {"Captain Rovin", SPR_KIND_HUMAN, 2, 0, 1, 1, 1, 1, 0, 0, 0, NF_TALK, 0, 0, 0},
@@ -464,6 +466,7 @@ static const char *const npc_exam[NPC_KIND_COUNT] = {
     [NPC_AUBURY] = "I think he might be a shop keeper.", [NPC_BETTY] = "A busy shop owner.",
     [NPC_LOWE] = "The owner of the archery store.", [NPC_ZAFF] = "The owner of the staff shop.",
     [NPC_BOB] = "An axe seller.", [NPC_HORVIK] = "An armour seller.", [NPC_BORDER_GUARD] = "Guards the toll gate.",
+    [NPC_GE_CLERK] = "Works at the Grand Exchange.",
 };
 const char *npc_examine(int kind) { return npc_exam[kind]; }
 

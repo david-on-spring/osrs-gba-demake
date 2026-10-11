@@ -2448,7 +2448,9 @@ KINDS = ['COW', 'CHICKEN', 'GOBLIN', 'MAN', 'WOMAN', 'GUARD', 'BANKER', 'SHOPKEE
          'ARIS', 'PRYSIN', 'ROVIN', 'DELRITH', 'BORDER_GUARD',
          # shopkeepers
          'BOB', 'GERRANT', 'BETTY', 'SWORD_KEEPER', 'HORVIK', 'PEKSA', 'CASSIE', 'WAYNE', 'ZEKE', 'LOUIE',
-         'NURMOF', 'LOWE', 'ZAFF']
+         'NURMOF', 'LOWE', 'ZAFF',
+         # the Grand Exchange
+         'GE_CLERK']
 for i, k in enumerate(KINDS):
     h.append('#define NPC_%s %d' % (k, i))
 h.append('#define NPC_KIND_COUNT %d' % len(KINDS))

@@ -1780,6 +1780,15 @@ obj TRAPDOOR
 # Lumbridge Castle's spiral staircases (north-west and south-west towers). The ground floor only
 # goes up, the top floor only down; the first floor asks.
 obj STAIRS
+  if near VP_NW0 2 goto vnw0
+  if near VP_NW1 2 goto vnw1
+  if near VP_NW2 2 goto vnw2
+  if near VP_NE0 2 goto vne0
+  if near VP_NE1 2 goto vne1
+  if near VP_C0 2 goto vc0
+  if near VP_C1 2 goto vc1
+  if near VP_SE1 2 goto vse1
+  if near VP_SE2 2 goto vse2
   if near STAIRS_N0 2 goto n0
   if near STAIRS_S0 2 goto s0
   if near STAIRS_N2 2 goto n2
@@ -1827,9 +1836,62 @@ obj STAIRS
   warp ARRIVE_S1 RIGHT
   end
 
+# Varrock Palace: the north-west tower's staircase joins the ground floor and the first and second
+# floors; the north-east and middle ones the ground and first floors; the south-east one the first
+# and second (the tower ladders are with the other ladders)
+:vnw0
+  chat "You climb up the stairs."
+  warp VPA_NW1 RIGHT
+  end
+:vnw1
+  choice
+    option "Climb-up." vnw1up
+    option "Climb-down." vnw1down
+    option "Cancel." end
+:vnw1up
+  chat "You climb up the stairs."
+  warp VPA_NW2 RIGHT
+  end
+:vnw1down
+  chat "You climb down the stairs."
+  warp VPA_NW0 RIGHT
+  end
+:vnw2
+  chat "You climb down the stairs."
+  warp VPA_NW1 RIGHT
+  end
+:vne0
+  chat "You climb up the stairs."
+  warp VPA_NE1 LEFT
+  end
+:vne1
+  chat "You climb down the stairs."
+  warp VPA_NE0 LEFT
+  end
+:vc0
+  chat "You climb up the stairs."
+  warp VPA_C1 DOWN
+  end
+:vc1
+  chat "You climb down the stairs."
+  warp VPA_C0 DOWN
+  end
+:vse1
+  chat "You climb up the stairs."
+  warp VPA_SE2 LEFT
+  end
+:vse2
+  chat "You climb down the stairs."
+  warp VPA_SE1 LEFT
+  end
+
 # Ladders: the Mining Guild's (Falador; Mining 60 to go down to the mine) and Mudskipper Point's,
 # down to the Asgarnian Ice Dungeon
 obj LADDER
+  if near VP_NWL2 1 goto vnwl2
+  if near VP_NWL3 1 goto vnwl3
+  if near VP_SEL2 1 goto vsel2
+  if near VP_SEL3 1 goto vsel3
   if near CELLAR_LADDER 2 goto cellar
   if near GUILD_LADDER_UP 2 goto up
   if near ICE_LADDER_DOWN 2 goto icedown
@@ -1856,4 +1918,20 @@ obj LADDER
 :iceup
   chat "You climb up the ladder."
   warp ICE_TOP UP
+  end
+:vnwl2
+  chat "You climb up the ladder."
+  warp VPA_NWL3 LEFT
+  end
+:vnwl3
+  chat "You climb down the ladder."
+  warp VPA_NWL2 LEFT
+  end
+:vsel2
+  chat "You climb up the ladder."
+  warp VPA_SEL3 LEFT
+  end
+:vsel3
+  chat "You climb down the ladder."
+  warp VPA_SEL2 LEFT
   end
