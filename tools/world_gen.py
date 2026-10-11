@@ -1900,23 +1900,35 @@ LUMB_COOK = zc(3208, 3213)
 HANS = zc(3219, 3223)
 START = zc(3222, 3218)
 # town buildings
-GS_LUMB = zbuild(3208, 3241, 3215, 3251, 'WALL', 'WOODFLOOR', [(3215, 3245)], roof='red')
-for (X, Y) in ((3208, 3241), (3208, 3251)):
+# (rectangles are each building's floor on the OSRS map; zbuild's outline becomes the walls on
+# its edges, see convert_walls)
+GS_LUMB = zbuild(3208, 3242, 3214, 3251, 'WALL', 'WOODFLOOR', [(3214, 3245)], roof='red')
+for (X, Y) in ((3208, 3242), (3214, 3242), (3208, 3251), (3214, 3251)):     # an octagon on the map
     zset(X, Y, 'GRASS', 'GRASS')
-BOB = zbuild(3227, 3200, 3233, 3205, 'WALL', 'WOODFLOOR', [(3233, 3203)], roof='red')
-zbuild(3230, 3193, 3237, 3198, 'WALL', 'WOODFLOOR', [(3235, 3198)], roof='red')
-zbuild(3226, 3235, 3233, 3242, 'WALL', 'WOODFLOOR', [(3226, 3240), (3230, 3235)], roof='red')
-zbuild(3221, 3251, 3230, 3257, 'WALL', 'FLOOR', [(3225, 3251), (3226, 3251), (3221, 3254)], roof='slate')
-zbuild(3243, 3243, 3250, 3248, 'HWALL', 'WOODFLOOR', [(3246, 3243), (3250, 3245), (3249, 3248)], roof='thatch')   # goblin house
-zbuild(3191, 3229, 3194, 3232, 'WALL', 'WOODFLOOR', [], roof='red')                         # closed in OSRS
-# church and its graveyard; the graveyard's south gate opens onto the swamp
-CHURCH_L = zbuild(3239, 3203, 3249, 3215, 'WALL', 'FLOOR', [(3239, 3210), (3243, 3215), (3244, 3215)], roof='slate')
-zput(3248, 3210, 'ALTAR')
-for Y in (3205, 3207, 3212):
-    for X in range(3242, 3246):
+BOB = zbuild(3227, 3201, 3233, 3205, 'WALL', 'WOODFLOOR', [(3233, 3203)], roof='red')
+zbuild(3229, 3206, 3233, 3208, 'WALL', 'WOODFLOOR', [(3233, 3207)], roof='red')        # Bob's back room
+zset(3231, 3206, 'DOOR')
+zset(3231, 3205, 'DOOR')
+zbuild(3230, 3195, 3237, 3198, 'WALL', 'WOODFLOOR', [(3235, 3198)], roof='red')
+zplan(3226, 3242, ['HHHHHHHH'] * 5 + ['  HHHHHH'] * 2, dict(H='WOODFLOOR'),          # an L on the map
+      doors=[((3225, 3240), (3226, 3240)), ((3230, 3235), (3230, 3236))])
+zroof('red', [t for t in tiles(3226, 3236, 3233, 3242) if t[0] > 3227 or t[1] > 3237])
+zbuild(3222, 3252, 3229, 3257, 'WALL', 'FLOOR', [(3225, 3252), (3226, 3252)], roof='slate')
+zbuild(3243, 3244, 3250, 3248, 'HWALL', 'WOODFLOOR', [(3246, 3244), (3250, 3245), (3249, 3248)], roof='thatch')   # goblin house
+zbuild(3192, 3230, 3194, 3232, 'WALL', 'WOODFLOOR', [], roof='red')                         # closed in OSRS
+# church and its graveyard; the graveyard's south gate opens onto the swamp. The nave runs north
+# to south from its doors to the altar, with a porch on the west.
+CHURCH_L = zbuild(3240, 3204, 3247, 3215, 'WALL', 'FLOOR', [(3243, 3215), (3244, 3215)], roof='slate')
+zplan(3238, 3211, ['PP', 'PP', 'PP'], dict(P='FLOOR'), doors=[((3237, 3210), (3238, 3210)), ((3239, 3210), (3240, 3210))])
+zroof('slate', tiles(3238, 3209, 3239, 3211))
+zset(3240, 3210, 'DOOR')
+zfill(3243, 3206, 3244, 3214, 'CARPET')
+for X in (3243, 3244):
+    zput(X, 3205, 'ALTAR')
+for Y in (3209, 3211, 3213):
+    for X in (3241, 3242, 3245, 3246):
         zput(X, Y, 'PEW')
-zfill(3240, 3210, 3247, 3210, 'CARPET')
-AERECK = zc(3246, 3210)
+AERECK = zc(3245, 3207)
 GRAVEYARD = (3237, 3189, 3254, 3201)
 zline([(3237, 3201), (3237, 3189), (3254, 3189), (3254, 3201), (3250, 3201)], 1, 'FENCE', keep=('WATER',))
 zline([(3237, 3201), (3238, 3201)], 1, 'FENCE')
@@ -1927,7 +1939,7 @@ for X in (3239, 3249):
     zset(X, 3201, 'PATH', 'PATH')                                                 # north gates
 road([(3243, 3189), (3243, 3196), (3240, 3199)], 1)
 road([(3243, 3184), (3243, 3189)], 1)
-SHED = zbuild(3247, 3190, 3253, 3196, 'WALL', 'FLOOR', [(3247, 3193)], roof='slate')    # the ghost's crypt
+SHED = zbuild(3247, 3190, 3252, 3195, 'WALL', 'FLOOR', [(3247, 3193)], roof='slate')    # the ghost's crypt
 for (X, Y) in ((3239, 3197), (3241, 3197), (3239, 3193), (3241, 3193), (3245, 3195), (3245, 3192)):
     zput(X, Y, 'GRAVE')
 # fences: Al Kharid border, cow field, sheep pen (scenery beyond the walkable town)
