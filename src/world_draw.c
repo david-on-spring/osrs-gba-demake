@@ -54,6 +54,11 @@ static void draw_player(int sx, int sy) {
             tool = shown_tool(picks, 6, SK_MINING);
             t = since_tick;
             break;
+        case ACT_SMITH:
+            act = AVA_MINE;                // hammering, a blow every other tick
+            tool = I_HAMMER;
+            t = (pl.action_timer & 1) * TICK_FRAMES + tick_frames;
+            break;
         case ACT_FISH:
             act = fish_spots[pl.target].kind ? AVA_ROD : AVA_NET;
             tool = act == AVA_ROD ? I_ROD : I_NET;

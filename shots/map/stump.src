@@ -13,5 +13,5 @@ dump @ovr 16
 dump 600b598 2
 dump 600b5d8 2
 dump 600ad18 2
-dump @pl+0x50 24
+dump @pl+0x54 24
 shot shots/map/stump1.png

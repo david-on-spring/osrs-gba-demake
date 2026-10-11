@@ -150,13 +150,15 @@ BLOCK = ['WATER', 'WALL', 'HWALL', 'WWALL', 'SWALL', 'FENCE', 'TREE', 'OAK', 'WI
          'VOID', 'STAIRS', 'TABLE', 'BED', 'STATUE', 'PEW', 'HEDGE', 'CRATE',
          'CHAIR', 'BOOKCASE', 'DRAWERS', 'FIREPLACE', 'BARREL', 'WARDROBE', 'POTPLANT', 'BIGSTALL', 'ANVIL',
          'FURNACE', 'SHELF', 'THRONE', 'WELL', 'SACKS', 'FLOWERBED', 'PALM', 'BENCH', 'SUNFLOWER', 'LOWWALL',
-         'VFOUNTAIN']
+         'VFOUNTAIN',
+         # the ores smithing needs
+         'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE']
 TYPES = WALK + BLOCK
 T = {n: i for i, n in enumerate(TYPES)}
 WALKSET = set(WALK)
 WALLS = {'WALL', 'HWALL', 'WWALL', 'SWALL'}
 TREES = {'TREE', 'OAK', 'WILLOW', 'YEW', 'DEADTREE'}
-ROCKS = {'COPPER', 'TIN', 'IRON', 'CLAY'}
+ROCKS = {'COPPER', 'TIN', 'IRON', 'CLAY', 'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE'}
 
 TY = [['GRASS' if y < OW_H and x < OW_W else 'VOID' for x in range(MW)] for y in range(MH)]   # cell type
 GR = [['GRASS' if y < OW_H and x < OW_W else 'VOID' for x in range(MW)] for y in range(MH)]   # ground under it
@@ -797,7 +799,7 @@ fence_rect(3195, 3284, 3211, 3297, gates=[('S', 3203)])
 
 # Lumbridge swamp mines and features
 mine(3222, 3142, 3234, 3152, [('COPPER', 4), ('TIN', 4)], 'SWAMP', 1)
-mine(3142, 3144, 3152, 3154, [('COPPER', 3), ('TIN', 3), ('IRON', 1)], 'SWAMP', 1)
+mine(3142, 3144, 3152, 3154, [('COAL', 5), ('MITHRIL', 3)], 'SWAMP', 1)               # Lumbridge Swamp west
 building(3144, 3180, 3151, 3186, 'HWALL', 'WOODFLOOR', [('E', 3183)])       # Father Urhney
 building(3180, 3196, 3186, 3202, 'HWALL', 'WOODFLOOR', [('N', 3183)])       # adventurers' camp hut
 
@@ -867,7 +869,7 @@ building(2962, 3208, 2970, 3215, 'HWALL', 'WOODFLOOR', [('W', 3211)])
 shop('RIMMINGTON', building(2946, 3216, 2954, 3223, 'HWALL', 'WOODFLOOR', [('E', 3220)]), 'W', 'SHOPKEEPER')
 building(2958, 3226, 2965, 3233, 'HWALL', 'WOODFLOOR', [('S', 2961)])
 building(2935, 3205, 2942, 3212, 'HWALL', 'WOODFLOOR', [('E', 3208)])
-mine(2968, 3232, 2990, 3250, [('COPPER', 4), ('TIN', 4), ('IRON', 4), ('CLAY', 3)], 'PATH', 2)
+mine(2968, 3232, 2990, 3250, [('COPPER', 4), ('TIN', 4), ('IRON', 4), ('CLAY', 3), ('GOLD', 2)], 'PATH', 2)
 # Crafting Guild (west)
 building(2928, 3278, 2938, 3292, 'WALL', 'FLOOR', [('E', 3285)])
 # fields between Falador and Port Sarim (cows!)
@@ -965,7 +967,7 @@ put(LONGHALL[0] + 3, LONGHALL[1] + 3, 'FIREPIT')
 put(LONGHALL[2] - 3, LONGHALL[1] + 3, 'FIREPIT')
 shop('PEKSA', building(3068, 3426, 3075, 3432, 'HWALL', 'WOODFLOOR', [('E', 3429)]), 'W', 'PEKSA')
 building(3082, 3426, 3088, 3432, 'HWALL', 'WOODFLOOR', [('W', 3429)])       # spinning hut
-mine(3074, 3412, 3088, 3424, [('TIN', 5), ('COPPER', 3)], 'PATH', 1)
+mine(3074, 3412, 3088, 3424, [('TIN', 5), ('COAL', 4)], 'PATH', 1)                    # Barbarian Village
 oput(3098, 3428, 'FIREPIT')                                                 # never-ending fire
 fence_line([(3064, 3410), (3064, 3452), (3096, 3452)])
 building(3138, 3438, 3148, 3448, 'WALL', 'FLOOR', [('W', 3443)])             # Cooking Guild
@@ -1110,7 +1112,7 @@ for (dx, dy) in ((-1, -1), (0, -1), (1, -1), (-1, 1), (0, 1), (1, 1)):
 for (dx, dy) in ((-2, -2), (2, 2)):
     SPAWNS.append(('BANKER', int(gcx) + dx, int(gcy) + dy))
 CHAMPIONS = building(3186, 3356, 3198, 3366, 'WALL', 'FLOOR', [('N', 3192)])
-mine(3172, 3362, 3186, 3376, [('TIN', 4), ('IRON', 3), ('CLAY', 3)], 'PATH', 2)
+mine(3172, 3362, 3186, 3376, [('TIN', 4), ('IRON', 3), ('CLAY', 3), ('SILVER', 3)], 'PATH', 2)
 mine(3278, 3358, 3294, 3374, [('COPPER', 4), ('TIN', 4), ('IRON', 3)], 'PATH', 2)
 ccx, ccy = fpt(3225, 3370)
 for k in range(8):
@@ -1145,7 +1147,8 @@ road([(3292, 3181), (3320, 3186), (3320, 3200)], 1, 'PATH')
 road([(3268, 3176), (3280, 3176)], 1, 'PATH')
 road([(3276, 3166), (3280, 3166)], 1, 'PATH')
 # Al Kharid mine
-mine(3292, 3272, 3308, 3320, [('COPPER', 6), ('TIN', 6), ('IRON', 7)], 'DESERT', 4)
+mine(3292, 3272, 3308, 3320, [('COPPER', 6), ('TIN', 6), ('IRON', 7), ('SILVER', 3), ('COAL', 3), ('GOLD', 2),
+                              ('MITHRIL', 2), ('ADAMANTITE', 2)], 'DESERT', 4)
 opoly([(3309, 3324), (3316, 3326), (3320, 3300), (3318, 3270), (3310, 3268), (3312, 3296)],
       lambda x, y: put(x, y, 'CLIFF') if TY[y][x] == 'DESERT' else None)
 opoly([(3286, 3326), (3292, 3326), (3290, 3300), (3288, 3290), (3284, 3300)],
@@ -2242,6 +2245,66 @@ for _town in ('draynor', 'varrock', 'alkharid', 'falador', 'edgeville'):   # noq
         exec(compile(open(_path).read(), _path, 'exec'))
         TOWNS.append(_town)
         set_ctx(OW)
+
+# ---- smithing: furnaces and anvils on their OSRS tiles (oldschool.runescape.wiki Furnace, Anvil) --
+FORGES = []         # (name, x, y): reported in build/spawns.txt for test scripts
+FORGE_ON = {'FLOOR', 'WOODFLOOR', 'RUG', 'CARPET', 'TABLE', 'CHAIR', 'BARREL', 'CRATE', 'BED', 'DRAWERS',
+            'BOOKCASE', 'POTPLANT', 'SACKS', 'SHELF', 'WARDROBE'}
+
+
+def forge(name, X, Y, t, r=2):
+    """Put a furnace or anvil on the indoor tile nearest (X, Y) (traced buildings are a tile off
+    here and there) that is not beside a door and blocks no way through the room."""
+    walk = lambda x, y: inb(x, y) and TY[y][x] in WALKSET
+
+    def parts(x, y):
+        # walkable areas in a window around (x, y)
+        win = {(x + u, y + v) for u in range(-8, 9) for v in range(-8, 9) if walk(x + u, y + v)}
+        n, seen = 0, set()
+        for q0 in win:
+            if q0 in seen:
+                continue
+            n += 1
+            seen.add(q0)
+            st = [q0]
+            while st:
+                a = st.pop()
+                for (u, v) in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    q = (a[0] + u, a[1] + v)
+                    if q in win and q not in seen:
+                        seen.add(q)
+                        st.append(q)
+        return n
+
+    x0, y0 = cx(X), cy(Y)
+    for d in range(r + 1):
+        ring = sorted(((x0 + u, y0 + v) for u in range(-d, d + 1) for v in range(-d, d + 1) if max(abs(u), abs(v)) == d),
+                      key=lambda q: (abs(q[0] - x0) + abs(q[1] - y0), q))
+        for (x, y) in ring:
+            if not inb(x, y) or TY[y][x] not in FORGE_ON or not ROOF[y][x]:
+                continue
+            nb = [(x + u, y + v) for (u, v) in ((1, 0), (-1, 0), (0, 1), (0, -1))]
+            if any(inb(a, b) and TY[b][a] == 'DOOR' for (a, b) in nb) or not any(walk(a, b) and TY[b][a] != 'DOOR' for (a, b) in nb):
+                continue
+            old = TY[y][x]
+            before = parts(x, y)
+            TY[y][x] = t
+            if parts(x, y) > before:            # it would cut a way through
+                TY[y][x] = old
+                continue
+            FORGES.append((name, x, y))
+            return
+    raise SystemExit('no room for %s near %d,%d' % (name, X, Y))
+
+
+for (_n, _X, _Y) in (('FURNACE_LUMBRIDGE', 3227, 3257), ('FURNACE_ALKHARID', 3273, 3187),
+                     ('FURNACE_FALADOR', 2976, 3369), ('FURNACE_EDGEVILLE', 3110, 3499)):
+    forge(_n, _X, _Y, 'FURNACE')
+for (_n, _X, _Y) in (('ANVIL_VARROCK_W1', 3188, 3426), ('ANVIL_VARROCK_W2', 3188, 3424), ('ANVIL_VARROCK_W3', 3188, 3421),
+                     ('ANVIL_VARROCK_C1', 3228, 3436), ('ANVIL_VARROCK_C2', 3228, 3434),
+                     ('ANVIL_VARROCK_E1', 3246, 3404), ('ANVIL_VARROCK_E2', 3248, 3404),
+                     ('ANVIL_DORIC1', 2950, 3452), ('ANVIL_DORIC2', 2950, 3451)):
+    forge(_n, _X, _Y, 'ANVIL')
 def join_roads():
     """Where a countryside road reaches a town's edge off the town's own streets, pave the gap to
     the nearest street (both follow the OSRS map, but not tile for tile)."""
@@ -2637,7 +2700,8 @@ CHARS.update({'CHECKER': '#', 'VOID': ' ', 'STAIRS': '/', 'TABLE': 'T', 'BED': '
               'PEW': 'n', 'HEDGE': 'h', 'CRATE': 'x', 'FERN': '.', 'RUG': 'r', 'CHAIR': 'c', 'BOOKCASE': 'k',
               'DRAWERS': 'd', 'FIREPLACE': 'F', 'BARREL': 'o', 'WARDROBE': 'w', 'POTPLANT': 'p', 'BIGSTALL': 'L',
               'ANVIL': 'a', 'FURNACE': 'u', 'SHELF': 'k', 'THRONE': 'T', 'WELL': 'O', 'SACKS': 's', 'FLOWERBED': ',',
-              'PALM': 'P', 'BENCH': 'n', 'SUNFLOWER': '*', 'LOWWALL': 'l', 'VFOUNTAIN': 'F'})
+              'PALM': 'P', 'BENCH': 'n', 'SUNFLOWER': '*', 'LOWWALL': 'l', 'VFOUNTAIN': 'F', 'COAL': '5',
+              'SILVER': '6', 'GOLD': '7', 'MITHRIL': '8', 'ADAMANTITE': '9', 'RUNITE': 'y'})
 
 
 def ascii_map():
@@ -2715,7 +2779,9 @@ def rock_image(ore):
                 else:
                     img[y][x] = WC['R0'] if hsh(9, x, y) % 5 else WC['R2']
     if ore:
-        oc, od = {'COPPER': ('CU', 'CUd'), 'TIN': ('TI', 'TId'), 'IRON': ('FE', 'FEd'), 'CLAY': ('S1', 'D1')}[ore]
+        oc, od = {'COPPER': ('CU', 'CUd'), 'TIN': ('TI', 'TId'), 'IRON': ('FE', 'FEd'), 'CLAY': ('S1', 'D1'),
+                  'COAL': ('IR0', 'IR2'), 'SILVER': ('WW1', 'WW3'), 'GOLD': ('GOLD', 'CR2'), 'MITHRIL': ('W0', 'W3'),
+                  'ADAMANTITE': ('CA0', 'CA2'), 'RUNITE': ('W2', 'W1')}[ore]
         for (fx, fy) in ((5, 9), (9, 6), (11, 11), (7, 12), (3, 11)):
             img[fy][fx] = WC[oc]
             img[fy][fx + 1] = WC[od]

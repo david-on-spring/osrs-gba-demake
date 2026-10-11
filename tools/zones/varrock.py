@@ -38,9 +38,9 @@ furnish(palace, ['THRONE', 'TABLE', 'TABLE', 'CHAIR', 'CHAIR', 'BOOKCASE', 'POTP
 inn = building_at(B, 3225, 3398)
 furnish(inn, ['COUNTER', 'COUNTER', 'COUNTER', 'BARREL', 'BARREL', 'TABLE', 'CHAIR', 'CHAIR', 'TABLE', 'CHAIR',
               'CHAIR', 'FIREPLACE'])
-# the anvils west of the square
+# the anvils west of the square (placed by world_gen.forge())
 smith = building_at(B, 3188, 3424)
-furnish(smith, ['ANVIL', 'ANVIL', 'BARREL', 'CRATE'])
+furnish(smith, ['BARREL', 'CRATE'])
 # the museum
 museum = building_at(B, 3258, 3448)
 furnish(museum, ['BOOKCASE', 'BOOKCASE', 'STATUE', 'STATUE', 'SHELF', 'SHELF', 'POTPLANT'])

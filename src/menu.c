@@ -201,42 +201,45 @@ static void draw_equip(void) {
     }
 }
 
-// two columns of six, in the OSRS skill tab's order (combat skills first)
+// the combat skills, then the others in the OSRS skill tab's order (Hitpoints, then its third
+// column from Mining down)
+#define SK_COL0 6
 static const u8 sk_order[SK_COUNT] = {SK_ATTACK, SK_STRENGTH, SK_DEFENCE, SK_RANGED, SK_PRAYER, SK_MAGIC,
-                                      SK_HITPOINTS, SK_MINING, SK_FISHING, SK_COOKING, SK_WOODCUTTING, SK_FIREMAKING};
+                                      SK_HITPOINTS, SK_MINING, SK_SMITHING, SK_FISHING, SK_COOKING,
+                                      SK_FIREMAKING, SK_WOODCUTTING};
 
 static void draw_skills(void) {
     draw_header("Skills");
-    draw_panel(6, 20, 228, 92, 5);
+    draw_panel(6, 20, 228, 95, 5);
     for (int i = 0; i < SK_COUNT; i++) {
-        int c = i / 6, r = i % 6, k = sk_order[i];
-        int x = 10 + c * 112, y = 24 + r * 15;
+        int c = i >= SK_COL0, r = c ? i - SK_COL0 : i, k = sk_order[i];
+        int x = 10 + c * 112, y = 24 + r * 13;
         if (i == sk_sel) {
-            draw_highlight(x, y - 1, 108, 15);
-            cursor_to(x - 8, y + 3);
+            draw_highlight(x, y - 1, 108, 13);
+            cursor_to(x - 8, y + 2);
         }
-        icon_at(x + 4, y - 2, skill_icons[k]);
-        text_draw(x + 24, y + 2, skill_names[k], i == sk_sel ? TC_WHITE : TC_GREY);
+        icon_at(x + 4, y - 3, skill_icons[k]);
+        text_draw(x + 24, y + 1, skill_names[k], i == sk_sel ? TC_WHITE : TC_GREY);
         fmt_int(sbuf, skill_level(k));
-        text_right(x + 102, y + 2, sbuf, TC_GOLD);
+        text_right(x + 102, y + 1, sbuf, TC_GOLD);
     }
-    draw_panel(6, 115, 228, 32, 4);
+    draw_panel(6, 117, 228, 30, 4);
     int sk = sk_order[sk_sel];
     int lvl = skill_level(sk);
     u32 xp = pl.xp[sk] / 10;
-    text_draw(14, 118, skill_names[sk], TC_GOLD);
+    text_draw(14, 120, skill_names[sk], TC_GOLD);
     char *p = sadd(sbuf, "XP ");
     sadd_num(p, xp);
-    text_draw(80, 118, sbuf, TC_WHITE);
+    text_draw(80, 120, sbuf, TC_WHITE);
     if (lvl < 99) {
         u32 next = xp_table[lvl + 1], cur = xp_table[lvl];
         p = sadd(sbuf, "Next ");
         sadd_num(p, next - xp);
-        text_right(226, 118, sbuf, TC_GREY);
-        draw_bar(13, 133, 214, xp - cur, next - cur, PC_GOLD, PC_GOLD);
+        text_right(226, 120, sbuf, TC_GREY);
+        draw_bar(13, 134, 214, xp - cur, next - cur, PC_GOLD, PC_GOLD);
     } else {
-        text_right(226, 118, "Max level!", TC_GOLD);
-        draw_bar(13, 133, 214, 1, 1, PC_GOLD, PC_GOLD);
+        text_right(226, 120, "Max level!", TC_GOLD);
+        draw_bar(13, 134, 214, 1, 1, PC_GOLD, PC_GOLD);
     }
     p = sadd(sbuf, "Total level ");
     sadd_num(p, total_level());
@@ -561,13 +564,14 @@ static void quests_input(void) {
 
 // ---------------------------------------------------------------------------------------
 // Spellbook: every standard spell in book order. A opens Cast / Autocast; casting an alchemy
-// spell then asks for an inventory item.
+// spell or Superheat Item then asks for an inventory item.
 #define SP_ROWS 12
 
 static int spell_icon(int s) {
     const SpellDef *sp = &spells[s];
     if (sp->kind == SPK_TELE) return ICON_SPELL_TELE;
     if (sp->kind == SPK_ALCH) return ICON_SPELL_ALCH;
+    if (sp->kind == SPK_HEAT) return ICON_SPELL_HEAT;
     if (sp->icon) return sp->icon;
     return ICON_SK_MAGIC;
 }
@@ -656,11 +660,13 @@ static void draw_spells(void) {
         draw_panel(162, 20, 72, 98, 5);
         Slot *it = &pl.inv[item_sel];
         draw_item_detail(it->id, it->qty, 162, 20, 72, 0, 0);
-        if (it->id) {
+        if (it->id && spells[sp_sel].kind == SPK_ALCH) {
             char *p = sadd_num(sbuf, items[it->id].value * spells[sp_sel].param / 100);
             sadd(p, " gp");
             text_draw(14, 126, "Alchemy gives", TC_GREY);
             text_right(150, 126, sbuf, TC_GOLD);
+        } else if (spells[sp_sel].kind == SPK_HEAT) {
+            text_draw(14, 126, "Smelts ore into a bar.", TC_GREY);
         }
         draw_footer("Choose an item.", it->id ? "Cast" : 0, "Back");
         return;
@@ -682,7 +688,7 @@ static void spell_choose(int act) {
     const SpellDef *sp = &spells[s];
     switch (act) {
     case SPO_CAST:
-        if (sp->kind == SPK_ALCH) {
+        if (spell_on_item(s)) {
             if (!spell_castable(s, 0)) {
                 sfx(SFX_ERR);
                 break;
@@ -736,7 +742,7 @@ static void spells_input(void) {
             redraw = 1;
         }
         if ((keys_pressed & KEY_A) && pl.inv[item_sel].id) {
-            if (spell_alch(sp_sel, item_sel)) sp_alch = 0;
+            if (spells[sp_sel].kind == SPK_HEAT ? spell_superheat(sp_sel, item_sel) : spell_alch(sp_sel, item_sel)) sp_alch = 0;
             redraw = 1;
         }
         if (keys_pressed & KEY_B) {
@@ -1043,12 +1049,14 @@ void menu_update(void) {
     case P_QUESTS: quests_input(); break;
     case P_SPELLS: spells_input(); break;
     case P_SKILLS: {
-        int c = sk_sel / 6, r = sk_sel % 6;
+        int c = sk_sel >= SK_COL0, r = c ? sk_sel - SK_COL0 : sk_sel;
         if (keys_repeat & (KEY_LEFT | KEY_RIGHT)) c ^= 1;
-        if (keys_repeat & KEY_UP) r = (r + 5) % 6;
-        if (keys_repeat & KEY_DOWN) r = (r + 1) % 6;
-        if (c * 6 + r != sk_sel) {
-            sk_sel = c * 6 + r;
+        int rows = c ? SK_COUNT - SK_COL0 : SK_COL0;
+        if (r >= rows) r = rows - 1;
+        if (keys_repeat & KEY_UP) r = (r + rows - 1) % rows;
+        if (keys_repeat & KEY_DOWN) r = (r + 1) % rows;
+        if ((c ? SK_COL0 + r : r) != sk_sel) {
+            sk_sel = c ? SK_COL0 + r : r;
             sfx(SFX_MOVE);
             redraw = 1;
         }

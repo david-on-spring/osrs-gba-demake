@@ -65,12 +65,12 @@ for line in open(os.path.join(root, 'tools/quests.txt')):
     if m:
         QUEST[m.group(1)] = len(QUEST)
 SKILLS = ['ATTACK', 'STRENGTH', 'DEFENCE', 'HITPOINTS', 'PRAYER', 'WOODCUTTING', 'FIREMAKING', 'FISHING',
-          'COOKING', 'MINING', 'RANGED', 'MAGIC']
+          'COOKING', 'MINING', 'RANGED', 'MAGIC', 'SMITHING']
 EQ = ['HEAD', 'WEAPON', 'BODY', 'SHIELD', 'LEGS', 'FEET', 'NECK', 'AMMO']
 # (src/save.c asserts these against the struct)
 OFF_XP, OFF_INV, OFF_EQUIP, OFF_AMMO, OFF_BANK, OFF_QSTAGE, OFF_QVAR, OFF_SPELL, OFF_PLANE, OFF_HOMECD = \
-    0x20, 0x50, 0xC0, 0xD0, 0xD2, 0x258, 0x268, 0x288, 0x289, 0x28A
-STATES = ['TITLE', 'WORLD', 'MENU', 'DIALOG', 'BANK', 'SHOP', 'LEVELUP', 'QUESTDONE', 'TARGET']   # GS_* in src/game.h
+    0x20, 0x54, 0xC4, 0xD4, 0xD6, 0x25C, 0x26C, 0x28C, 0x28D, 0x28E
+STATES = ['TITLE', 'WORLD', 'MENU', 'DIALOG', 'BANK', 'SHOP', 'LEVELUP', 'QUESTDONE', 'TARGET', 'SMITH']   # GS_* in src/game.h
 NPC_SIZE = 32      # sizeof(Npc), asserted in src/world.c
 # spell names in book order from src/spells.c ("Wind Strike" -> WIND_STRIKE)
 SPELLS = [re.sub(r'\W+', '_', n).strip('_').upper()

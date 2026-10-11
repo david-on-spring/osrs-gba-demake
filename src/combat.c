@@ -73,19 +73,16 @@ int ammo_ok(int arrow, int bow) {
     return need <= have;
 }
 
-// ticks between swings for the wielded weapon (OSRS speeds)
+// ticks between swings for the wielded weapon (OSRS speeds), by weapon class
+static const u8 class_speed[] = {
+    [W_NONE] = 4, [W_DAGGER] = 4, [W_SWORD] = 4, [W_SCIM] = 4, [W_LONG] = 5, [W_2H] = 7, [W_AXE] = 5,
+    [W_BATTLEAXE] = 6, [W_MACE] = 4, [W_WARHAMMER] = 6, [W_CLAWS] = 4, [W_PICK] = 5,
+};
 int weapon_speed(void) {
     int cb = combat_type();   // (a manual cast also takes five ticks)
     if (cb == CB_MAGIC) return 5;
     if (cb == CB_RANGED) return (is_longbow(pl.equip[EQ_WEAPON]) ? 6 : 4) - (pl.style == STYLE_RAPID);
-    switch (pl.equip[EQ_WEAPON]) {
-    case I_BRONZE_AXE: case I_IRON_AXE: case I_STEEL_AXE: case I_MITHRIL_AXE: case I_ADAMANT_AXE:
-    case I_RUNE_AXE: case I_BRONZE_PICK: case I_IRON_PICK: case I_STEEL_PICK: case I_MITHRIL_PICK:
-    case I_ADAMANT_PICK: case I_RUNE_PICK: case I_IRON_MACE: case I_STEEL_LONGSWORD: case I_RUNE_LONGSWORD:
-        return 5;
-    default:
-        return 4;   // unarmed, daggers, swords, scimitars
-    }
+    return class_speed[items[pl.equip[EQ_WEAPON]].wclass];   // unarmed and staves: 4
 }
 
 // the target can be hit from where the player stands: next to it for melee, else within range
@@ -192,22 +189,15 @@ void proj_clear(void) {
 }
 
 // what the wielded weapon hits with in OSRS (its main style): swords, daggers and pickaxes
-// stab; scimitars, longswords and axes slash; fists, maces and staves crush
+// stab; scimitars, longswords, 2h swords, claws and axes slash; fists, maces, warhammers and
+// staves crush
 enum { HIT_STAB, HIT_SLASH, HIT_CRUSH };
-static int melee_type(void) {
-    switch (pl.equip[EQ_WEAPON]) {
-    case I_BRONZE_SWORD: case I_IRON_SWORD: case I_STEEL_SWORD: case I_SILVERLIGHT: case I_BRONZE_DAGGER:
-    case I_BRONZE_PICK: case I_IRON_PICK: case I_STEEL_PICK: case I_MITHRIL_PICK: case I_ADAMANT_PICK:
-    case I_RUNE_PICK:
-        return HIT_STAB;
-    case I_IRON_SCIMITAR: case I_MITHRIL_SCIMITAR: case I_ADAMANT_SCIMITAR: case I_RUNE_SCIMITAR:
-    case I_STEEL_LONGSWORD: case I_RUNE_LONGSWORD: case I_BRONZE_AXE: case I_IRON_AXE: case I_STEEL_AXE:
-    case I_MITHRIL_AXE: case I_ADAMANT_AXE: case I_RUNE_AXE:
-        return HIT_SLASH;
-    default:
-        return HIT_CRUSH;
-    }
-}
+static const u8 class_hit[] = {
+    [W_NONE] = HIT_CRUSH, [W_DAGGER] = HIT_STAB, [W_SWORD] = HIT_STAB, [W_SCIM] = HIT_SLASH,
+    [W_LONG] = HIT_SLASH, [W_2H] = HIT_SLASH, [W_AXE] = HIT_SLASH, [W_BATTLEAXE] = HIT_SLASH,
+    [W_MACE] = HIT_CRUSH, [W_WARHAMMER] = HIT_CRUSH, [W_CLAWS] = HIT_SLASH, [W_PICK] = HIT_STAB,
+};
+static int melee_type(void) { return class_hit[items[pl.equip[EQ_WEAPON]].wclass]; }
 
 // OSRS defence rolls: Defence level with the stab/slash/crush or ranged bonus; spells are
 // defended with the Magic level and the magic bonus (curses lower Defence, not Magic)

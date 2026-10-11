@@ -3,7 +3,7 @@ shot shots/q/v1_title.png
 loadgame
 wait 40
 dump @pl+0x34 1
-dump @pl+0xb8 7
+dump @pl+0xbc 7
 press START
 wait 20
 press DOWN

@@ -396,14 +396,14 @@ void obj_sprite(int x, int y, int tile, int pal, int prio, int hflip, int size16
 #define ICON_BASE ((DYN_TILE_BASE + 48 + 1) & ~1)       // 8bpp tiles must start on an even index
 #define ICON_SLOTS ((1024 - ICON_BASE) / 8)
 static u8 icon_where[ICON_COUNT];                        // slot + 1, 0 = not loaded
-static u8 slot_icon[ICON_SLOTS];
+static u16 slot_icon[ICON_SLOTS];
 static u32 slot_used[ICON_SLOTS];
 static u8 icon_hand;
 u16 icon_loads;                                          // debug counter
 
 static void icon_cache_reset(void) {
     for (int i = 0; i < ICON_COUNT; i++) icon_where[i] = 0;
-    for (int i = 0; i < ICON_SLOTS; i++) slot_icon[i] = 0xFF, slot_used[i] = 0;
+    for (int i = 0; i < ICON_SLOTS; i++) slot_icon[i] = 0xFFFF, slot_used[i] = 0;
 }
 
 static int icon_vram_tile(int icon) {
@@ -415,8 +415,8 @@ static int icon_vram_tile(int icon) {
     for (int n = 0; n < ICON_SLOTS; n++) {
         int k = icon_hand;
         if (++icon_hand >= ICON_SLOTS) icon_hand = 0;
-        if (slot_icon[k] != 0xFF && slot_used[k] + 1 >= frame) continue;
-        if (slot_icon[k] != 0xFF) icon_where[slot_icon[k]] = 0;
+        if (slot_icon[k] != 0xFFFF && slot_used[k] + 1 >= frame) continue;
+        if (slot_icon[k] != 0xFFFF) icon_where[slot_icon[k]] = 0;
         slot_icon[k] = icon;
         icon_where[icon] = k + 1;
         slot_used[k] = frame;

@@ -72,6 +72,8 @@ const Tool *best_tool(const Tool *t, int n, int sk, int *owned);
 void deplete(int x, int y, int p, int type, int respawn_ticks);
 void restore(Depleted *d);
 void skill_tick(void);
+void smith_tick(void);                  // smithing.c: one game tick at a furnace or anvil
+void smith_interact(int t, int x, int y);   // the A button on a furnace or anvil (T_*) at x, y
 void interact(void);                    // the A button in the world
 void npc_talk(int n);                   // talk to an NPC standing next to the player
 void npc_fight(int n);                  // attack an NPC (and target it)
