@@ -52,6 +52,8 @@ typedef struct {
     u8 flags;                     // RF_*
     const u32 *blk[16];           // block (x >> 4 & 3, y >> 4 & 3) at [(y >> 4 & 3) * 4 + (x >> 4 & 3)]; 0 = outside the map
     const u32 *walk;              // 64x64 bits, word (y & 63) * 2 + (x >> 5 & 1), bit x & 31: walkable cells
+    const u32 *edge;              // 0, or four such bitmaps: a wall on the tile's north edge, on its west
+                                  // edge (both block walking), then the walls that also block projectiles
 } MapRegion;
 extern const MapRegion map_regions[MAP_REGION_COUNT];
 extern const u16 map_bounds[PLANE_COUNT][4];   // x0, y0, x1, y1 of each floor (x0 > x1: no such floor)
@@ -69,8 +71,11 @@ extern const PalRegion pal_regions[PAL_REGION_COUNT];
 
 
 def emit_regions(w, c, arr):
-    streams, walks = {}, {}      # identical blocks / bitmaps are stored once
-    for (p, rx, ry, ps, fl, blocks, walk) in w.MAP_REGIONS:
+    streams, walks, edges = {}, {}, {}      # identical blocks / bitmaps are stored once
+    for (p, rx, ry, ps, fl, blocks, walk, edge) in w.MAP_REGIONS:
+        if edge is not None and tuple(edge) not in edges:
+            edges[tuple(edge)] = len(edges)
+            c.append(arr('u32', 'me_%d[512]' % edges[tuple(edge)], edge, 8, '0x%08X').replace('const u32', 'static const u32'))
         for b in blocks:
             if b is not None and b not in streams:
                 streams[b] = len(streams)
@@ -81,14 +86,15 @@ def emit_regions(w, c, arr):
             walks[k] = len(walks)
             c.append(arr('u32', 'mw_%d[128]' % walks[k], walk, 8, '0x%08X').replace('const u32', 'static const u32'))
     c.append('const MapRegion map_regions[MAP_REGION_COUNT] = {')
-    for (p, rx, ry, ps, fl, blocks, walk) in w.MAP_REGIONS:
-        c.append('  {%d, %d, %d, %d, %d, {%s}, mw_%d},' % (rx, ry, p, ps, fl, ', '.join(
-            'mb_%d' % streams[b] if b is not None else '0' for b in blocks), walks[tuple(walk)]))
+    for (p, rx, ry, ps, fl, blocks, walk, edge) in w.MAP_REGIONS:
+        c.append('  {%d, %d, %d, %d, %d, {%s}, mw_%d, %s},' % (rx, ry, p, ps, fl, ', '.join(
+            'mb_%d' % streams[b] if b is not None else '0' for b in blocks), walks[tuple(walk)],
+            'me_%d' % edges[tuple(edge)] if edge is not None else '0'))
     c.append('};')
     nb = sum(1 for r in w.MAP_REGIONS for b in r[5] if b is not None)
-    print('regions: %d (planes %s), %d blocks (%d stored), %d bytes compressed of %d, %d walk bitmaps' % (
+    print('regions: %d (planes %s), %d blocks (%d stored), %d bytes compressed of %d, %d walk bitmaps, %d edge sets' % (
         len(w.MAP_REGIONS), ','.join(str(p) for p in sorted(w.BOUNDS)), nb, len(streams), sum(len(b) for b in streams),
-        nb * 1536, len(walks)), file=sys.stderr)
+        nb * 1536, len(walks), len(edges)), file=sys.stderr)
 
 
 def emit_source(w, c, arr, tile_words, npc_kinds):

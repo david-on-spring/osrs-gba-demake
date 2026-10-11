@@ -25,12 +25,13 @@ static const Resource rocks[] = {
     {T_MITHRIL, 55, 800, 4, 50, I_MITHRIL_ORE, 255, 200},
     {T_ADAMANTITE, 70, 950, 2, 25, I_ADAMANT_ORE, 255, 400},
     {T_RUNITE, 85, 1250, 1, 18, I_RUNE_ORE, 255, 1200},
+    {T_BLURITE, 10, 175, 90, 250, I_BLURITE_ORE, 255, 42},
 };
 static const char *const rock_msgs[] = {
     "You manage to mine some copper.", "You manage to mine some tin.", "You manage to mine some iron.",
     "You manage to mine some clay.", "You manage to mine some coal.", "You manage to mine some silver.",
     "You manage to mine some gold.", "You manage to mine some mithril.", "You manage to mine some adamantite.",
-    "You manage to mine some runite.",
+    "You manage to mine some runite.", "You manage to mine some blurite.",
 };
 #define NROCKS (int)(sizeof(rocks) / sizeof(rocks[0]))
 typedef struct { u8 raw, cooked, burnt, level; u16 xp; u8 low; u16 high; } Recipe;
@@ -257,7 +258,7 @@ void skill_tick(void) {
             static const u8 order[4] = {DIR_LEFT, DIR_RIGHT, DIR_DOWN, DIR_UP};
             for (int k = 0; k < 4; k++) {
                 int d = order[k];
-                if (free_tile(pl.x + DX[d], pl.y + DY[d], pl.plane)) {
+                if (step_free(pl.x, pl.y, pl.plane, d)) {
                     pl.x += DX[d];
                     pl.y += DY[d];
                     pl.moving = 1;
@@ -386,6 +387,7 @@ void npc_fight(int n) {
 
 void interact(void) {
     int fx = pl.x + DX[pl.dir], fy = pl.y + DY[pl.dir];
+    if (wall_dir(pl.x, pl.y, pl.plane, pl.dir, 0)) return;   // facing a wall: nothing beyond it
     int n = in_map(fx, fy, pl.plane) ? npc_at(fx, fy, pl.plane) : -1;
     if (n >= 0) {
         const NpcDef *d = &npc_defs[npcs[n].kind];

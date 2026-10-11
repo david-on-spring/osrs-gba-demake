@@ -2,16 +2,19 @@
 // Superheat Item spell. Levels, XP, materials, outputs and ticks follow the OSRS Wiki.
 #include "world_internal.h"
 
-// furnace interface order (OSRS minus blurite): bar, ore, second ore x count, level, ticks, XP
+// furnace interface order: bar, ore, second ore x count, level, ticks, XP, how many, tool needed.
+// Cannonballs pour a steel bar into an ammo mould.
 const SmeltDef smelt_defs[SMELT_N] = {
-    {I_BRONZE_BAR, I_COPPER_ORE, I_TIN_ORE, 1, 1, 5, 62},
-    {I_IRON_BAR, I_IRON_ORE, 0, 0, 15, 4, 125},
-    {I_SILVER_BAR, I_SILVER_ORE, 0, 0, 20, 4, 137},
-    {I_STEEL_BAR, I_IRON_ORE, I_COAL, 2, 30, 4, 175},
-    {I_GOLD_BAR, I_GOLD_ORE, 0, 0, 40, 5, 225},
-    {I_MITHRIL_BAR, I_MITHRIL_ORE, I_COAL, 4, 50, 4, 300},
-    {I_ADAMANT_BAR, I_ADAMANT_ORE, I_COAL, 6, 70, 4, 375},
-    {I_RUNE_BAR, I_RUNE_ORE, I_COAL, 8, 85, 4, 500},
+    {I_BRONZE_BAR, I_COPPER_ORE, I_TIN_ORE, 1, 1, 5, 62, 1, 0},
+    {I_BLURITE_BAR, I_BLURITE_ORE, 0, 0, 13, 4, 80, 1, 0},
+    {I_IRON_BAR, I_IRON_ORE, 0, 0, 15, 4, 125, 1, 0},
+    {I_SILVER_BAR, I_SILVER_ORE, 0, 0, 20, 4, 137, 1, 0},
+    {I_STEEL_BAR, I_IRON_ORE, I_COAL, 2, 30, 4, 175, 1, 0},
+    {I_GOLD_BAR, I_GOLD_ORE, 0, 0, 40, 5, 225, 1, 0},
+    {I_MITHRIL_BAR, I_MITHRIL_ORE, I_COAL, 4, 50, 4, 300, 1, 0},
+    {I_ADAMANT_BAR, I_ADAMANT_ORE, I_COAL, 6, 70, 4, 375, 1, 0},
+    {I_RUNE_BAR, I_RUNE_ORE, I_COAL, 8, 85, 4, 500, 1, 0},
+    {I_CANNONBALL, I_STEEL_BAR, 0, 0, 35, 8, 256, 4, I_AMMO_MOULD},
 };
 
 // anvil interface order: weapons, armour, then ammunition and parts (and the tier's specials)
@@ -25,6 +28,9 @@ static const SmithDef anvil_bronze[] = {
     {I_BRONZE_NAILS, 4, 1, 15}, {I_BRONZE_DART_TIP, 4, 1, 10}, {I_BRONZE_ARROWTIPS, 5, 1, 15},
     {I_BRONZE_KNIFE, 7, 1, 5}, {I_BRONZE_JAVELIN_TIPS, 6, 1, 5}, {I_BRONZE_BOLTS, 3, 1, 10},
     {I_BRONZE_LIMBS, 6, 1, 1}, {I_BRONZE_WIRE, 4, 1, 1},
+};
+static const SmithDef anvil_blurite[] = {
+    {I_BLURITE_BOLTS, 8, 1, 10}, {I_BLURITE_LIMBS, 13, 1, 1},
 };
 static const SmithDef anvil_iron[] = {
     {I_IRON_DAGGER, 15, 1, 1}, {I_IRON_SWORD, 19, 1, 1}, {I_IRON_SCIMITAR, 20, 2, 1},
@@ -84,7 +90,8 @@ static const SmithDef anvil_rune[] = {
 #define TIER(bar, xp, name, list) {bar, xp, name, list, sizeof(list) / sizeof(list[0])}
 // XP is per bar used
 const AnvilTier anvil_tiers[ANVIL_TIERS] = {
-    TIER(I_BRONZE_BAR, 125, "bronze", anvil_bronze), TIER(I_IRON_BAR, 250, "iron", anvil_iron),
+    TIER(I_BRONZE_BAR, 125, "bronze", anvil_bronze), TIER(I_BLURITE_BAR, 175, "blurite", anvil_blurite),
+    TIER(I_IRON_BAR, 250, "iron", anvil_iron),
     TIER(I_STEEL_BAR, 375, "steel", anvil_steel), TIER(I_MITHRIL_BAR, 500, "mithril", anvil_mithril),
     TIER(I_ADAMANT_BAR, 625, "adamantite", anvil_adamant), TIER(I_RUNE_BAR, 750, "runite", anvil_rune),
 };
@@ -96,6 +103,7 @@ u16 smith_left;
 
 int smelt_max(int k) {
     const SmeltDef *d = &smelt_defs[k];
+    if (d->tool && !inv_count(d->tool)) return 0;
     int n = inv_count(d->ore);
     if (d->ore2) {
         int m = inv_count(d->ore2) / d->n2;
@@ -149,13 +157,21 @@ int smith_start(int furnace, int k, int i, int count) {
         const SmeltDef *d = &smelt_defs[k];
         if (skill_level(SK_SMITHING) < d->level) {
             char what[40];
-            put_metal(put(what, "smelt "), d->bar);
+            if (d->tool) put(what, "make cannonballs");
+            else put_metal(put(what, "smelt "), d->bar);
             need_level(d->level, what);
             return 0;
         }
+        if (d->tool && !inv_count(d->tool)) {
+            msg("You need an ammo mould to make cannonballs.");
+            sfx(SFX_ERR);
+            return 0;
+        }
         if (!smelt_max(k)) {
-            char buf[64], *p = put(buf, "You don't have the ore to smelt ");
-            put(put_metal(p, d->bar), ".");
+            char buf[64], *p = put(buf, d->tool ? "You don't have any bars to pour into " : "You don't have the ore to smelt ");
+            if (d->tool) p = put(p, "the mould");
+            else p = put_metal(p, d->bar);
+            put(p, ".");
             msg(buf);
             sfx(SFX_ERR);
             return 0;
@@ -188,27 +204,42 @@ int smith_start(int furnace, int k, int i, int count) {
     pl.tx = pl.x + DX[pl.dir];
     pl.ty = pl.y + DY[pl.dir];
     pl.action_timer = 0;
-    if (furnace) msg(smelt_defs[k].ore2 == I_TIN_ORE ? "You smelt the copper and tin together in the furnace."
+    if (furnace) msg(smelt_defs[k].tool ? "You heat the steel bar into a liquid state."
+                     : smelt_defs[k].ore2 == I_TIN_ORE ? "You smelt the copper and tin together in the furnace."
                      : smelt_defs[k].ore2 ? "You place the ore and coal into the furnace." : "You place the ore into the furnace.");
     return 1;
 }
 
 static int is_bolts(int id) {
-    return id == I_BRONZE_BOLTS || id == I_IRON_BOLTS || id == I_STEEL_BOLTS || id == I_MITHRIL_BOLTS ||
+    return id == I_BRONZE_BOLTS || id == I_IRON_BOLTS || id == I_STEEL_BOLTS || id == I_MITHRIL_BOLTS ||   // (not blurite)
            id == I_ADAMANT_BOLTS || id == I_RUNE_BOLTS;
 }
 
-// one bar from the ores in the inventory; iron alone (no coal) refines half the time unless
-// superheated
+// one bar from the ores in the inventory. Iron alone (no coal) refines half the time, unless
+// superheated or a ring of forging is worn (each bar uses one of its 140 charges); goldsmith
+// gauntlets make gold bars worth 56.2 XP.
+#define FORGING_CHARGES 140
 static void smelt_one(const SmeltDef *d, int sure) {
     inv_remove(d->ore, 1);
     if (d->ore2) inv_remove(d->ore2, d->n2);
-    if (d->bar == I_IRON_BAR && !sure && rnd_range(2)) {
-        msg("The ore is too impure and you fail to refine it.");
+    if (d->bar == I_IRON_BAR && !sure) {
+        if (pl.equip[EQ_RING] == I_RING_FORGING) {
+            if (++pl.forging >= FORGING_CHARGES) {
+                pl.equip[EQ_RING] = 0;
+                pl.forging = 0;
+                msg_col("Your Ring of Forging has melted.", TC_RED);
+            }
+        } else if (rnd_range(2)) {
+            msg("The ore is too impure and you fail to refine it.");
+            return;
+        }
+    }
+    inv_add(d->bar, d->out);
+    add_xp(SK_SMITHING, d->bar == I_GOLD_BAR && pl.equip[EQ_HANDS] == I_GOLDSMITH_GAUNTLETS ? 562 : d->xp);
+    if (d->tool) {
+        msg("You remove the cannonballs from the mould.");
         return;
     }
-    inv_add(d->bar, 1);
-    add_xp(SK_SMITHING, d->xp);
     char buf[48];
     put(put_metal(put(buf, "You retrieve a bar of "), d->bar), ".");
     msg(buf);
@@ -270,7 +301,7 @@ int spell_superheat(int s, int slot) {
     int k = -1;
     for (int i = SMELT_N - 1; i >= 0; i--) {
         const SmeltDef *d = &smelt_defs[i];
-        if (d->ore != ore && d->ore2 != ore) continue;
+        if ((d->ore != ore && d->ore2 != ore) || d->tool) continue;   // (cannonballs need a furnace)
         if (ore == I_COAL) continue;
         // iron: steel when there is coal for it and the level allows, else iron
         if (d->bar == I_STEEL_BAR && (inv_count(I_COAL) < 2 || skill_level(SK_SMITHING) < d->level)) continue;

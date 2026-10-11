@@ -17,7 +17,7 @@ wait 10
 expectitem 9 ONION
 # burn some cooked meat on the castle range
 item 10 COOKED_MEAT
-tpz OVERWORLD 3206 3215 UP
+tpz OVERWORLD 3212 3214 UP
 press A
 wait 10
 expectitem 10 BURNT_MEAT

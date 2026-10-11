@@ -84,7 +84,13 @@ int world_over(int x, int y, int p) {
     return (o && (o->mask & OV_OVER)) ? o->over : map_over_at(x, y, p);
 }
 
-int world_roof(int x, int y, int p) { return map_roof_at(x, y, p); }
+// a roof byte with bit 7 set is the eave of group (r & 0x7F) hanging over a cell outside it (walls
+// stand a few pixels tall, so a roof drawn on top of them reaches into the row north of its
+// building): drawn and hidden with that roof, but nobody standing there is under it
+int world_roof(int x, int y, int p) {
+    int r = map_roof_at(x, y, p);
+    return r & 0x80 ? 0 : r;
+}
 
 // everything draw_tile() needs from one cell (the cell must be in_map)
 void world_cell_gfx(int x, int y, int p, int *meta, int *over, int *roof) {
@@ -146,6 +152,23 @@ int walkable(int x, int y, int p) {
 
 int free_tile(int x, int y, int p) {
     return walkable(x, y, p) && npc_at(x, y, p) < 0 && !(pl.x == x && pl.y == y && pl.plane == p);
+}
+
+// a wall on the edge between (x, y) and its neighbour in direction dir (walls stand on tile
+// edges, as in OSRS); shot: only walls that stop projectiles (fences do not)
+int wall_dir(int x, int y, int p, int dir, int shot) {
+    int k = shot ? 2 : 0;
+    switch (dir) {
+    case DIR_UP: return map_edge_at(x, y, p, k);
+    case DIR_DOWN: return map_edge_at(x, y - 1, p, k);
+    case DIR_LEFT: return map_edge_at(x, y, p, k + 1);
+    default: return map_edge_at(x + 1, y, p, k + 1);
+    }
+}
+
+// one step from (x, y) in direction dir onto a free tile, through no wall
+int step_free(int x, int y, int p, int dir) {
+    return !wall_dir(x, y, p, dir, 0) && free_tile(x + DX[dir], y + DY[dir], p);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -411,6 +434,8 @@ void world_new_game(void) {
     for (int i = 0; i < 96; i++) p->bank[i].id = p->bank[i].qty = 0;
     for (int i = 0; i < EQ_COUNT; i++) p->equip[i] = 0;
     p->ammo_qty = 0;
+    p->weapon_qty = 0;
+    p->forging = 0;
     p->spell = 0;
     p->home_cd = 0;
     for (int i = 0; i < SK_COUNT; i++) p->xp[i] = 0;
@@ -530,7 +555,7 @@ static void start_step(int dir) {
             return;
         }
     }
-    if (!free_tile(nx, ny, pl.plane)) return;
+    if (!step_free(pl.x, pl.y, pl.plane, dir)) return;
     pl.x = nx;
     pl.y = ny;
     pl.moving = 1;
@@ -539,7 +564,7 @@ static void start_step(int dir) {
 static void npc_step(Npc *n, int dir) {
     n->dir = dir;
     int nx = n->x + DX[dir], ny = n->y + DY[dir];
-    if (!free_tile(nx, ny, n->plane)) return;
+    if (!step_free(n->x, n->y, n->plane, dir)) return;
     occ_clear(n->x, n->y, n->plane);
     n->x = nx;
     n->y = ny;
@@ -558,9 +583,12 @@ static int dir_toward(int fx, int fy, int tx, int ty, int alt) {
     return -1;
 }
 
-int adjacent(int ax, int ay, int bx, int by) {
-    int dx = ax - bx, dy = ay - by;
-    return (dx == 0 && (dy == 1 || dy == -1)) || (dy == 0 && (dx == 1 || dx == -1));
+// next to each other with no wall between (melee and talking reach)
+int adjacent(int ax, int ay, int bx, int by, int p) {
+    int dx = bx - ax, dy = by - ay;
+    if (dx == 0 && (dy == 1 || dy == -1)) return !wall_dir(ax, ay, p, dy > 0 ? DIR_UP : DIR_DOWN, 0);
+    if (dy == 0 && (dx == 1 || dx == -1)) return !wall_dir(ax, ay, p, dx > 0 ? DIR_RIGHT : DIR_LEFT, 0);
+    return 0;
 }
 
 static int dist(int ax, int ay, int bx, int by) {
@@ -585,10 +613,19 @@ int clear_shot(int ax, int ay, int bx, int by, int p) {
     dx = dx < 0 ? -dx : dx;
     dy = dy < 0 ? -dy : dy;
     int err = dx - dy, x = ax, y = ay;
+    int hx = sx > 0 ? DIR_RIGHT : DIR_LEFT, vy = sy > 0 ? DIR_UP : DIR_DOWN;
     for (;;) {
-        int e2 = 2 * err;
-        if (e2 > -dy) err -= dy, x += sx;
-        if (e2 < dx) err += dx, y += sy;
+        int e2 = 2 * err, mx = e2 > -dy, my = e2 < dx;
+        // walls on the edges crossed; a diagonal step gets through if either corner path is open
+        if (mx && my) {
+            if ((wall_dir(x, y, p, hx, 1) || wall_dir(x + sx, y, p, vy, 1)) &&
+                (wall_dir(x, y, p, vy, 1) || wall_dir(x, y + sy, p, hx, 1)))
+                return 0;
+        } else if (mx ? wall_dir(x, y, p, hx, 1) : wall_dir(x, y, p, vy, 1)) {
+            return 0;
+        }
+        if (mx) err -= dy, x += sx;
+        if (my) err += dx, y += sy;
         if (x == bx && y == by) return 1;
         if (blocks_shot(x, y, p)) return 0;
     }
@@ -599,7 +636,7 @@ static void step_toward(int tx, int ty) {
     for (int alt = 0; alt < 2; alt++) {
         int d = dir_toward(pl.x, pl.y, tx, ty, alt);
         if (d < 0) return;
-        if (free_tile(pl.x + DX[d], pl.y + DY[d], pl.plane)) {
+        if (step_free(pl.x, pl.y, pl.plane, d)) {
             start_step(d);
             return;
         }
@@ -610,7 +647,7 @@ static void npc_step_toward(Npc *n, int tx, int ty) {
     for (int alt = 0; alt < 2; alt++) {
         int d = dir_toward(n->x, n->y, tx, ty, alt);
         if (d < 0) return;
-        if (free_tile(n->x + DX[d], n->y + DY[d], n->plane)) {
+        if (step_free(n->x, n->y, n->plane, d)) {
             npc_step(n, d);
             return;
         }
@@ -675,7 +712,7 @@ static void game_tick(void) {
         Npc *n = &npcs[pl.target];
         if (!n->active || npc_dist(n) > 12) {
             player_stop();
-        } else if (!adjacent(pl.x, pl.y, n->x, n->y)) {
+        } else if (!adjacent(pl.x, pl.y, n->x, n->y, pl.plane)) {
             if (!pl.moving) step_toward(n->x, n->y);
         } else if (!pl.moving && !n->moving) {
             pl.dir = dir_toward(pl.x, pl.y, n->x, n->y, 0);
@@ -739,7 +776,7 @@ static void game_tick(void) {
                 continue;
             }
             // casters (dark wizards) fight from up to 7 cells away; everyone else walks up
-            int reach = adjacent(n->x, n->y, pl.x, pl.y) ||
+            int reach = adjacent(n->x, n->y, pl.x, pl.y, pl.plane) ||
                         (d->magic_max && npc_dist(n) <= 7 && clear_shot(n->x, n->y, pl.x, pl.y, pl.plane));
             if (!reach) {
                 if (!n->bound && (!pl.moving || pl.action == ACT_COMBAT)) npc_step_toward(n, pl.x, pl.y);

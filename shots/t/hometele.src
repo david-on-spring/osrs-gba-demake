@@ -20,7 +20,7 @@ press RIGHT
 wait 750
 expectstate WORLD
 expectat OVERWORLD 3286 3306
-expect16 @pl+0x28e 0 no_cooldown_after_interrupt
+expect16 @pl+0x292 0 no_cooldown_after_interrupt
 # --- cast it again and wait it out
 tpz OVERWORLD 3286 3306 DOWN
 press START

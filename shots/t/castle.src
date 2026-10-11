@@ -2,26 +2,36 @@ wait 60
 newgame
 wait 60
 # ground floor north-west staircase -> first floor -> second floor (the bank)
-tpz OVERWORLD 3205 3229 LEFT
+tpz OVERWORLD 3206 3228 LEFT
 press LEFT
 wait 40
-expectat CASTLE_1 3205 3229
+expectat CASTLE_1 3206 3228
 press LEFT
 press LEFT
 choose 0
 wait 40
-expectat CASTLE_2 3205 3229
+expectat CASTLE_2 3206 3228
 shot shots/t/castle_bank_floor.png
 # and back down the south-west tower
-tpz CASTLE_2 3205 3205 LEFT
+tpz CASTLE_2 3206 3206 LEFT
 press LEFT
 wait 40
-expectat CASTLE_1 3205 3205
+expectat CASTLE_1 3206 3206
 press LEFT
 press LEFT
 choose 1
 wait 40
-expectat LUMBRIDGE 3205 3205
+expectat LUMBRIDGE 3206 3206
+# the kitchen trapdoor down to the cellar, and the ladder back up
+face obj:TRAPDOOR LEFT
+press A
+wait 40
+expectat CELLAR 3210 3216
+shot shots/t/castle_cellar.png
+tpz CELLAR 3210 3216 LEFT
+press A
+wait 40
+expectat LUMBRIDGE 3210 3216
 # out of town to the west and back in: one world, no warp
 tpz LUMBRIDGE 3187 3245 LEFT
 press LEFT

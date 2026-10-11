@@ -1770,6 +1770,13 @@ talk HANS
   npc "Ahh, I see all the newcomers arriving in Lumbridge, fresh-faced and eager for adventure. I remember you..."
   playtime
 
+# Lumbridge Castle's cellar: the trapdoor in the kitchen (the ladder under it is with the other
+# ladders, obj LADDER)
+obj TRAPDOOR
+  chat "You climb down through the trapdoor."
+  warp CELLAR_DOWN RIGHT
+  end
+
 # Lumbridge Castle's spiral staircases (north-west and south-west towers). The ground floor only
 # goes up, the top floor only down; the first floor asks.
 obj STAIRS
@@ -1818,4 +1825,35 @@ obj STAIRS
 :s2
   chat "You climb down the stairs."
   warp ARRIVE_S1 RIGHT
+  end
+
+# Ladders: the Mining Guild's (Falador; Mining 60 to go down to the mine) and Mudskipper Point's,
+# down to the Asgarnian Ice Dungeon
+obj LADDER
+  if near CELLAR_LADDER 2 goto cellar
+  if near GUILD_LADDER_UP 2 goto up
+  if near ICE_LADDER_DOWN 2 goto icedown
+  if near ICE_LADDER_UP 2 goto iceup
+  if not level MINING >= 60 goto low
+  chat "You climb down the ladder."
+  warp GUILD_BOTTOM RIGHT
+  end
+:low
+  chat "Sorry, but you need level 60 Mining to go in there."
+  end
+:up
+  chat "You climb up the ladder."
+  warp GUILD_TOP DOWN
+  end
+:cellar
+  chat "You climb up the ladder."
+  warp CELLAR_UP RIGHT
+  end
+:icedown
+  chat "You climb down the ladder."
+  warp ICE_BOTTOM DOWN
+  end
+:iceup
+  chat "You climb up the ladder."
+  warp ICE_TOP UP
   end

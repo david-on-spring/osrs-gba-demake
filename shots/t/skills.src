@@ -34,7 +34,7 @@ shot shots/t/skills_fire.png
 # --- Cooking: raw shrimp on the castle kitchen range (level 40: no burning)
 xp COOKING 400000
 item 3 RAW_SHRIMP
-tpz OVERWORLD 3206 3215 UP
+tpz OVERWORLD 3212 3214 UP
 press A
 until8 @pl+0x60 f 1000
 world

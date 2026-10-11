@@ -50,7 +50,7 @@ shot shots/q/pirate_message.png
 dlg
 world
 item 10 SPADE
-tpz FALADOR 3004 3374 DOWN
+tpz FALADOR 3004 3371 DOWN
 press START
 wait 20
 press A

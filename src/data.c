@@ -5,6 +5,7 @@
 // the fields after the icon, for ranged and magic gear
 #define BOW(req, val, ratk) IF_EQUIP | IF_RANGED, EQ_WEAPON, req, 0, 0, 0, 0, val, TIER_WOOD, ratk, 0, 0
 #define ARROW(req, val, rstr, tier) IF_EQUIP | IF_RANGED | IF_STACK, EQ_AMMO, req, 0, 0, 0, 0, val, tier, 0, rstr, 0
+#define THROWN(req, val, ratk, rstr, tier) IF_EQUIP | IF_RANGED | IF_STACK, EQ_WEAPON, req, 0, 0, 0, 0, val, tier, ratk, rstr, 0
 #define STAFF(a, s, val, matk) IF_EQUIP | IF_MAGIC, EQ_WEAPON, 1, a, s, 0, 0, val, TIER_WOOD, 0, 0, matk
 
 const ItemDef items[I_COUNT] = {
@@ -191,6 +192,14 @@ const ItemDef items[I_COUNT] = {
     [I_BLOOD_RUNE] = {"Blood rune", "Used for high level missile spells.", ICON_BLOOD_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 400, 0},
     [I_SOUL_RUNE] = {"Soul rune", "Used for high level curse spells.", ICON_SOUL_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 300, 0},
     [I_WRATH_RUNE] = {"Wrath rune", "Used for the most powerful missile spells.", ICON_WRATH_RUNE, IF_STACK, 0, 0, 0, 0, 0, 0, 400, 0},
+    [I_BLURITE_ORE] = {"Blurite ore", "Definitely blue.", ICON_BLURITE_ORE, 0, 0, 0, 0, 0, 0, 0, 3, 0},
+    [I_BLURITE_BAR] = {"Blurite bar", "It's a bar of blurite.", ICON_BLURITE_BAR, 0, 0, 0, 0, 0, 0, 0, 18, 0},
+    [I_BLURITE_BOLTS] = {"Blurite bolts (unf)", "Unfeathered blurite crossbow bolts.", ICON_BLURITE_BOLTS, IF_STACK, 0, 0, 0, 0, 0, 0, 1, 0},
+    [I_BLURITE_LIMBS] = {"Blurite limbs", "A pair of blurite crossbow limbs.", ICON_BLURITE_LIMBS, 0, 0, 0, 0, 0, 0, 0, 33, 0},
+    [I_RING_FORGING] = {"Ring of forging", "An enchanted ring.", ICON_RING_FORGING, IF_EQUIP, EQ_RING, 1, 0, 0, 0, 0, 2025, 0},
+    [I_GOLDSMITH_GAUNTLETS] = {"Goldsmith gauntlets", "These gauntlets empower the bearer whilst making gold.", ICON_GOLDSMITH_GAUNTLETS, IF_EQUIP, EQ_HANDS, 1, 0, 0, 9, 0, 1, 0},
+    [I_AMMO_MOULD] = {"Ammo mould", "Used to make cannon ammunition.", ICON_AMMO_MOULD, 0, 0, 0, 0, 0, 0, 0, 5, 0},
+    [I_CANNONBALL] = {"Steel cannonball", "Ammo suited for a boat's cannon or for a dwarf multicannon.", ICON_CANNONBALL, IF_STACK, 0, 0, 0, 0, 0, 0, 5, 0},
     // smithing (OSRS Wiki values and examines). Weapons: the best of stab/slash/crush attack and
     // strength; armour: the better of stab and slash defence. The last field is the weapon class.
     [I_BRONZE_BAR] = {"Bronze bar", "It's a bar of bronze.", ICON_BRONZE_BAR, 0, 0, 0, 0, 0, 0, 0, 8, 0},
@@ -217,7 +226,7 @@ const ItemDef items[I_COUNT] = {
     [I_BRONZE_NAILS] = {"Bronze nails", "Keeps things in place fairly permanently.", ICON_BRONZE_NAILS, IF_STACK, 0, 0, 0, 0, 0, 0, 2, 0},
     [I_BRONZE_DART_TIP] = {"Bronze dart tip", "A deadly looking dart tip made of bronze - needs feathers for flight.", ICON_BRONZE_DART_TIP, IF_STACK, 0, 0, 0, 0, 0, 0, 1, 0},
     [I_BRONZE_ARROWTIPS] = {"Bronze arrowtips", "I can make some arrows with these.", ICON_BRONZE_ARROWTIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 1, 0},
-    [I_BRONZE_KNIFE] = {"Bronze knife", "A finely balanced throwing knife.", ICON_BRONZE_KNIFE, IF_STACK, 0, 0, 0, 0, 0, 0, 1, 0},
+    [I_BRONZE_KNIFE] = {"Bronze knife", "A finely balanced throwing knife.", ICON_BRONZE_KNIFE, THROWN(1, 1, 4, 3, TIER_BRONZE)},
     [I_BRONZE_JAVELIN_TIPS] = {"Bronze javelin tips", "Needs a shaft.", ICON_BRONZE_JAVELIN_TIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 25, 0},
     [I_BRONZE_BOLTS] = {"Bronze bolts (unf)", "Unfeathered bronze crossbow bolts.", ICON_BRONZE_BOLTS, IF_STACK, 0, 0, 0, 0, 0, 0, 1, 0},
     [I_BRONZE_LIMBS] = {"Bronze limbs", "A pair of bronze crossbow limbs.", ICON_BRONZE_LIMBS, 0, 0, 0, 0, 0, 0, 0, 20, 0},
@@ -231,7 +240,7 @@ const ItemDef items[I_COUNT] = {
     [I_IRON_NAILS] = {"Iron nails", "Keeps things in place fairly permanently.", ICON_IRON_NAILS, IF_STACK, 0, 0, 0, 0, 0, 0, 4, 0},
     [I_IRON_DART_TIP] = {"Iron dart tip", "A deadly looking dart tip made of iron - needs feathers for flight.", ICON_IRON_DART_TIP, IF_STACK, 0, 0, 0, 0, 0, 0, 3, 0},
     [I_IRON_ARROWTIPS] = {"Iron arrowtips", "I can make some arrows with these.", ICON_IRON_ARROWTIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 2, 0},
-    [I_IRON_KNIFE] = {"Iron knife", "A finely balanced throwing knife.", ICON_IRON_KNIFE, IF_STACK, 0, 0, 0, 0, 0, 0, 3, 0},
+    [I_IRON_KNIFE] = {"Iron knife", "A finely balanced throwing knife.", ICON_IRON_KNIFE, THROWN(1, 3, 5, 4, TIER_IRON)},
     [I_IRON_JAVELIN_TIPS] = {"Iron javelin tips", "Needs a shaft.", ICON_IRON_JAVELIN_TIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 35, 0},
     [I_IRON_BOLTS] = {"Iron bolts (unf)", "Unfeathered iron crossbow bolts.", ICON_IRON_BOLTS, IF_STACK, 0, 0, 0, 0, 0, 0, 1, 0},
     [I_IRON_LIMBS] = {"Iron limbs", "A pair of iron crossbow limbs.", ICON_IRON_LIMBS, 0, 0, 0, 0, 0, 0, 0, 70, 0},
@@ -251,7 +260,7 @@ const ItemDef items[I_COUNT] = {
     [I_STEEL_NAILS] = {"Steel nails", "Keeps things in place fairly permanently.", ICON_STEEL_NAILS, IF_STACK, 0, 0, 0, 0, 0, 0, 3, 0},
     [I_STEEL_DART_TIP] = {"Steel dart tip", "A deadly-looking dart tip made of steel - needs feathers for flight.", ICON_STEEL_DART_TIP, IF_STACK, 0, 0, 0, 0, 0, 0, 5, 0},
     [I_STEEL_ARROWTIPS] = {"Steel arrowtips", "I can make some arrows with these.", ICON_STEEL_ARROWTIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 6, 0},
-    [I_STEEL_KNIFE] = {"Steel knife", "A finely balanced throwing knife.", ICON_STEEL_KNIFE, IF_STACK, 0, 0, 0, 0, 0, 0, 11, 0},
+    [I_STEEL_KNIFE] = {"Steel knife", "A finely balanced throwing knife.", ICON_STEEL_KNIFE, THROWN(5, 11, 8, 7, TIER_STEEL)},
     [I_STEEL_JAVELIN_TIPS] = {"Steel javelin tips", "Needs a shaft.", ICON_STEEL_JAVELIN_TIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 90, 0},
     [I_STEEL_BOLTS] = {"Steel bolts (unf)", "Unfeathered steel crossbow bolts.", ICON_STEEL_BOLTS, IF_STACK, 0, 0, 0, 0, 0, 0, 1, 0},
     [I_STEEL_LIMBS] = {"Steel limbs", "A pair of steel crossbow limbs.", ICON_STEEL_LIMBS, 0, 0, 0, 0, 0, 0, 0, 250, 0},
@@ -271,7 +280,7 @@ const ItemDef items[I_COUNT] = {
     [I_MITHRIL_NAILS] = {"Mithril nails", "Keeps things in place fairly permanently.", ICON_MITHRIL_NAILS, IF_STACK, 0, 0, 0, 0, 0, 0, 18, 0},
     [I_MITHRIL_DART_TIP] = {"Mithril dart tip", "A deadly looking dart tip made of mithril - needs feathers for flight.", ICON_MITHRIL_DART_TIP, IF_STACK, 0, 0, 0, 0, 0, 0, 12, 0},
     [I_MITHRIL_ARROWTIPS] = {"Mithril arrowtips", "I can make some arrows with these.", ICON_MITHRIL_ARROWTIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 16, 0},
-    [I_MITHRIL_KNIFE] = {"Mithril knife", "A finely balanced throwing knife.", ICON_MITHRIL_KNIFE, IF_STACK, 0, 0, 0, 0, 0, 0, 27, 0},
+    [I_MITHRIL_KNIFE] = {"Mithril knife", "A finely balanced throwing knife.", ICON_MITHRIL_KNIFE, THROWN(20, 27, 11, 10, TIER_MITHRIL)},
     [I_MITHRIL_JAVELIN_TIPS] = {"Mithril javelin tips", "Needs a shaft.", ICON_MITHRIL_JAVELIN_TIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 165, 0},
     [I_MITHRIL_BOLTS] = {"Mithril bolts (unf)", "Unfeathered mithril crossbow bolts.", ICON_MITHRIL_BOLTS, IF_STACK, 0, 0, 0, 0, 0, 0, 1, 0},
     [I_MITHRIL_LIMBS] = {"Mithril limbs", "A pair of mithril crossbow limbs.", ICON_MITHRIL_LIMBS, 0, 0, 0, 0, 0, 0, 0, 650, 0},
@@ -290,7 +299,7 @@ const ItemDef items[I_COUNT] = {
     [I_ADAMANT_NAILS] = {"Adamantite nails", "Keeps things in place fairly permanently.", ICON_ADAMANT_NAILS, IF_STACK, 0, 0, 0, 0, 0, 0, 45, 0},
     [I_ADAMANT_DART_TIP] = {"Adamant dart tip", "A deadly-looking dart tip made of adamant - needs feathers for flight.", ICON_ADAMANT_DART_TIP, IF_STACK, 0, 0, 0, 0, 0, 0, 36, 0},
     [I_ADAMANT_ARROWTIPS] = {"Adamant arrowtips", "I can make some arrows with these.", ICON_ADAMANT_ARROWTIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 40, 0},
-    [I_ADAMANT_KNIFE] = {"Adamant knife", "A finely balanced throwing knife.", ICON_ADAMANT_KNIFE, IF_STACK, 0, 0, 0, 0, 0, 0, 66, 0},
+    [I_ADAMANT_KNIFE] = {"Adamant knife", "A finely balanced throwing knife.", ICON_ADAMANT_KNIFE, THROWN(30, 66, 15, 14, TIER_ADAMANT)},
     [I_ADAMANT_JAVELIN_TIPS] = {"Adamant javelin tips", "Needs a shaft.", ICON_ADAMANT_JAVELIN_TIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 440, 0},
     [I_ADAMANT_BOLTS] = {"Adamant bolts(unf)", "Unfeathered adamantite crossbow bolts.", ICON_ADAMANT_BOLTS, IF_STACK, 0, 0, 0, 0, 0, 0, 1, 0},
     [I_ADAMANT_LIMBS] = {"Adamantite limbs", "A pair of adamantite crossbow limbs.", ICON_ADAMANT_LIMBS, 0, 0, 0, 0, 0, 0, 0, 1600, 0},
@@ -308,7 +317,7 @@ const ItemDef items[I_COUNT] = {
     [I_RUNE_NAILS] = {"Rune nails", "Keeps things in place fairly permanently.", ICON_RUNE_NAILS, IF_STACK, 0, 0, 0, 0, 0, 0, 220, 0},
     [I_RUNE_DART_TIP] = {"Rune dart tip", "A deadly-looking dart tip made of runite - needs feathers for flight.", ICON_RUNE_DART_TIP, IF_STACK, 0, 0, 0, 0, 0, 0, 175, 0},
     [I_RUNE_ARROWTIPS] = {"Rune arrowtips", "I can make some arrows with these.", ICON_RUNE_ARROWTIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 200, 0},
-    [I_RUNE_KNIFE] = {"Rune knife", "A finely balanced throwing knife.", ICON_RUNE_KNIFE, IF_STACK, 0, 0, 0, 0, 0, 0, 167, 0},
+    [I_RUNE_KNIFE] = {"Rune knife", "A finely balanced throwing knife.", ICON_RUNE_KNIFE, THROWN(40, 167, 25, 24, TIER_RUNE)},
     [I_RUNE_JAVELIN_TIPS] = {"Rune javelin tips", "Needs a shaft.", ICON_RUNE_JAVELIN_TIPS, IF_STACK, 0, 0, 0, 0, 0, 0, 1350, 0},
     [I_RUNE_BOLTS] = {"Runite bolts (unf)", "Unfeathered runite crossbow bolts.", ICON_RUNE_BOLTS, IF_STACK, 0, 0, 0, 0, 0, 0, 1, 0},
     [I_RUNE_LIMBS] = {"Runite limbs", "A pair of runite crossbow limbs.", ICON_RUNE_LIMBS, 0, 0, 0, 0, 0, 0, 0, 16000, 0},
@@ -608,7 +617,7 @@ int equip_bonus(int which) {
         case 1: b += d->str; break;
         case 2: b += d->def; break;
         case 3: b += d->ratk; break;
-        case 4: b += d->rstr; break;
+        case 4: b += i == EQ_AMMO && thrown_weapon(pl.equip[EQ_WEAPON]) ? 0 : d->rstr; break;   // a thrown weapon is its own ammo
         default: b += d->matk; break;
         }
     }
@@ -636,14 +645,16 @@ int equip_item(int slot) {
         msg_col(buf, TC_RED);
         return 0;
     }
-    if (d->slot == EQ_AMMO) {
-        int old = pl.equip[EQ_AMMO], oq = pl.ammo_qty;
+    if (d->slot == EQ_AMMO || thrown_weapon(id)) {
+        // a stack: arrows in the ammo slot, knives in the weapon slot
+        u16 *q = d->slot == EQ_AMMO ? &pl.ammo_qty : &pl.weapon_qty;
+        int old = pl.equip[d->slot], oq = thrown_weapon(old) || d->slot == EQ_AMMO ? *q : 1;
         if (old == id) {
-            pl.ammo_qty += s->qty;
+            *q += s->qty;
             s->id = s->qty = 0;
         } else {
-            pl.equip[EQ_AMMO] = id;
-            pl.ammo_qty = s->qty;
+            pl.equip[d->slot] = id;
+            *q = s->qty;
             s->id = old;
             s->qty = old ? oq : 0;
         }
@@ -652,7 +663,8 @@ int equip_item(int slot) {
     int old = pl.equip[d->slot];
     pl.equip[d->slot] = id;
     s->id = old;
-    s->qty = old ? 1 : 0;
+    s->qty = !old ? 0 : thrown_weapon(old) ? pl.weapon_qty : 1;
+    if (d->slot == EQ_WEAPON) pl.weapon_qty = 0;
     // a two-handed weapon leaves no hand for a shield: whichever was worn comes off
     int other = d->slot == EQ_WEAPON && (d->flags & IF_2H) ? EQ_SHIELD
               : d->slot == EQ_SHIELD && (items[pl.equip[EQ_WEAPON]].flags & IF_2H) ? EQ_WEAPON : -1;
@@ -672,12 +684,13 @@ int equip_item(int slot) {
 int unequip(int eq) {
     int id = pl.equip[eq];
     if (!id) return 1;
-    int q = eq == EQ_AMMO ? pl.ammo_qty : 1;
+    int q = eq == EQ_AMMO ? pl.ammo_qty : thrown_weapon(id) ? pl.weapon_qty : 1;
     if (!inv_count(id) && !inv_free()) return 0;
     if (!(items[id].flags & IF_STACK) && inv_free() < q) return 0;
     inv_add(id, q);
     pl.equip[eq] = 0;
     if (eq == EQ_AMMO) pl.ammo_qty = 0;
+    if (eq == EQ_WEAPON) pl.weapon_qty = 0;
     return 1;
 }
 

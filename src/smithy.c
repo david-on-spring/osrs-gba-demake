@@ -13,6 +13,7 @@ static int sel(void) { return furnace ? sel_furnace : sel_anvil; }
 static int level_of(int i) { return furnace ? smelt_defs[i].level : anvil_tiers[tier].list[i].level; }
 static int item_of(int i) { return furnace ? smelt_defs[i].bar : anvil_tiers[tier].list[i].item; }
 static int can_make(int i) { return furnace ? smelt_max(i) : smith_max(tier, i); }
+static int out_of(int i) { return furnace ? smelt_defs[i].out : anvil_tiers[tier].list[i].qty; }
 
 // "Have / need" line in the detail panel
 static int detail_need(int x, int y, int id, int need) {
@@ -52,8 +53,8 @@ static void smithy_draw(void) {
         // a red underline: the level is too low; a grey one: not enough materials
         if (lvl < level_of(k)) cv_fill(&cv_panel, cx + 2, cy + 17, 15, 2, PC_RED);
         else if (!can_make(k)) cv_fill(&cv_panel, cx + 2, cy + 17, 15, 2, PC_EDGE_DIM);
-        if (!furnace && anvil_tiers[tier].list[k].qty > 1) {
-            fmt_int(sbuf, anvil_tiers[tier].list[k].qty);
+        if (out_of(k) > 1) {
+            fmt_int(sbuf, out_of(k));
             text_draw(cx + 1, cy, sbuf, TC_YELLOW);
         }
     }
@@ -75,6 +76,7 @@ static void smithy_draw(void) {
         const SmeltDef *d = &smelt_defs[s];
         y = detail_need(x, y, d->ore, 1);
         if (d->ore2) y = detail_need(x, y, d->ore2, d->n2);
+        if (d->tool) y = detail_need(x, y, d->tool, 1);
         xp = d->xp;
     } else {
         const SmithDef *d = &anvil_tiers[tier].list[s];
@@ -95,9 +97,9 @@ static void smithy_draw(void) {
     } else {
         p = sadd(sbuf, "You can make ");
         p = sadd_num(p, can_make(s));
-        if (!furnace && anvil_tiers[tier].list[s].qty > 1) {
+        if (out_of(s) > 1) {
             p = sadd(p, " (x");
-            p = sadd_num(p, anvil_tiers[tier].list[s].qty);
+            p = sadd_num(p, out_of(s));
             sadd(p, ")");
         }
         text_draw(14, 131, sbuf, TC_GOLD);
@@ -151,8 +153,12 @@ static int smithy_check(void) {
         note = furnace ? "Your Smithing level is too low to smelt that." : "Your Smithing level is too low to make that.";
         return 0;
     }
+    if (furnace && smelt_defs[s].tool && !inv_count(smelt_defs[s].tool)) {
+        note = "You need an ammo mould to make cannonballs.";
+        return 0;
+    }
     if (!can_make(s)) {
-        note = furnace ? "You don't have the ore for that bar." : "You don't have enough bars to make that.";
+        note = furnace ? "You don't have the materials for that." : "You don't have enough bars to make that.";
         return 0;
     }
     return 1;

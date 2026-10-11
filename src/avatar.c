@@ -43,6 +43,8 @@ static const u8 look_tab[I_COUNT] = {
     [I_STAFF] = LK(AVW_STAFF), [I_MAGIC_STAFF] = LK(AVW_STAFF), [I_STAFF_AIR] = LK(AVW_STAFF),
     [I_STAFF_WATER] = LK(AVW_STAFF), [I_STAFF_EARTH] = LK(AVW_STAFF), [I_STAFF_FIRE] = LK(AVW_STAFF),
     [I_HAMMER] = LK(AVW_MACE),   // held while smithing
+    [I_BRONZE_KNIFE] = LK(AVW_DAGGER), [I_IRON_KNIFE] = LK(AVW_DAGGER), [I_STEEL_KNIFE] = LK(AVW_DAGGER),
+    [I_MITHRIL_KNIFE] = LK(AVW_DAGGER), [I_ADAMANT_KNIFE] = LK(AVW_DAGGER), [I_RUNE_KNIFE] = LK(AVW_DAGGER),
     // smithing: 2h swords show as longswords, battleaxes as axes, warhammers as maces, claws as daggers
     [I_BRONZE_SCIMITAR] = LK(AVW_SCIM), [I_BRONZE_LONGSWORD] = LK(AVW_LONG), [I_BRONZE_2H] = LK(AVW_LONG),
     [I_BRONZE_MACE] = LK(AVW_MACE), [I_BRONZE_WARHAMMER] = LK(AVW_MACE), [I_BRONZE_BATTLEAXE] = LK(AVW_AXE),

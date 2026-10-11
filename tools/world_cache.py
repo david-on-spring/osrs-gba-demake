@@ -19,7 +19,7 @@ TOOLS = os.path.dirname(os.path.abspath(__file__))
 # world_gen globals in the snapshot; values must be plain data (see _plain)
 FIELDS = ('MW', 'MH', 'OW_W', 'OW_H', 'T', 'TY', 'WALKSET', 'START', 'QPOS', 'SPAWNS', 'QUEST_OBJS', 'FORGES',
           'ITEM_SPAWNS', 'FISH_SPOTS', 'SHOPS', 'REGIONS', 'PAL_REGIONS', 'NSETS', 'idx_tiles', 'meta_out',
-          'RES_ALT', 'world_pal', 'water_slots', 'MAP_REGIONS', 'BOUNDS', 'NPLANES', 'WORLD_X0', 'WORLD_Y1')
+          'RES_ALT', 'world_pal', 'water_slots', 'MAP_REGIONS', 'BOUNDS', 'NPLANES', 'WORLD_X0', 'WORLD_Y1', 'EDGES')
 CTX_FIELDS = ('OX', 'OY', 'S', 'CX0', 'CY0', 'X0', 'Y0', 'X1', 'Y1')
 ENV = ('WG_TRIALS', 'WG_SHARED')
 

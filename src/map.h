@@ -47,6 +47,9 @@ static inline int map_meta_at(int x, int y, int p) { return map_block(x, y, p)->
 static inline int map_over_at(int x, int y, int p) { return map_block(x, y, p)->over[map_cell(x, y)]; }
 static inline int map_roof_at(int x, int y, int p) { return map_block(x, y, p)->roof[map_cell(x, y)]; }
 int map_walk_at(int x, int y, int p);   // walkable terrain (map_in), from the region's bitmap: never decompresses
+// walls on tile edges, from the region's edge bitmaps (never decompresses): k 0 the edge north of
+// (x, y), 1 the edge west of it; 2, 3 the same, only walls that stop projectiles
+int map_edge_at(int x, int y, int p, int k);
 
 // load the blocks around a cell (the camera, or where a teleport is going) while the frame has
 // scanlines to spare; vb0 is the VBlank count when the frame started

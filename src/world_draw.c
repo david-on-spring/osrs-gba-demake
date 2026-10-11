@@ -72,7 +72,7 @@ static void draw_player(int sx, int sy) {
                 int sp = weapon_speed(), cd = pl.attack_cd > sp ? sp : pl.attack_cd;
                 act = cb == CB_RANGED ? AVA_SHOOT : AVA_CAST;
                 t = (sp - cd) * TICK_FRAMES + tick_frames;
-            } else if (n->active && adjacent(pl.x, pl.y, n->x, n->y)) {
+            } else if (n->active && adjacent(pl.x, pl.y, n->x, n->y, pl.plane)) {
                 act = AVA_COMBAT;
                 // the swing pose follows the hit; the wind-up always fills the last 24 frames
                 int sp = weapon_speed(), cd = pl.attack_cd > sp ? sp : pl.attack_cd;

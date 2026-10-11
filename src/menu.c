@@ -87,7 +87,10 @@ static void draw_items(void) {
     draw_footer(sbuf, s->id ? "Use" : 0, "Back");
 }
 
-static const char *const slot_names[EQ_COUNT] = {"Head", "Weapon", "Body", "Shield", "Legs", "Feet", "Neck", "Ammo"};
+static const char *const slot_names[EQ_COUNT] = {"Head", "Weapon", "Body", "Shield", "Legs", "Feet", "Neck", "Ammo",
+                                                  "Hands", "Ring"};
+#define EQ_ROWS 8
+static u8 eq_scroll;     // first slot shown
 
 static void build_candidates(void) {
     cand_n = 0;
@@ -117,8 +120,10 @@ static void draw_bonus_row(int x, int y, int w, const char *lab, int val, int de
 static void draw_equip(void) {
     draw_header("Worn Equipment");
     draw_panel(6, 20, 120, 126, 5);
-    for (int i = 0; i < EQ_COUNT; i++) {
-        int y = 23 + i * 15;
+    if (eq_sel < eq_scroll) eq_scroll = eq_sel;
+    if (eq_sel >= eq_scroll + EQ_ROWS) eq_scroll = eq_sel - EQ_ROWS + 1;
+    for (int i = eq_scroll; i < EQ_COUNT && i < eq_scroll + EQ_ROWS; i++) {
+        int y = 23 + (i - eq_scroll) * 15;
         int id = pl.equip[i];
         if (i == eq_sel) {
             draw_highlight(9, y - 1, 114, 15);
@@ -128,12 +133,15 @@ static void draw_equip(void) {
         if (id) icon_at(13, y - 2, items[id].icon);
         text_spaced(34, y - 2, slot_names[i], TC_CYAN, 1);
         char *p = sadd(sbuf, id ? items[id].name : "-");
-        if (i == EQ_AMMO && id) {
+        if ((i == EQ_AMMO || thrown_weapon(id)) && id) {
             p = sadd(p, " x");
-            sadd_num(p, pl.ammo_qty);
+            sadd_num(p, i == EQ_AMMO ? pl.ammo_qty : pl.weapon_qty);
         }
         text_draw(34, y + 5, sbuf, id ? TC_WHITE : TC_DIM);
     }
+    // scroll marks when slots are hidden above or below
+    if (eq_scroll) cv_fill(&cv_panel, 64, 21, 8, 1, PC_EDGE);
+    if (eq_scroll + EQ_ROWS < EQ_COUNT) cv_fill(&cv_panel, 64, 144, 8, 1, PC_EDGE);
     draw_panel(130, 20, 104, 126, 5);
     int atk = equip_bonus(0), str = equip_bonus(1), def = equip_bonus(2);
     if (!eq_choose) {

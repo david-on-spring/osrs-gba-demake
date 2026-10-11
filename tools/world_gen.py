@@ -151,14 +151,16 @@ BLOCK = ['WATER', 'WALL', 'HWALL', 'WWALL', 'SWALL', 'FENCE', 'TREE', 'OAK', 'WI
          'CHAIR', 'BOOKCASE', 'DRAWERS', 'FIREPLACE', 'BARREL', 'WARDROBE', 'POTPLANT', 'BIGSTALL', 'ANVIL',
          'FURNACE', 'SHELF', 'THRONE', 'WELL', 'SACKS', 'FLOWERBED', 'PALM', 'BENCH', 'SUNFLOWER', 'LOWWALL',
          'VFOUNTAIN',
-         # the ores smithing needs
-         'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE']
+         # the ores smithing needs, and ladders (the Mining Guild, the castle cellar)
+         'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE', 'LADDER', 'BLURITE',
+         # the way down to Lumbridge Castle's cellar
+         'TRAPDOOR']
 TYPES = WALK + BLOCK
 T = {n: i for i, n in enumerate(TYPES)}
 WALKSET = set(WALK)
 WALLS = {'WALL', 'HWALL', 'WWALL', 'SWALL'}
 TREES = {'TREE', 'OAK', 'WILLOW', 'YEW', 'DEADTREE'}
-ROCKS = {'COPPER', 'TIN', 'IRON', 'CLAY', 'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE'}
+ROCKS = {'COPPER', 'TIN', 'IRON', 'CLAY', 'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE', 'BLURITE'}
 
 TY = [['GRASS' if y < OW_H and x < OW_W else 'VOID' for x in range(MW)] for y in range(MH)]   # cell type
 GR = [['GRASS' if y < OW_H and x < OW_W else 'VOID' for x in range(MW)] for y in range(MH)]   # ground under it
@@ -286,6 +288,233 @@ ROOFS = [None]      # group -> (style, cells); a group's roof hides while the pl
 ROOF_OF = {'WALL': 'slate', 'HWALL': 'thatch', 'SWALL': 'flat', 'WWALL': 'flatwhite'}
 
 
+# ========================================================================================
+# Walls on tile edges. The authoring helpers above draw buildings with walls that fill whole
+# cells; OSRS puts walls on the edges between tiles, so a wall never takes a tile. Once every
+# building is laid, convert_walls() turns each building wall cell into floor of the room it
+# belongs to and moves the wall onto the edges that cell shares with other rooms or the
+# outside. A traced town's walls were laid on the indoor tile of each OSRS edge (and between
+# two rooms on the larger room's tile), so the conversion gives back the OSRS floor plan tile
+# for tile. Free-standing walls (city walls, the castle's curtain wall) stay whole cells.
+# ========================================================================================
+EDGES = {}          # (x, y, 'N' | 'W') -> (kind, wall type): kind 'wall' or 'door'. 'N' is the
+                    # edge between cell (x, y - 1) and (x, y), 'W' the one between (x - 1, y) and (x, y)
+TRACE_EDGES = {}    # EDGES key -> (kind or None for an open archway, wall type): build_from_ref's edges
+TRACED = set()      # wall and door cells build_from_ref laid (convert_walls uses its edges for them)
+CONVERTED = set()   # cells that were building walls or doors before convert_walls()
+DEFERRED = []       # (context, fn, args): authoring that needs the edges (furnishing, service rows)
+EDGES_DONE = False
+INTERIOR_G = {'FLOOR', 'WOODFLOOR', 'CARPET', 'CHECKER', 'RUG'}
+D4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
+
+
+def ekey(x, y, dx, dy):
+    """The EDGES key of the edge between cell (x, y) and its neighbour (x + dx, y + dy)."""
+    if dx:
+        return (x + 1, y, 'W') if dx > 0 else (x, y, 'W')
+    return (x, y + 1, 'N') if dy > 0 else (x, y, 'N')
+
+
+def edge_at(x, y, dx, dy):
+    return EDGES.get(ekey(x, y, dx, dy))
+
+
+def wall_between(x, y, dx, dy):
+    e = EDGES.get(ekey(x, y, dx, dy))
+    return e is not None and e[0] != 'door'
+
+
+def door_edge(x, y):
+    """A side of cell (x, y) with a door on it, or None."""
+    for (dx, dy) in D4:
+        e = EDGES.get(ekey(x, y, dx, dy))
+        if e and e[0] == 'door':
+            return (dx, dy)
+    return None
+
+
+def step_ok(x, y, dx, dy):
+    """A walker on cell (x, y) can step onto its neighbour (dx, dy)."""
+    xx, yy = x + dx, y + dy
+    return inb(xx, yy) and TY[yy][xx] in WALKSET and not wall_between(x, y, dx, dy)
+
+
+def defer(fn, *args):
+    """Run fn(*args) now if the walls are on edges already, else right after convert_walls()."""
+    if EDGES_DONE:
+        fn(*args)
+    else:
+        DEFERRED.append((CTX, fn, args))
+
+
+def edge_cells(key):
+    """The two cells on either side of an EDGES key."""
+    x, y, side = key
+    return ((x, y - 1), (x, y)) if side == 'N' else ((x - 1, y), (x, y))
+
+
+def untrace(cells, inner_only=False):
+    """Forget build_from_ref's walls on these cells (a stamp or a ruin replaced them); with
+    inner_only, just the edges between two of them (a hall made of several rooms)."""
+    cells = set(cells)
+    for k in [k for k in TRACE_EDGES if (all if inner_only else any)(c in cells for c in edge_cells(k))]:
+        del TRACE_EDGES[k]
+    if not inner_only:
+        TRACED.difference_update(cells)
+
+
+def convert_walls():
+    global EDGES_DONE
+    keep = CTX
+    set_ctx(OW)
+    floor_of = lambda x, y: GR[y][x] if GR[y][x] in INTERIOR_G else next(
+        (GR[y + v][x + u] for (u, v) in D4 if inb(x + u, y + v) and GR[y + v][x + u] in INTERIOR_G), 'FLOOR')
+    # traced towns: the walls go back onto the edges the trace found
+    for (x, y) in TRACED:
+        t = TY[y][x]
+        if t not in WALLS and t != 'DOOR':
+            continue
+        if t == 'DOOR':                   # ensure_door() opened this wall: its outer edge is a door
+            for (dx, dy) in D4:
+                k = ekey(x, y, dx, dy)
+                n = (x + dx, y + dy)
+                if TRACE_EDGES.get(k, (None,))[0] == 'wall' and inb(*n) and TY[n[1]][n[0]] in WALKSET and \
+                        GR[n[1]][n[0]] not in INTERIOR_G:
+                    TRACE_EDGES[k] = ('door', TRACE_EDGES[k][1])
+        GR[y][x] = floor_of(x, y)
+        TY[y][x] = GR[y][x]
+        CONVERTED.add((x, y))
+    for k, (kind, mat) in TRACE_EDGES.items():
+        a, b = edge_cells(k)
+        if kind and inb(*a) and inb(*b) and not any(TY[c[1]][c[0]] in WALLS for c in (a, b)):
+            EDGES[k] = (kind, mat)
+    # everything else (hand-built buildings): each wall cell joins a room beside it and its wall
+    # goes onto the edges it shares with other rooms or the outside
+    wallc = lambda x, y: TY[y][x] in WALLS and GR[y][x] in INTERIOR_G
+    doorc = lambda x, y: TY[y][x] == 'DOOR'
+    roomc = lambda x, y: GR[y][x] in INTERIOR_G and TY[y][x] not in WALLS and TY[y][x] not in ('DOOR', 'BOOTH', 'VOID')
+    label, size = {}, [0]
+    for y in range(MH):
+        for x in range(MW):
+            if (x, y) in label or not roomc(x, y):
+                continue
+            k = len(size)
+            size.append(0)
+            label[(x, y)] = k
+            st = [(x, y)]
+            while st:
+                a, b = st.pop()
+                size[k] += 1
+                for (dx, dy) in D4:
+                    n = (a + dx, b + dy)
+                    if inb(*n) and n not in label and roomc(*n) and not wall_between(a, b, dx, dy):
+                        label[n] = k
+                        st.append(n)
+    # booth rows divide rooms but belong to the room they stand in
+    for y in range(MH):
+        for x in range(MW):
+            if TY[y][x] == 'BOOTH' and GR[y][x] in INTERIOR_G:
+                ks = [label[n] for d in D4 for n in [(x + d[0], y + d[1])] if n in label and TY[n[1]][n[0]] != 'BOOTH']
+                if ks:
+                    label[(x, y)] = max(ks, key=lambda k: (size[k], -k))
+    pend = [(x, y) for y in range(MH) for x in range(MW) if wallc(x, y) or doorc(x, y)]
+    own = {}
+    for c in pend:                        # beside a room: the largest one
+        ks = [label[n] for d in D4 for n in [(c[0] + d[0], c[1] + d[1])] if n in label]
+        if ks:
+            own[c] = max(ks, key=lambda k: (size[k], -k))
+    from collections import deque
+    q = deque(own)
+    while q:                              # corners and wall runs take a neighbouring wall's room
+        c = q.popleft()
+        for (dx, dy) in D4:
+            n = (c[0] + dx, c[1] + dy)
+            if inb(*n) and n not in own and wallc(*n):
+                own[n] = own[c]
+                q.append(n)
+    for c in pend:                        # a door between a booth row and the street
+        if c not in own and doorc(*c):
+            ks = [own[n] for d in D4 for n in [(c[0] + d[0], c[1] + d[1])] if n in own]
+            if ks:
+                own[c] = ks[0]
+    for c in pend:                        # wall blocks with no room at all are rooms themselves
+        if c in own or not wallc(*c):
+            continue
+        k = len(size)
+        size.append(0)
+        own[c] = k
+        st = [c]
+        while st:
+            a = st.pop()
+            size[k] += 1
+            for (dx, dy) in D4:
+                n = (a[0] + dx, a[1] + dy)
+                if inb(*n) and n not in own and wallc(*n):
+                    own[n] = k
+                    st.append(n)
+    lab = lambda n: own.get(n, label.get(n, 0))
+    for (x, y), k in own.items():
+        for (dx, dy) in D4:
+            n = (x + dx, y + dy)
+            if not inb(*n) or lab(n) == k:
+                continue
+            if TY[n[1]][n[0]] in WALLS and n not in own:
+                continue                  # a free-standing wall: solid already
+            door = (doorc(x, y) and not wallc(*n)) or (doorc(*n) and not wallc(x, y))
+            mat = TY[y][x] if TY[y][x] in WALLS else TY[n[1]][n[0]] if TY[n[1]][n[0]] in WALLS else None
+            if mat is None:               # a door: the wall it stands in
+                mat = next((TY[y + v][x + u] for (u, v) in D4 if inb(x + u, y + v) and TY[y + v][x + u] in WALLS), 'WALL')
+            key = ekey(x, y, dx, dy)
+            old = EDGES.get(key)
+            if old is None or (door and old[0] != 'door'):
+                EDGES[key] = ('door' if door else 'wall', mat)
+    for (x, y), k in own.items():
+        if GR[y][x] not in INTERIOR_G:    # a door laid on outdoor ground: the room's floor
+            GR[y][x] = next((GR[y + v][x + u] for (u, v) in D4 if label.get((x + u, y + v)) == k), 'FLOOR')
+        TY[y][x] = GR[y][x]
+        CONVERTED.add((x, y))
+    # a wall cell outside its building's roof (a diagonal corner) goes under it
+    for _ in range(2):
+        for (x, y), k in own.items():
+            if ROOF[y][x]:
+                continue
+            g = next((ROOF[y + v][x + u] for (u, v) in D4 if inb(x + u, y + v) and ROOF[y + v][x + u] and
+                      lab((x + u, y + v)) == k), 0)
+            if g:
+                ROOF[y][x] = g
+                ROOFS[g][1].add((x, y))
+    EDGES_DONE = True
+    set_ctx(keep)
+
+
+def run_deferred():
+    keep = CTX
+    while DEFERRED:
+        ctx, fn, args = DEFERRED.pop(0)
+        set_ctx(ctx)
+        fn(*args)
+    set_ctx(keep)
+
+
+def shift_service(staff, objs, obj, npc, d):
+    """A booth / counter row laid with walls in cells stands a tile off the wall, which is floor
+    now: move the row and its staff back against the wall, as in OSRS."""
+    dx, dy = d
+    back = [(x + dx, y + dy) for (x, y) in staff]
+    if not staff or not all(TY[y][x] == obj for (x, y) in objs):
+        return
+    if not all(c in CONVERTED and TY[c[1]][c[0]] in WALKSET and wall_between(c[0], c[1], dx, dy) for c in back):
+        return
+    for (x, y) in objs:
+        TY[y][x] = GR[y][x]
+    for (x, y) in objs:
+        TY[y + dy][x + dx] = obj
+    moved = set(staff)
+    for i, (k, x, y) in enumerate(SPAWNS):
+        if k == npc and (x, y) in moved:
+            SPAWNS[i] = (k, x + dx, y + dy)
+
+
 def zc(X, Y):
     return (cx(X), cy(Y))
 
@@ -390,7 +619,7 @@ def service(r, side, obj, npc):
     """Bank booths / shop counter row along one wall, with staff standing behind it."""
     x0, y0, x1, y1 = r
     ix0, iy0, ix1, iy1 = x0 + 1, y0 + 1, x1 - 1, y1 - 1
-    cells = []
+    cells, objs = [], []
     if side in 'NS':
         srow = iy0 if side == 'N' else iy1
         orow = srow + (1 if side == 'N' else -1)
@@ -398,6 +627,8 @@ def service(r, side, obj, npc):
         for x in range(a, b + 1):
             TY[orow][x] = obj
             cells.append((x, srow))
+            objs.append((x, orow))
+        d = (0, srow - orow)
     else:
         scol = ix0 if side == 'W' else ix1
         ocol = scol + (1 if side == 'W' else -1)
@@ -405,10 +636,13 @@ def service(r, side, obj, npc):
         for y in range(a, b + 1):
             TY[y][ocol] = obj
             cells.append((scol, y))
+            objs.append((ocol, y))
+        d = (scol - ocol, 0)
     for i, (x, y) in enumerate(cells):
         if i % 2 == 0 or len(cells) <= 2:
             if len([s for s in SPAWNS if s[0] == npc and abs(s[1] - x) + abs(s[2] - y) < 2]) == 0:
                 SPAWNS.append((npc, x, y))
+    defer(shift_service, cells, objs, obj, npc, d)
     return cells
 
 
@@ -1283,9 +1517,12 @@ QPOS['PARK_DIG'] = (cx(3005), cy(3374))     # just south of the Falador park fou
 LUM_R = (3196, 3188, 3261, 3254)        # Lumbridge proper (OSRS X0, Y0, X1, Y1); Al Kharid starts at 3262
 ZF1 = Ctx(3195, 3236, 1, 0, ZONE_Y, 0, ZONE_Y, 31, ZONE_Y + 36)          # OSRS 3195..3226 x 3200..3236
 ZF2 = Ctx(3195, 3236, 1, 36, ZONE_Y, 36, ZONE_Y, 67, ZONE_Y + 36)
+# the castle cellar: OSRS keeps it 6400 tiles north (3208..3219 x 9615..9625); here it is a plane
+# of its own at the surface coordinates, under the kitchen
+ZB = Ctx(3203, 3229, 1, 188, ZONE_Y, 188, ZONE_Y, 208, ZONE_Y + 18)        # OSRS 3203..3223 x 3211..3229
 # (name, context, palette set, plane). The camera stays inside the player's zone. The floors use
 # Lumbridge's palette set (filled in by assign_palette_sets()).
-ZONES = [('OVERWORLD', OW, 0, 0), ('CASTLE_1', ZF1, None, 1), ('CASTLE_2', ZF2, None, 2)]
+ZONES = [('OVERWORLD', OW, 0, 0), ('CASTLE_1', ZF1, None, 1), ('CASTLE_2', ZF2, None, 2), ('CELLAR', ZB, None, 5)]
 LINKS = {}          # stair cell -> [dest cells] (for the reachability checks)
 VIEW = {}           # upper-floor cell -> ground-floor cell it shows (looking down from the castle)
 
@@ -1415,84 +1652,180 @@ def zline(pts, w, t, g=None, keep=()):
     opolyline(pts, w, f)
 
 
-# ---- keep floor plans (cells are OSRS tiles; walls take a whole tile) ------------------------
-def castle_towers():
-    """NW and SW stair towers (shared by all three floors). Returns the stair cells."""
-    stairs = []
-    for (Yb, Ys) in ((3227, 3229), (3204, 3205)):          # tower bottom row, first stair row
-        for X in range(3202, 3207):
-            for Y in range(Yb, Yb + 5):
-                zset(X, Y, 'WALL', 'FLOOR')
-        for X in range(3203, 3206):
-            for Y in range(Yb + 1, Yb + 4):
-                zset(X, Y, 'FLOOR', 'FLOOR')
-        for X in (3203, 3204):
-            for Y in (Ys, Ys + 1):
-                zset(X, Y, 'STAIRS', 'FLOOR')
-                stairs.append(zc(X, Y))
-    return stairs
+# ---- keep floor plans, read off the OSRS map (walls on tile edges) ------------------------------
+def zplan(X0, Y1, rows, floors, mat='WALL', doors=(), opens=(), walls=()):
+    """Lay floor plan rows (north to south, one character per tile from X0; ' ' or '.' leaves a
+    tile alone) and put a wall on every edge between two tiles of different rooms, or between a
+    room and a tile left alone. floors: room letter -> ground. doors / opens: pairs of tiles
+    whose edge gets a door / no wall; walls: extra pairs that get a wall inside a room."""
+    plan = {}
+    for i, row in enumerate(rows):
+        for j, ch in enumerate(row):
+            if ch not in ' .':
+                plan[(X0 + j, Y1 - i)] = ch
+                zset(X0 + j, Y1 - i, floors[ch], floors[ch])
+    pair = lambda a, b: frozenset((a, b))
+    doors, opens = set(pair(*d) for d in doors), set(pair(*o) for o in opens)
+    for (X, Y), ch in plan.items():
+        for (u, v) in D4:
+            n = (X + u, Y + v)
+            if plan.get(n) == ch or pair((X, Y), n) in opens:
+                continue
+            x, y = zc(X, Y)
+            k = ekey(x, y, u, -v)
+            EDGES[k] = ('door' if pair((X, Y), n) in doors else 'wall', mat)
+    for (a, b) in walls:
+        x, y = zc(*a)
+        EDGES[ekey(x, y, b[0] - a[0], a[1] - b[1])] = ('wall', mat)
+    return plan
+
+
+def castle_stairs():
+    """The 2x2 staircases in the north-west and south-west towers, the same on every floor."""
+    for (X, Y) in ((3204, 3229), (3204, 3207)):
+        for dX in (0, 1):
+            for dY in (0, 1):
+                zset(X + dX, Y - dY, 'STAIRS', 'FLOOR')
 
 
 def keep_ground():
-    inner = tiles(3205, 3208, 3216, 3227)
-    castle_towers()
-    zwalls(inner, 'WALL', 'FLOOR')
-    for (X, Y) in ((3205, 3228), (3204, 3228), (3205, 3207), (3204, 3207)):   # tower doorways
-        zset(X, Y, 'FLOOR', 'FLOOR')
-    # north corridor / dining hall / kitchen / south corridor, west of the great hall
-    for X in range(3205, 3212):
-        zset(X, 3226, 'WALL', 'FLOOR')
-        zset(X, 3217, 'WALL', 'FLOOR')
-        zset(X, 3210, 'WALL', 'FLOOR')
-    for Y in range(3210, 3227):
-        zset(3212, Y, 'WALL', 'FLOOR')
-    zset(3207, 3217, 'DOOR')                     # dining hall <-> kitchen
-    zset(3212, 3221, 'DOOR')                     # dining hall <-> great hall
-    zset(3212, 3222, 'DOOR')
-    zfill(3213, 3210, 3216, 3226, 'CHECKER')     # the chequered great hall
-    for Y in (3218, 3219):
-        zset(3217, Y, 'DOOR')                    # front doors onto the courtyard
-    zset(3204, 3214, 'DOOR')                     # kitchen back door
-    zfill(3202, 3214, 3203, 3214, 'PATH')
+    #        X 3204          3217
+    zplan(3203, 3230, [
+        ' CC',                      # 3230  north-west tower
+        ' CCC',                     # 3229
+        ' CCCCCCCCCCC',             # 3228  north corridor
+        '  CCCCCCCCCCC',            # 3227
+        '  DDDDDDDDCCC',            # 3226  dining room / vestibule
+        '  DDDDDDDDHHHH',           # 3225  great hall (chequered)
+        '  DDDDDDDDHHHH',           # 3224
+        '  DDDDDDDDHHHH',           # 3223
+        '  DDDDDDDDHHHH',           # 3222
+        '  DDDDDDDDHHHH',           # 3221
+        '  DDDDDDDDHHHH',           # 3220
+        '  DDDDDDDDHHHH',           # 3219
+        '  DDDDDDDDHHHH',           # 3218
+        '  KKKKKKKKHHHH',           # 3217  kitchen
+        '  KKKKKKKKHHHH',           # 3216
+        '  KKKKKKKKHHHH',           # 3215
+        '  KKKKKKKKHHHH',           # 3214
+        '  KKKKKKKKHHHH',           # 3213
+        '  KKKKKKKKHHHH',           # 3212
+        '  SSSSSSSSSSSS',           # 3211  south corridor
+        '  SSSSSSSSSSS',            # 3210
+        '  SSSSSSSSSS',             # 3209
+        ' SSS',                     # 3208  south-west tower
+        ' SSS',                     # 3207
+        ' SSS',                     # 3206
+    ], dict(C='FLOOR', D='FLOOR', H='CHECKER', K='FLOOR', S='FLOOR'),
+        doors=[((3212, 3221), (3213, 3221)), ((3212, 3222), (3213, 3222)),      # dining hall <-> great hall
+               ((3207, 3218), (3207, 3217)),                                    # dining hall <-> kitchen
+               ((3204, 3214), (3205, 3214)),                                    # kitchen back door
+               ((3216, 3218), (3217, 3218)), ((3216, 3219), (3217, 3219))],     # front doors onto the courtyard
+        opens=[((3215, 3226), (3215, 3225)), ((3208, 3212), (3208, 3211)), ((3215, 3212), (3215, 3211))],
+        walls=[((3207, 3211), (3208, 3211))])
+    castle_stairs()
+    zset(3204, 3214, 'PATH', 'PATH')             # the step outside the kitchen door
+    zset(3203, 3214, 'PATH', 'PATH')
     for X in range(3207, 3211):                  # the long dining table
         for Y in (3221, 3222):
             zset(X, Y, 'TABLE')
-    zset(3206, 3216, 'RANGE')
-    zset(3211, 3216, 'CRATE')
-    zset(3205, 3211, 'CRATE')
+    zset(3212, 3215, 'RANGE')
+    zset(3209, 3216, 'TRAPDOOR', 'FLOOR')        # down to the cellar
+    zset(3212, 3217, 'CRATE')
+    zset(3205, 3212, 'CRATE')
     zfill(3213, 3218, 3216, 3219, 'CARPET')      # runner from the doors
 
 
 def keep_first():
-    inner = tiles(3205, 3208, 3216, 3227)
-    castle_towers()
-    zwalls(inner, 'WALL', 'FLOOR')
-    for (X, Y) in ((3205, 3228), (3204, 3228), (3205, 3207), (3204, 3207)):
-        zset(X, Y, 'FLOOR', 'FLOOR')
-    zwalls(tiles(3209, 3218, 3213, 3225), 'WALL', 'CARPET')     # Duke Horacio's bedroom
-    zwalls(tiles(3209, 3211, 3213, 3216), 'WALL', 'WOODFLOOR')  # spinning wheel room
-    zset(3208, 3222, 'DOOR')
-    zset(3208, 3214, 'DOOR')
+    zplan(3203, 3230, [
+        ' WW',                      # 3230
+        ' WWW',                     # 3229
+        ' WWWWRRRRRRR',             # 3228  west corridor / north hall
+        '  WWWRRRRRRRR',            # 3227
+        '  WWWRRRRRRRRR',           # 3226
+        '  WWWUUUUUURRR',           # 3225  Duke Horacio's bedroom
+        '  WWWUUUUUURRR',           # 3224
+        '  WWWUUUUUURRR',           # 3223
+        '  WWWUUUUUURRR',           # 3222
+        '  WWWUUUUUURRR',           # 3221
+        '  WWWUUUUUURRR',           # 3220
+        '  WWWUUUUUURRR',           # 3219
+        '  WWWUUUUUURRR',           # 3218
+        '  WWWPPPPPPRRR',           # 3217  spinning wheel room
+        '  WWWPPPPPPRRR',           # 3216
+        '  WWWPPPPPPRRR',           # 3215
+        '  WWWPPPPPPRRR',           # 3214
+        '  WWWPPPPPPRRR',           # 3213
+        '  WWWPPPPPPRRR',           # 3212
+        '  WWWRRRRRRRRR',           # 3211
+        '  WWWRRRRRRRR',            # 3210
+        '  WWWRRRRRRR',             # 3209
+        ' WWW',                     # 3208
+        ' WWW',                     # 3207
+        ' WWW',                     # 3206
+    ], dict(W='FLOOR', R='FLOOR', U='CARPET', P='WOODFLOOR'),
+        doors=[((3207, 3227), (3208, 3227)), ((3207, 3222), (3208, 3222)), ((3207, 3214), (3208, 3214)),
+               ((3207, 3210), (3208, 3210))])
+    castle_stairs()
     zset(3212, 3225, 'BED')
     zset(3213, 3225, 'BED')
     zset(3209, 3218, 'TABLE')
 
 
 def keep_second():
-    inner = tiles(3205, 3208, 3207, 3227) + tiles(3208, 3212, 3213, 3225)
-    castle_towers()
-    zwalls(inner, 'WALL', 'FLOOR')
-    for (X, Y) in ((3205, 3228), (3204, 3228), (3205, 3207), (3204, 3207)):
-        zset(X, Y, 'FLOOR', 'FLOOR')
-    # the bank: tellers inside an enclosure in the middle of the room, booths on its west face
-    for X in range(3207, 3212):
-        zset(X, 3223, 'WALL', 'FLOOR')
-        zset(X, 3214, 'WALL', 'FLOOR')
-    for Y in range(3214, 3224):
-        zset(3211, Y, 'WALL', 'FLOOR')
-    for Y in range(3215, 3223):
-        zset(3207, Y, 'BOOTH' if Y in (3216, 3217, 3220, 3221) else 'WALL', 'FLOOR')
-    zfill(3208, 3215, 3210, 3222, 'CARPET')
+    zplan(3203, 3230, [
+        ' MM',                      # 3230
+        ' MMM',                     # 3229
+        ' MMMM',                    # 3228
+        '  MMM',                    # 3227
+        '  MMM',                    # 3226
+        '  MMMMMMMMM',              # 3225
+        '  MMMMMMMMM',              # 3224
+        '  MMMMMMMMM',              # 3223
+        '  MMBBBBMMM',              # 3222  the bank: tellers in an enclosure, booths on its west face
+        '  MMBBBBMMM',              # 3221
+        '  MMBBBBMMM',              # 3220
+        '  MMBBBBMMM',              # 3219
+        '  MMBBBBMMM',              # 3218
+        '  MMBBBBMMM',              # 3217
+        '  MMBBBBMMM',              # 3216
+        '  MMBBBBMMM',              # 3215
+        '  MMMMMMMMM',              # 3214
+        '  MMMMMMMMM',              # 3213
+        '  MMMMMMMMM',              # 3212
+        '  MMM',                    # 3211
+        '  MMM',                    # 3210
+        '  MMM',                    # 3209
+        ' MMM',                     # 3208
+        ' MMM',                     # 3207
+        ' MMM',                     # 3206
+    ], dict(M='FLOOR', B='CARPET'),
+        opens=[((3206, Y), (3207, Y)) for Y in (3216, 3217, 3220, 3221)])
+    castle_stairs()
+    for Y in (3216, 3217, 3220, 3221):
+        zset(3207, Y, 'BOOTH', 'FLOOR')
+
+
+def cellar():
+    zplan(3208, 3225, [
+        '   MMMMMM',                # 3225  north alcove
+        '   MMMMMM',                # 3224
+        'MMMMMMMMMMMM',             # 3223
+        'MMMMMMMMMMMM',             # 3222
+        'MMMMMMMMMMMM',             # 3221
+        'MMMMMMMMMMMM',             # 3220
+        'MMMMMMMMEEEE',             # 3219
+        'LLLMMMMMEEEE',             # 3218  the ladder up to the kitchen
+        'LLLMMMMMEEEE',             # 3217
+        'LLLMMMMMEEEE',             # 3216
+        'LLLMMMMMEEEE',             # 3215
+    ], dict(M='FLOOR', L='FLOOR', E='FLOOR'),
+        opens=[((3208, 3219), (3208, 3218)), ((3209, 3219), (3209, 3218)),
+               ((3215, 3216), (3216, 3216)), ((3215, 3215), (3216, 3215))])
+    zset(3209, 3216, 'LADDER', 'FLOOR')
+    for (X, Y, t) in ((3208, 3223, 'CRATE'), (3209, 3223, 'BARREL'), (3219, 3223, 'BARREL'), (3218, 3223, 'CRATE'),
+                      (3219, 3215, 'SACKS'), (3219, 3216, 'BARREL'), (3211, 3225, 'BARREL'), (3216, 3225, 'CRATE')):
+        zset(X, Y, t)
 
 
 # ---- Lumbridge ground floor -------------------------------------------------------------
@@ -1519,12 +1852,20 @@ road([(3201, 3217), (3195, 3217), (3186, 3220)], 1)                             
 # the castle: curtain wall around the courtyard, gate towers, keep
 CURTAIN = [(3201, 3204), (3201, 3232), (3204, 3235), (3213, 3235), (3216, 3232), (3223, 3232), (3227, 3228),
            (3227, 3208), (3223, 3204), (3216, 3204), (3213, 3201), (3204, 3201)]
-opoly(CURTAIN, lambda x, y: (setg(x, y, 'GRASS'), RES[y].__setitem__(x, True)))
-zline(CURTAIN + [CURTAIN[0]], 1, 'WALL', 'GRASS')
+COURT = set()
+opoly(CURTAIN, lambda x, y: (setg(x, y, 'GRASS'), RES[y].__setitem__(x, True), COURT.add((x, y))))
+GATE_TOWERS = [(3226, 3221, 3230, 3225), (3226, 3211, 3230, 3215)]
+in_tower = lambda x, y: any(cx(a) <= x <= cx(c) and cy(d) <= y <= cy(b) for (a, b, c, d) in GATE_TOWERS)
+for (x, y) in COURT:                    # the curtain wall stands on the courtyard's outline
+    for (u, v) in D4:
+        if (x + u, y + v) not in COURT and not (in_tower(x, y) or in_tower(x + u, y + v)):
+            EDGES[ekey(x, y, u, v)] = ('wall', 'WALL')
 for Y in (3217, 3218):
-    zset(3201, Y, 'PATH', 'PATH')                                                 # west gate
+    zset(3200, Y, 'PATH', 'PATH')                                                 # west gate
+    del EDGES[ekey(*zc(3201, Y), -1, 0)]
 for Y in (3218, 3219):
-    zset(3227, Y, 'PATH', 'PATH')                                                 # main gate
+    zset(3228, Y, 'PATH', 'PATH')                                                 # main gate
+    EDGES.pop(ekey(*zc(3227, Y), 1, 0), None)
 for (Y0, Y1, Yd) in ((3221, 3225, 3223), (3211, 3215, 3214)):                     # gate towers, doors on the courtyard
     for X in range(3226, 3231):
         for Y in range(Y0, Y1 + 1):
@@ -1554,28 +1895,40 @@ keep_ground()
 KEEP_CELLS = [(X, Y) for X in range(3202, 3218) for Y in range(3204, 3232)
               if TY[cy(Y)][cx(X)] not in ('GRASS', 'FLOWERS', 'PATH')]
 zroof('keep', KEEP_CELLS)
-STAIRS_L0 = {'N': zc(3203, 3230), 'S': zc(3203, 3206)}     # top-left cell of each 2x2 staircase
+STAIRS_L0 = {'N': zc(3204, 3229), 'S': zc(3204, 3207)}     # top-left cell of each 2x2 staircase
 LUMB_COOK = zc(3208, 3213)
 HANS = zc(3219, 3223)
 START = zc(3222, 3218)
 # town buildings
-GS_LUMB = zbuild(3208, 3241, 3215, 3251, 'WALL', 'WOODFLOOR', [(3215, 3245)], roof='red')
-for (X, Y) in ((3208, 3241), (3208, 3251)):
+# (rectangles are each building's floor on the OSRS map; zbuild's outline becomes the walls on
+# its edges, see convert_walls)
+GS_LUMB = zbuild(3208, 3242, 3214, 3251, 'WALL', 'WOODFLOOR', [(3214, 3245)], roof='red')
+for (X, Y) in ((3208, 3242), (3214, 3242), (3208, 3251), (3214, 3251)):     # an octagon on the map
     zset(X, Y, 'GRASS', 'GRASS')
-BOB = zbuild(3227, 3200, 3233, 3205, 'WALL', 'WOODFLOOR', [(3233, 3203)], roof='red')
-zbuild(3230, 3193, 3237, 3198, 'WALL', 'WOODFLOOR', [(3235, 3198)], roof='red')
-zbuild(3226, 3235, 3233, 3242, 'WALL', 'WOODFLOOR', [(3226, 3240), (3230, 3235)], roof='red')
-zbuild(3221, 3251, 3230, 3257, 'WALL', 'FLOOR', [(3225, 3251), (3226, 3251), (3221, 3254)], roof='slate')
-zbuild(3243, 3243, 3250, 3248, 'HWALL', 'WOODFLOOR', [(3246, 3243), (3250, 3245), (3249, 3248)], roof='thatch')   # goblin house
-zbuild(3191, 3229, 3194, 3232, 'WALL', 'WOODFLOOR', [], roof='red')                         # closed in OSRS
-# church and its graveyard; the graveyard's south gate opens onto the swamp
-CHURCH_L = zbuild(3239, 3203, 3249, 3215, 'WALL', 'FLOOR', [(3239, 3210), (3243, 3215), (3244, 3215)], roof='slate')
-zput(3248, 3210, 'ALTAR')
-for Y in (3205, 3207, 3212):
-    for X in range(3242, 3246):
+BOB = zbuild(3227, 3201, 3233, 3205, 'WALL', 'WOODFLOOR', [(3233, 3203)], roof='red')
+zbuild(3229, 3206, 3233, 3208, 'WALL', 'WOODFLOOR', [(3233, 3207)], roof='red')        # Bob's back room
+zset(3231, 3206, 'DOOR')
+zset(3231, 3205, 'DOOR')
+zbuild(3230, 3195, 3237, 3198, 'WALL', 'WOODFLOOR', [(3235, 3198)], roof='red')
+zplan(3226, 3242, ['HHHHHHHH'] * 5 + ['  HHHHHH'] * 2, dict(H='WOODFLOOR'),          # an L on the map
+      doors=[((3225, 3240), (3226, 3240)), ((3230, 3235), (3230, 3236))])
+zroof('red', [t for t in tiles(3226, 3236, 3233, 3242) if t[0] > 3227 or t[1] > 3237])
+zbuild(3222, 3252, 3229, 3257, 'WALL', 'FLOOR', [(3225, 3252), (3226, 3252)], roof='slate')
+zbuild(3243, 3244, 3250, 3248, 'HWALL', 'WOODFLOOR', [(3246, 3244), (3250, 3245), (3249, 3248)], roof='thatch')   # goblin house
+zbuild(3192, 3230, 3194, 3232, 'WALL', 'WOODFLOOR', [], roof='red')                         # closed in OSRS
+# church and its graveyard; the graveyard's south gate opens onto the swamp. The nave runs north
+# to south from its doors to the altar, with a porch on the west.
+CHURCH_L = zbuild(3240, 3204, 3247, 3215, 'WALL', 'FLOOR', [(3243, 3215), (3244, 3215)], roof='slate')
+zplan(3238, 3211, ['PP', 'PP', 'PP'], dict(P='FLOOR'), doors=[((3237, 3210), (3238, 3210)), ((3239, 3210), (3240, 3210))])
+zroof('slate', tiles(3238, 3209, 3239, 3211))
+zset(3240, 3210, 'DOOR')
+zfill(3243, 3206, 3244, 3214, 'CARPET')
+for X in (3243, 3244):
+    zput(X, 3205, 'ALTAR')
+for Y in (3209, 3211, 3213):
+    for X in (3241, 3242, 3245, 3246):
         zput(X, Y, 'PEW')
-zfill(3240, 3210, 3247, 3210, 'CARPET')
-AERECK = zc(3246, 3210)
+AERECK = zc(3245, 3207)
 GRAVEYARD = (3237, 3189, 3254, 3201)
 zline([(3237, 3201), (3237, 3189), (3254, 3189), (3254, 3201), (3250, 3201)], 1, 'FENCE', keep=('WATER',))
 zline([(3237, 3201), (3238, 3201)], 1, 'FENCE')
@@ -1586,7 +1939,7 @@ for X in (3239, 3249):
     zset(X, 3201, 'PATH', 'PATH')                                                 # north gates
 road([(3243, 3189), (3243, 3196), (3240, 3199)], 1)
 road([(3243, 3184), (3243, 3189)], 1)
-SHED = zbuild(3247, 3190, 3253, 3196, 'WALL', 'FLOOR', [(3247, 3193)], roof='slate')    # the ghost's crypt
+SHED = zbuild(3247, 3190, 3252, 3195, 'WALL', 'FLOOR', [(3247, 3193)], roof='slate')    # the ghost's crypt
 for (X, Y) in ((3239, 3197), (3241, 3197), (3239, 3193), (3241, 3193), (3245, 3195), (3245, 3192)):
     zput(X, Y, 'GRAVE')
 # fences: Al Kharid border, cow field, sheep pen (scenery beyond the walkable town)
@@ -1620,11 +1973,21 @@ for (ctx, plan) in ((ZF1, keep_first), (ZF2, keep_second)):
             if TY[y][x] == 'VOID':
                 X, Y = ctx.OX + (x - ctx.CX0), ctx.OY - (y - ctx.CY0)
                 VIEW[(x, y)] = (ZL0.CX0 + X - ZL0.OX, ZL0.CY0 + ZL0.OY - Y)
+set_ctx(ZB)
+cellar()
+QPOS['CELLAR_DOWN'] = zc(3210, 3216)                         # beside the ladder
+QUEST_OBJS.append(('LADDER',) + zc(3209, 3216))
+QPOS['CELLAR_LADDER'] = _ladder = zc(3209, 3216)
+set_ctx(ZL0)
+QPOS['CELLAR_UP'] = zc(3210, 3216)                           # beside the trapdoor
+QUEST_OBJS.append(('TRAPDOOR',) + zc(3209, 3216))
+LINKS[zc(3209, 3216)] = [QPOS['CELLAR_DOWN']]
+LINKS[_ladder] = [QPOS['CELLAR_UP']]
 set_ctx(ZF1)
 DUKE = zc(3211, 3222)
-STAIRS_F1 = {'N': zc(3203, 3230), 'S': zc(3203, 3206)}
+STAIRS_F1 = {'N': zc(3204, 3229), 'S': zc(3204, 3207)}
 set_ctx(ZF2)
-STAIRS_F2 = {'N': zc(3203, 3230), 'S': zc(3203, 3206)}
+STAIRS_F2 = {'N': zc(3204, 3229), 'S': zc(3204, 3207)}
 
 # named cells for the staircase scripts: the stair's corner and where the player arrives
 for (fl, st) in ((0, STAIRS_L0), (1, STAIRS_F1), (2, STAIRS_F2)):
@@ -1730,9 +2093,10 @@ def ref_doors(X0, Y0, X1, Y1, kinds='d'):
 
 
 def build_from_ref(ref, style):
-    """Lay a traced town into the current zone context. OSRS walls run along tile edges; here a
-    wall fills a whole cell, so each wall edge takes the tile on its indoor side (between two rooms,
-    the tile of the larger room; between two outdoor tiles, the northern/western one).
+    """Lay a traced town into the current zone context. OSRS walls run along tile edges; the
+    authoring helpers put a wall in a whole cell, so each wall edge takes the tile on its indoor
+    side (between two rooms, the tile of the larger room; between two outdoor tiles, the
+    northern/western one) and convert_walls() later moves it back onto that edge.
 
     Steps: ground per tile; map lines inside a building that run only a tile or two are furniture
     (counters, booths, tables) and are dropped; rooms are floor tiles joined across open edges;
@@ -1841,24 +2205,9 @@ def build_from_ref(ref, style):
     is_wood = lambda t: t in room and bwood[bld_of(t)][0] * 2 > bwood[bld_of(t)][1]
     out = []        # buildings: dict(tiles, wood, roof, rect (OSRS), special)
     host = {}       # tile -> 'wall' / 'door' / 'fence' / 'gate'
-    wall_out = set()  # walls pushed onto the outdoor tile beside a narrow passage
     ext_doors = {}    # indoor tile -> kinds of exterior entrance edges ('d' door, 'o' gap)
 
-    def run_len(t, horizontal):
-        """Floor tiles in a straight line through t (across the room) without crossing an edge."""
-        n = 1
-        for sgn in (-1, 1):
-            a = t
-            while True:
-                b = (a[0] + sgn, a[1]) if horizontal else (a[0], a[1] + sgn)
-                e = (edgeW(max(a[0], b[0]), a[1]) if horizontal else edgeN(a[0], max(a[1], b[1])))
-                if not indoor(*b) or e != '.':
-                    break
-                n += 1
-                a = b
-        return n
-
-    def place(t, kind):
+    def place(t, kind, other=None):
         old = host.get(t)
         if old in ('door', 'gate') or (old == 'wall' and kind == 'fence'):
             return
@@ -1872,21 +2221,21 @@ def build_from_ref(ref, style):
                     continue
                 door = e in 'do'
                 ia, ib = indoor(*a), indoor(*b)
+                if ia or ib:                      # the OSRS edge itself, for convert_walls()
+                    t_ = a if ia else b
+                    gk = zc(X0 + b[0], Y1 - b[1]) + ('N' if a[0] == b[0] else 'W',)
+                    TRACE_EDGES[gk] = (None if e == 'o' else 'door' if e == 'd' else 'wall',
+                                       style['wood'] if is_wood(t_) else style['stone'])
                 if ia != ib:
                     t_in, t_out = (a, b) if ia else (b, a)
                     if door:
                         ext_doors.setdefault(t_in, set()).add(e)
-                    vert = a[1] == b[1]                    # the edge runs north-south
-                    if not door and run_len(t_in, vert) <= 2 and 0 <= t_out[0] < Wd and 0 <= t_out[1] < Ht:
-                        place(t_out, 'wall')               # keep a narrow passage open
-                        wall_out.add(t_out)
-                    else:
-                        place(t_in, 'door' if door else 'wall')
+                    place(t_in, 'door' if door else 'wall', t_out)   # the indoor tile (see convert_walls)
                 elif ia and ib:
                     if find(room[a]) == find(room[b]) and not door:
                         continue                  # inside a merged room
                     t = a if size_of[find(room[a])] >= size_of[find(room[b])] else b
-                    place(t, 'door' if door else 'wall')
+                    place(t, 'door' if door else 'wall', b if t == a else a)
                 else:
                     t = a
                     if at(*a) in 'cp' and at(*b) == 'g':
@@ -1894,15 +2243,19 @@ def build_from_ref(ref, style):
                     if not (0 <= t[0] < Wd and 0 <= t[1] < Ht):
                         t = b if t == a else a
                     place(t, 'gate' if door else 'fence')
+    diag = set()
     for r in range(Ht):
         for c in range(Wd):
             if ref['X'][r][c] == '/':
                 near_in = any(indoor(c + dc, r + dr) for dc in (-1, 0, 1) for dr in (-1, 0, 1))
                 place((c, r), 'wall' if near_in else 'fence')
+                diag.add((c, r))
     for (c, r), kind in host.items():
         if not (0 <= c < Wd and 0 <= r < Ht):
             continue
         X, Y = X0 + c, Y1 - r
+        if kind in ('wall', 'door') and (c, r) not in diag:
+            TRACED.add(zc(X, Y))
         if kind == 'wall':
             t = (c, r) if (c, r) in room else next(((c + u, r + v) for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1))
                                                     if (c + u, r + v) in room), None)
@@ -1936,10 +2289,6 @@ def build_from_ref(ref, style):
     groups = {}
     for t in room:
         groups.setdefault(bld_of(t), []).append(t)
-    for t in wall_out:
-        nb = next(((t[0] + u, t[1] + v) for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)) if (t[0] + u, t[1] + v) in room), None)
-        if nb is not None and t not in room:
-            groups[bld_of(nb)].append(t)
     for comp in groups.values():
         if len(comp) < 4:
             continue
@@ -1986,9 +2335,11 @@ def stamp(blds, X0, Y0, X1, Y1, wall, floor, doors=None, roof='slate', shape=Non
         if g:
             ROOFS[g][1].discard((x, y))
             ROOF[y][x] = 0
+    untrace(zc(*t) for t in tiles_)
     for b in list(blds):
         if b['tiles'] & ts:
             # what the trace made of this spot goes entirely (its leftovers become open ground)
+            untrace(zc(*t) for t in b['tiles'])
             for (X, Y) in b['tiles'] - ts:
                 x, y = cx(X), cy(Y)
                 g = ROOF[y][x]
@@ -2087,6 +2438,7 @@ def deco_near(X, Y, t, r=4, on=('GRASS', 'FLOWERS', 'FERN')):
 
 def ruin(blds, b, gap=3):
     """Turn a traced building into roofless ruins: grass floor, broken walls, no roof."""
+    untrace(zc(*t) for t in b['tiles'])
     for (X, Y) in b['tiles']:
         x, y = cx(X), cy(Y)
         g = ROOF[y][x]
@@ -2103,6 +2455,7 @@ def ruin(blds, b, gap=3):
 
 def clear_inside(b):
     """Remove a building's inner walls (keeps its outline) to make one hall."""
+    untrace((zc(*t) for t in b['tiles']), inner_only=True)
     for (X, Y) in b['tiles']:
         if TY[cy(Y)][cx(X)] in WALLS and all((X + u, Y + v) in b['tiles'] for u in (-1, 0, 1) for v in (-1, 0, 1)):
             zset(X, Y, GR[cy(Y)][cx(X)] if GR[cy(Y)][cx(X)] in WALKSET else 'FLOOR')
@@ -2117,20 +2470,25 @@ def bank(b, side, booths=None):
 
 def furnish(b, kit=None, seed=0):
     """Fill a house with OSRS-style furniture against its walls, keeping every floor tile it does
-    not take reachable from the doors."""
+    not take reachable from the doors. Runs once the walls are on tile edges."""
+    if not EDGES_DONE:
+        DEFERRED.append((CTX, furnish, (b, kit, seed)))
+        return
     kit = kit or ['BED', 'TABLE', 'CHAIR', 'DRAWERS', 'BOOKCASE', 'FIREPLACE', 'BARREL', 'CHAIR', 'POTPLANT']
     r = random.Random(hsh(*b['rect'], seed))
     floor = interior_of(b)
     fl = set(floor)
-    doors = [t for t in b['tiles'] if TY[cy(t[1])][cx(t[0])] == 'DOOR']
+    E = lambda t, u, v: edge_at(cx(t[0]), cy(t[1]), u, -v)          # OSRS (u, v): v grows north
+    doors = [t for t in floor if door_edge(cx(t[0]), cy(t[1]))]
     near_door = set((d[0] + u, d[1] + v) for d in doors for u in (-1, 0, 1) for v in (-1, 0, 1))
-    walls = lambda t: sum(TY[cy(t[1] + v)][cx(t[0] + u)] in WALLS for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+    walls = lambda t: sum(1 for (u, v) in D4 if (E(t, u, v) and E(t, u, v)[0] == 'wall') or
+                          TY[cy(t[1] + v)][cx(t[0] + u)] in WALLS)
     spots = [t for t in floor if walls(t) >= 1 and t not in near_door]
     r.shuffle(spots)
     spots.sort(key=lambda t: -walls(t))
+    opened = lambda a, u, v: not (E(a, u, v) and E(a, u, v)[0] == 'wall')
 
     def ncomp(free):
-        graph = free | set(doors)
         seen, n = set(), 0
         for t0 in free:
             if t0 in seen:
@@ -2140,15 +2498,13 @@ def furnish(b, kit=None, seed=0):
             st = [t0]
             while st:
                 a = st.pop()
-                for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                for u, v in D4:
                     q = (a[0] + u, a[1] + v)
-                    if q in graph and q not in seen:
+                    if q in free and q not in seen and opened(a, u, v):
                         seen.add(q)
                         st.append(q)
         return n
     comps0 = ncomp(fl)
-    connected = lambda free: ncomp(free) <= comps0
-    door_need = [d for d in doors if any((d[0] + u, d[1] + v) in fl for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
     budget = max(1, len(floor) // 5)
     placed = 0
     for item in kit:
@@ -2157,12 +2513,11 @@ def furnish(b, kit=None, seed=0):
         for t in spots:
             if t not in fl:
                 continue
-            if item == 'FIREPLACE' and TY[cy(t[1] + 1)][cx(t[0])] not in WALLS:
+            if item == 'FIREPLACE' and not (E(t, 0, 1) and E(t, 0, 1)[0] == 'wall'):
                 continue                        # against the north wall
             if item == 'TABLE' and walls(t) >= 2:
                 continue
-            if connected(fl - {t}) and all(any((d[0] + u, d[1] + v) in fl - {t} for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)))
-                                           for d in door_need):
+            if ncomp(fl - {t}) <= comps0:
                 zput(t[0], t[1], item)
                 fl.discard(t)
                 placed += 1
@@ -2271,7 +2626,7 @@ def forge(name, X, Y, t, r=2):
                 a = st.pop()
                 for (u, v) in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                     q = (a[0] + u, a[1] + v)
-                    if q in win and q not in seen:
+                    if q in win and q not in seen and not wall_between(a[0], a[1], u, v):
                         seen.add(q)
                         st.append(q)
         return n
@@ -2283,8 +2638,8 @@ def forge(name, X, Y, t, r=2):
         for (x, y) in ring:
             if not inb(x, y) or TY[y][x] not in FORGE_ON or not ROOF[y][x]:
                 continue
-            nb = [(x + u, y + v) for (u, v) in ((1, 0), (-1, 0), (0, 1), (0, -1))]
-            if any(inb(a, b) and TY[b][a] == 'DOOR' for (a, b) in nb) or not any(walk(a, b) and TY[b][a] != 'DOOR' for (a, b) in nb):
+            if door_edge(x, y) or any(door_edge(x + u, y + v) for (u, v) in D4) or \
+                    not any(step_ok(x, y, u, v) for (u, v) in D4):
                 continue
             old = TY[y][x]
             before = parts(x, y)
@@ -2297,14 +2652,142 @@ def forge(name, X, Y, t, r=2):
     raise SystemExit('no room for %s near %d,%d' % (name, X, Y))
 
 
-for (_n, _X, _Y) in (('FURNACE_LUMBRIDGE', 3227, 3257), ('FURNACE_ALKHARID', 3273, 3187),
-                     ('FURNACE_FALADOR', 2976, 3369), ('FURNACE_EDGEVILLE', 3110, 3499)):
-    forge(_n, _X, _Y, 'FURNACE')
-for (_n, _X, _Y) in (('ANVIL_VARROCK_W1', 3188, 3426), ('ANVIL_VARROCK_W2', 3188, 3424), ('ANVIL_VARROCK_W3', 3188, 3421),
-                     ('ANVIL_VARROCK_C1', 3228, 3436), ('ANVIL_VARROCK_C2', 3228, 3434),
-                     ('ANVIL_VARROCK_E1', 3246, 3404), ('ANVIL_VARROCK_E2', 3248, 3404),
-                     ('ANVIL_DORIC1', 2950, 3452), ('ANVIL_DORIC2', 2950, 3451)):
-    forge(_n, _X, _Y, 'ANVIL')
+# ---- the Mining Guild: a ladder in its building in Falador (Mining 60) down to the mine ---------
+# OSRS keeps underground areas 6400 tiles north of the surface; here the mine is plane 3 at its
+# surface coordinates (OSRS (X, Y + 6400, 0)), a zone of its own like the castle floors.
+ZMG = Ctx(3012, 3360, 1, 72, ZONE_Y, 72, ZONE_Y, 72 + 48, ZONE_Y + 31)    # OSRS 3012..3060 x 3329..3360
+ZONES.append(('MINING_GUILD', ZMG, 0, 3))
+
+
+def mining_guild():
+    set_ctx(ZMG)
+    for y in YR():
+        for x in XR():
+            TY[y][x] = GR[y][x] = 'VOID'
+    cave = set()
+    # the guild's halls (OSRS 3020..3056 x 9732..9756): the west hall by the ladder, the main hall
+    # of coal and mithril, and the expansion to the south-east with adamantite and runite
+    for (cX, cY, rx, ry) in ((3022, 3339, 4, 3.5), (3031, 3344, 10, 8), (3045, 3346, 9, 7.5), (3050, 3336, 6, 4.5),
+                             (3038, 3340, 4, 3)):
+        for y in YR():
+            for x in XR():
+                X, Y = ZMG.OX + (x - ZMG.CX0), ZMG.OY - (y - ZMG.CY0)
+                if ((X - cX) / rx) ** 2 + ((Y - cY) / ry) ** 2 <= 1.0:
+                    cave.add((x, y))
+    for (x, y) in cave:
+        TY[y][x] = GR[y][x] = 'PATH'
+    for (x, y) in cave:
+        for u in (-1, 0, 1):
+            for v in (-1, 0, 1):
+                q = (x + u, y + v)
+                if q not in cave and inc(*q):
+                    TY[q[1]][q[0]], GR[q[1]][q[0]] = 'CLIFF', 'PATH'
+    ladder = zc(3020, 3339)
+    TY[ladder[1]][ladder[0]] = 'LADDER'
+    r = random.Random(7303)
+    floor = sorted(c for c in cave if c != ladder and abs(c[0] - ladder[0]) + abs(c[1] - ladder[1]) > 3)
+    r.shuffle(floor)
+    used = set()
+
+    def rocks(t, n, box):
+        k = 0
+        for (x, y) in floor:
+            X, Y = ZMG.OX + (x - ZMG.CX0), ZMG.OY - (y - ZMG.CY0)
+            if k >= n or not (box[0] <= X <= box[2] and box[1] <= Y <= box[3]) or (x, y) in used:
+                continue
+            if any((x + u, y + v) in used for u in (-1, 0, 1) for v in (-1, 0, 1)):
+                continue
+            used.add((x, y))
+            TY[y][x] = t
+            k += 1
+    rocks('RUNITE', 2, (3046, 3333, 3056, 3339))
+    rocks('ADAMANTITE', 3, (3044, 3332, 3056, 3340))
+    rocks('MITHRIL', 6, (3036, 3339, 3054, 3353))
+    rocks('COAL', 24, (3022, 3336, 3054, 3352))
+    return ladder
+
+
+MG_LADDER = mining_guild()
+QPOS['GUILD_LADDER_UP'] = MG_LADDER
+QPOS['GUILD_BOTTOM'] = (MG_LADDER[0] + 1, MG_LADDER[1])
+QUEST_OBJS.append(('LADDER', MG_LADDER[0], MG_LADDER[1]))
+set_ctx(OW)
+# the ladder down, on its OSRS tile in the guild's hall
+_lx, _ly = cx(3020), cy(3339)
+_spot = nearest_walk(_lx, _ly, lambda a, b: walk_ok(a, b) and
+                     sum(walk_ok(a + u, b + v) for (u, v) in ((1, 0), (-1, 0), (0, 1), (0, -1))) == 4, 6)
+TY[_spot[1]][_spot[0]] = 'LADDER'
+QPOS['GUILD_LADDER_DOWN'] = _spot
+QPOS['GUILD_TOP'] = nearest_walk(_spot[0], _spot[1] - 1, walk_ok, 3)
+QUEST_OBJS.append(('LADDER', _spot[0], _spot[1]))
+for (a, b) in ((QPOS['GUILD_LADDER_DOWN'], QPOS['GUILD_BOTTOM']), (QPOS['GUILD_LADDER_UP'], QPOS['GUILD_TOP'])):
+    LINKS.setdefault(a, []).append(b)
+
+# ---- Mudskipper Point (south of Port Sarim) and the Asgarnian Ice Dungeon's blurite -------------
+# The peninsula reaches south of the map; its ladder (OSRS 3008, 3150) goes down to the dungeon,
+# whose blurite rocks are the only ones in Gielinor. The dungeon is plane 4, as the Mining Guild
+# is plane 3.
+set_ctx(OW)
+opoly([(2984, 3197), (3001, 3198), (3012, 3189), (3017, 3170), (3015, 3150), (3008, 3137), (2990, 3137),
+       (2983, 3152), (2983, 3178)], lambda x, y: setg(x, y, 'SWAMP'))
+scatter(2984, 3138, 3016, 3196, 0.03, [('BUSH', 1), ('DEADTREE', 1)], on=('SWAMP',), seed=3150)
+_t = cx(3008), cy(3150)
+TY[_t[1]][_t[0]] = 'LADDER'
+QPOS['ICE_LADDER_DOWN'] = _t
+QPOS['ICE_TOP'] = (_t[0], _t[1] + 1)
+for (u, v) in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+    TY[_t[1] + v][_t[0] + u] = GR[_t[1] + v][_t[0] + u] = 'SWAMP'
+QUEST_OBJS.append(('LADDER', _t[0], _t[1]))
+
+ZICE = Ctx(3000, 3176, 1, 124, ZONE_Y, 124, ZONE_Y, 124 + 60, ZONE_Y + 30)     # OSRS 3000..3060 x 3146..3176
+ZONES.append(('ICE_DUNGEON', ZICE, 0, 4))
+
+
+def ice_dungeon():
+    set_ctx(ZICE)
+    for y in YR():
+        for x in XR():
+            TY[y][x] = GR[y][x] = 'VOID'
+    cave = set()
+    # the entrance hall, the passage east, and the chamber of blurite rocks (OSRS 3045..3055, 9560..9572)
+    for (cX, cY, rx, ry) in ((3008, 3152, 5, 4), (3018, 3155, 6, 2.5), (3029, 3158, 6, 2.5), (3040, 3162, 6, 3),
+                             (3050, 3166, 7, 5.5)):
+        for y in YR():
+            for x in XR():
+                X, Y = ZICE.OX + (x - ZICE.CX0), ZICE.OY - (y - ZICE.CY0)
+                if ((X - cX) / rx) ** 2 + ((Y - cY) / ry) ** 2 <= 1.0:
+                    cave.add((x, y))
+    for (x, y) in cave:
+        TY[y][x] = GR[y][x] = 'SNOW'
+    for (x, y) in cave:
+        for u in (-1, 0, 1):
+            for v in (-1, 0, 1):
+                q = (x + u, y + v)
+                if q not in cave and inc(*q):
+                    TY[q[1]][q[0]], GR[q[1]][q[0]] = 'CLIFF', 'SNOW'
+    ladder = zc(3008, 3150)
+    TY[ladder[1]][ladder[0]] = 'LADDER'
+    r = random.Random(9566)
+    spots = sorted(c for c in cave if 3046 <= ZICE.OX + (c[0] - ZICE.CX0) <= 3055)
+    r.shuffle(spots)
+    used = set()
+    for (x, y) in spots:
+        if len(used) >= 6:
+            break
+        if any((x + u, y + v) in used for u in (-1, 0, 1) for v in (-1, 0, 1)):
+            continue
+        used.add((x, y))
+        TY[y][x] = 'BLURITE'
+    return ladder
+
+
+ICE_LADDER = ice_dungeon()
+QPOS['ICE_LADDER_UP'] = ICE_LADDER
+QPOS['ICE_BOTTOM'] = (ICE_LADDER[0], ICE_LADDER[1] - 1)
+QUEST_OBJS.append(('LADDER', ICE_LADDER[0], ICE_LADDER[1]))
+for (a, b) in ((QPOS['ICE_LADDER_DOWN'], QPOS['ICE_BOTTOM']), (QPOS['ICE_LADDER_UP'], QPOS['ICE_TOP'])):
+    LINKS.setdefault(a, []).append(b)
+set_ctx(OW)
 def join_roads():
     """Where a countryside road reaches a town's edge off the town's own streets, pave the gap to
     the nearest street (both follow the OSRS map, but not tile for tile)."""
@@ -2349,6 +2832,18 @@ for _y in range(1, OW_H):              # no canopy over a roof (canopies are dra
             TY[_y][_x] = GR[_y][_x] = 'GRASS'
 
 
+convert_walls()
+run_deferred()
+for (_n, _X, _Y) in (('FURNACE_LUMBRIDGE', 3227, 3257), ('FURNACE_ALKHARID', 3273, 3187),
+                     ('FURNACE_FALADOR', 2976, 3369), ('FURNACE_EDGEVILLE', 3110, 3499)):
+    forge(_n, _X, _Y, 'FURNACE')
+for (_n, _X, _Y) in (('ANVIL_VARROCK_W1', 3188, 3426), ('ANVIL_VARROCK_W2', 3188, 3424), ('ANVIL_VARROCK_W3', 3188, 3421),
+                     ('ANVIL_VARROCK_C1', 3228, 3436), ('ANVIL_VARROCK_C2', 3228, 3434),
+                     ('ANVIL_VARROCK_E1', 3246, 3404), ('ANVIL_VARROCK_E2', 3248, 3404),
+                     ('ANVIL_DORIC1', 2950, 3452), ('ANVIL_DORIC2', 2950, 3451)):
+    forge(_n, _X, _Y, 'ANVIL')
+
+
 # ========================================================================================
 # NPCs
 # ========================================================================================
@@ -2368,6 +2863,8 @@ def flood():
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             xx, yy = x + dx, y + dy
             if not inb(xx, yy) or seen[yy][xx]:
+                continue
+            if wall_between(x, y, dx, dy):
                 continue
             if (xx, yy) in LINKS:
                 for d in LINKS[(xx, yy)]:
@@ -2556,6 +3053,7 @@ REGIONS_O = [
     ('Wizards\' Tower', 3090, 3140, 3130, 3180),
     ('Draynor Manor', 3086, 3330, 3130, 3380),
     ('Draynor Village', 3060, 3220, 3135, 3280),
+    ('Mudskipper Point', 2983, 3137, 3017, 3192),
     ('Port Sarim', 3000, 3180, 3060, 3262),
     ('Rimmington', 2930, 3190, 2999, 3255),
     ('White Knights\' Castle', 2954, 3326, 2988, 3352),
@@ -2587,7 +3085,10 @@ REGIONS_O = [
     ('Misthalin', 2928, 3137, 3343, 3552),
 ]
 REGIONS = []
-for (ctx, n, X0, Y0, X1, Y1) in ((ZF1, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
+for (ctx, n, X0, Y0, X1, Y1) in ((ZB, 'Lumbridge Castle Cellar', 3203, 3211, 3223, 3229),
+                                 (ZMG, 'Mining Guild', 3012, 3329, 3060, 3360),
+                                 (ZICE, 'Asgarnian Ice Dungeon', 3000, 3146, 3060, 3176),
+                                 (ZF1, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
                                  (ZF2, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
                                  (ZL0, 'Lumbridge Castle', 3199, 3200, 3231, 3236),
                                  (ZL0, 'Lumbridge Swamp', 3187, 3180, 3236, 3199),
@@ -2627,7 +3128,7 @@ def check_reachability():
     errs = []
 
     def near(x, y):
-        return any(inb(x + dx, y + dy) and seen[y + dy][x + dx] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+        return any(inb(x + dx, y + dy) and seen[y + dy][x + dx] and not wall_between(x, y, dx, dy) for dx, dy in D4)
     for (k, x, y) in FISH_SPOTS:
         if not near(x, y):
             errs.append('fish spot %s %d,%d' % (k, x, y))
@@ -2670,7 +3171,7 @@ def check_reachability():
             break
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             n = (c[0] + dx, c[1] + dy)
-            if not inb(*n) or n in dist or TY[n[1]][n[0]] not in WALKSET:
+            if not inb(*n) or n in dist or not step_ok(c[0], c[1], dx, dy):
                 continue
             dist[n] = dist[c] + 1
             if GR[n[1]][n[0]] == 'SWAMP':
@@ -2701,7 +3202,8 @@ CHARS.update({'CHECKER': '#', 'VOID': ' ', 'STAIRS': '/', 'TABLE': 'T', 'BED': '
               'DRAWERS': 'd', 'FIREPLACE': 'F', 'BARREL': 'o', 'WARDROBE': 'w', 'POTPLANT': 'p', 'BIGSTALL': 'L',
               'ANVIL': 'a', 'FURNACE': 'u', 'SHELF': 'k', 'THRONE': 'T', 'WELL': 'O', 'SACKS': 's', 'FLOWERBED': ',',
               'PALM': 'P', 'BENCH': 'n', 'SUNFLOWER': '*', 'LOWWALL': 'l', 'VFOUNTAIN': 'F', 'COAL': '5',
-              'SILVER': '6', 'GOLD': '7', 'MITHRIL': '8', 'ADAMANTITE': '9', 'RUNITE': 'y'})
+              'SILVER': '6', 'GOLD': '7', 'MITHRIL': '8', 'ADAMANTITE': '9', 'RUNITE': 'y', 'LADDER': 'H', 'BLURITE': 'z',
+              'TRAPDOOR': '_'})
 
 
 def ascii_map():
@@ -2781,7 +3283,7 @@ def rock_image(ore):
     if ore:
         oc, od = {'COPPER': ('CU', 'CUd'), 'TIN': ('TI', 'TId'), 'IRON': ('FE', 'FEd'), 'CLAY': ('S1', 'D1'),
                   'COAL': ('IR0', 'IR2'), 'SILVER': ('WW1', 'WW3'), 'GOLD': ('GOLD', 'CR2'), 'MITHRIL': ('W0', 'W3'),
-                  'ADAMANTITE': ('CA0', 'CA2'), 'RUNITE': ('W2', 'W1')}[ore]
+                  'ADAMANTITE': ('CA0', 'CA2'), 'RUNITE': ('W2', 'W1'), 'BLURITE': ('W1', 'W0')}[ore]
         for (fx, fy) in ((5, 9), (9, 6), (11, 11), (7, 12), (3, 11)):
             img[fy][fx] = WC[oc]
             img[fy][fx + 1] = WC[od]
@@ -2913,6 +3415,15 @@ def quest_art():
     ellipse_fill(im, 8, 8.5, 5.5, 3, WC['IR2'])
     ellipse_fill(im, 8, 10, 4, 2, WC['OUT'])
     A['HOLE'] = im
+    # trapdoor: a planked hatch in a dark frame, with an iron ring
+    im = blank(16, 16)
+    for y in range(2, 14):
+        for x in range(2, 14):
+            edge = x in (2, 13) or y in (2, 13)
+            im[y][x] = WC['OUT'] if edge else (WC['K0'] if x % 4 == 1 else WC['K1'] if y > 3 else WC['K2'])
+    im[8][7] = im[8][8] = WC['IR1']
+    im[9][6] = im[9][9] = WC['IR1']
+    A['TRAPDOOR'] = im
     # drain grate
     im = blank(16, 16)
     for y in range(4, 13):
@@ -3155,7 +3666,8 @@ def render_cached(x, y):
         tuple((T_at(x + dx, y + dy), G_at(x + dx, y + dy), ROOF[y + dy][x + dx] if inb(x + dx, y + dy) else 0)
               for dx in (-1, 0, 1) for dy in (-3, -2, 2, 3)) + \
         tuple(ROOF[y + dy][x + dx] if inb(x + dx, y + dy) else 0 for dx, dy in DIRS8 + [(0, 0)]) + \
-        (hsh(x, y) % 6, x & 1, y & 1, hsh(53, x, y) % 6)
+        (hsh(x, y) % 6, x & 1, y & 1, hsh(53, x, y) % 6) + \
+        tuple(EDGES.get((x + dx, y + dy, s_)) for dx in (-1, 0, 1, 2) for dy in (0, 1, 2) for s_ in 'NW')
     if t in ('FLOWERS', 'STAIRS', 'FERN', 'BIGSTALL', 'FLOWERBED', 'VFOUNTAIN', 'SUNFLOWER'):
         key = key + (x, y)
     if t == 'CLIFF':
@@ -3176,12 +3688,21 @@ for y in range(MH):
         map_meta[y][x] = m
         if o and y > 0:
             map_over[y - 1][x] = o
-# roofs on the overlay layer (above sprites), one image per covered cell
+# roofs on the overlay layer (above sprites), one image per covered cell. A roof stands on its
+# walls, so its eaves reach into the row north of the building: those cells keep their own roof
+# group, or else are marked as that roof's eaves (bit 7, see world_roof() in src/world.c).
+EAVES = {}
 for g in range(1, len(ROOFS)):
     if ROOFS[g][1]:
         hd_art.set_theme(theme_of(*next(iter(ROOFS[g][1]))))
-    for (x, y), img in hd_art.roof_images(sys.modules[__name__], g).items():
+    for (x, y), img in sorted(hd_art.roof_images(sys.modules[__name__], g).items()):
+        if map_over[y][x]:
+            under = [r[:] for r in meta_imgs[map_over[y][x]]]
+            hd_art.paste(under, img)
+            img = under
         map_over[y][x] = add_meta(img, pset_of(x, y))
+        if not ROOF[y][x]:
+            EAVES[(x, y)] = g
 # upper castle floors: outside the keep the player looks down onto the ground floor
 for (x, y), (sx, sy) in VIEW.items():
     map_meta[y][x] = map_meta[sy][sx]
@@ -3408,15 +3929,38 @@ def cell_of(X, Y, p):
     return (gx, gy) if 0 <= gx < MW and 0 <= gy < MH else None
 
 
+def roof_ids():
+    """Roof group -> id in the ROM's roof bytes (1..127; bit 7 marks eaves). Groups more than
+    two screens apart share ids: hiding the roof the player is under hides every roof with its
+    id, and only the ones near the camera show."""
+    box = {}
+    for g in range(1, len(ROOFS)):
+        cs = ROOFS[g][1] | set(c for c, h in EAVES.items() if h == g)
+        if cs:
+            xs, ys = [c[0] for c in cs], [c[1] for c in cs]
+            box[g] = (min(xs), min(ys), max(xs), max(ys))
+    near = lambda a, b: a[0] - 40 <= b[2] and b[0] - 40 <= a[2] and a[1] - 30 <= b[3] and b[1] - 30 <= a[3]
+    ids = [0] * len(ROOFS)
+    for g in sorted(box):
+        used = set(ids[h] for h in box if h < g and near(box[g], box[h]))
+        ids[g] = next(i for i in range(1, 128) if i not in used)
+    return ids
+
+
+ROOF_ID = roof_ids()
+
+
 def build_regions():
-    """-> list of (plane, rx, ry, pal_set, flags, [block stream or None] * 16, walk words)."""
+    """-> list of (plane, rx, ry, pal_set, flags, [block stream or None] * 16, walk words, edge words or
+    None). Edge words: four 64x64 bitmaps like walk, for a wall on each tile's north edge, on its
+    west edge (both stop walkers), then the same two for walls that also stop projectiles."""
     from collections import Counter
     regs = []
     for p in sorted(BOUNDS):
         X0, Y0, X1, Y1 = BOUNDS[p]
         for rx in range(X0 // REGION, X1 // REGION + 1):
             for ry in range(Y0 // REGION, Y1 // REGION + 1):
-                blocks, walk = [], [0] * (REGION * REGION // 32)
+                blocks, walk, edge = [], [0] * (REGION * REGION // 32), [0] * (REGION * REGION // 8)
                 psets, flags = Counter(), 0
                 for b in range(16):
                     bx0, by0 = rx * REGION + (b & 3) * BLOCK, ry * REGION + (b >> 2) * BLOCK
@@ -3431,12 +3975,18 @@ def build_regions():
                             gx, gy = c
                             i = ly * BLOCK + lx
                             inside += 1
-                            meta[i], over[i], typ[i], roof[i] = map_meta[gy][gx], map_over[gy][gx], T[TY[gy][gx]], ROOF[gy][gx]
+                            meta[i], over[i], typ[i], roof[i] = map_meta[gy][gx], map_over[gy][gx], T[TY[gy][gx]], \
+                                ROOF_ID[ROOF[gy][gx]] or (0x80 | ROOF_ID[EAVES[(gx, gy)]] if (gx, gy) in EAVES else 0)
                             psets[pset_of(gx, gy)] += 1
                             flags |= (RF_ROOFS if roof[i] else 0) | (RF_OVERLAY if over[i] else 0)
+                            rl, rr = (b >> 2) * BLOCK + ly, (b & 3) * BLOCK + lx
                             if typ[i] <= T['DOOR']:      # T_WALKABLE_MAX
-                                rl, rr = (b >> 2) * BLOCK + ly, (b & 3) * BLOCK + lx
                                 walk[rl * 2 + (rr >> 5)] |= 1 << (rr & 31)
+                            for (k, side) in ((0, 'N'), (1, 'W')):
+                                e = EDGES.get((gx, gy, side))
+                                if e and e[0] != 'door':
+                                    for j in ((k, k + 2) if e[0] == 'wall' else (k,)):
+                                        edge[j * 128 + rl * 2 + (rr >> 5)] |= 1 << (rr & 31)
                     if not inside:
                         blocks.append(None)
                         continue
@@ -3444,7 +3994,7 @@ def build_regions():
                         bytes(typ) + bytes(roof)
                     blocks.append(lz77.compress(raw))
                 if any(blocks):
-                    regs.append((p, rx, ry, psets.most_common(1)[0][0], flags, blocks, walk))
+                    regs.append((p, rx, ry, psets.most_common(1)[0][0], flags, blocks, walk, edge if any(edge) else None))
     return regs
 
 

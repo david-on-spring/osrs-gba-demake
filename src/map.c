@@ -56,6 +56,16 @@ int map_walk_at(int x, int y, int p) {
     return (r->walk[(y & 63) * 2 + (lx >> 5)] >> (lx & 31)) & 1;
 }
 
+// k: 0 a wall on the north edge of (x, y), 1 on its west edge; 2, 3 the same for walls that
+// also stop projectiles (fences only stop walkers)
+int map_edge_at(int x, int y, int p, int k) {
+    if (!map_in(x, y, p)) return 0;
+    const MapRegion *r = region_find(x >> 6, y >> 6, p);
+    if (!r || !r->edge) return 0;
+    int lx = x & 63;
+    return (r->edge[k * 128 + (y & 63) * 2 + (lx >> 5)] >> (lx & 31)) & 1;
+}
+
 // ---------------------------------------------------------------------------------------
 // Block cache. map_tor[] is indexed by the block's position modulo 16 in each direction
 // (map_tidx), so the blocks around the camera never share an entry; a slot whose entry was
