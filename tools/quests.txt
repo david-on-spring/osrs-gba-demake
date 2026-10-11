@@ -1819,3 +1819,29 @@ obj STAIRS
   chat "You climb down the stairs."
   warp ARRIVE_S1 RIGHT
   end
+
+# Ladders: the Mining Guild's (Falador; Mining 60 to go down to the mine) and Mudskipper Point's,
+# down to the Asgarnian Ice Dungeon
+obj LADDER
+  if near GUILD_LADDER_UP 2 goto up
+  if near ICE_LADDER_DOWN 2 goto icedown
+  if near ICE_LADDER_UP 2 goto iceup
+  if not level MINING >= 60 goto low
+  chat "You climb down the ladder."
+  warp GUILD_BOTTOM RIGHT
+  end
+:low
+  chat "Sorry, but you need level 60 Mining to go in there."
+  end
+:up
+  chat "You climb up the ladder."
+  warp GUILD_TOP DOWN
+  end
+:icedown
+  chat "You climb down the ladder."
+  warp ICE_BOTTOM DOWN
+  end
+:iceup
+  chat "You climb up the ladder."
+  warp ICE_TOP UP
+  end

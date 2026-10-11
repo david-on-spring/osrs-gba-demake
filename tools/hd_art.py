@@ -1623,6 +1623,18 @@ def obj_anvil(base):
     return img
 
 
+def obj_ladder(base):
+    img = [r[:] for r in base]
+    for py in range(0, 16):
+        for px in (4, 11):
+            img[py][px] = P['h0']
+            img[py][px + 1] = P['h2']
+        if py % 4 == 1:
+            for px in range(6, 11):
+                img[py][px] = P['h1'] if py < 14 else P['h0']
+    return img
+
+
 def obj_furnace(base):
     img = [r[:] for r in base]
     for py in range(0, 16):
@@ -1859,6 +1871,8 @@ def render(wg, x, y, quest_art=None):
         base = obj_anvil(base)
     elif t == 'FURNACE':
         base = obj_furnace(base)
+    elif t == 'LADDER':
+        base = obj_ladder(base)
     elif t == 'THRONE':
         base = obj_throne(base)
     elif t == 'WELL':

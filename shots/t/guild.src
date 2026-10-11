@@ -1,0 +1,17 @@
+# The Mining Guild (Falador): its ladder needs Mining 60, goes down to the mine (plane 3) and back up.
+wait 60
+newgame
+world
+tpz OVERWORLD 3019 3340 DOWN
+press A
+wait 40
+expectat OVERWORLD 3019 3340
+xp MINING 2737420
+press A
+wait 40
+expectat MINING_GUILD 3021 3339
+shot shots/t/guild_mine.png
+face obj:LADDER DOWN
+press A
+wait 40
+expectat OVERWORLD 3019 3340

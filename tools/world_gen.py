@@ -151,14 +151,14 @@ BLOCK = ['WATER', 'WALL', 'HWALL', 'WWALL', 'SWALL', 'FENCE', 'TREE', 'OAK', 'WI
          'CHAIR', 'BOOKCASE', 'DRAWERS', 'FIREPLACE', 'BARREL', 'WARDROBE', 'POTPLANT', 'BIGSTALL', 'ANVIL',
          'FURNACE', 'SHELF', 'THRONE', 'WELL', 'SACKS', 'FLOWERBED', 'PALM', 'BENCH', 'SUNFLOWER', 'LOWWALL',
          'VFOUNTAIN',
-         # the ores smithing needs
-         'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE']
+         # the ores smithing needs, and ladders (the Mining Guild)
+         'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE', 'LADDER', 'BLURITE']
 TYPES = WALK + BLOCK
 T = {n: i for i, n in enumerate(TYPES)}
 WALKSET = set(WALK)
 WALLS = {'WALL', 'HWALL', 'WWALL', 'SWALL'}
 TREES = {'TREE', 'OAK', 'WILLOW', 'YEW', 'DEADTREE'}
-ROCKS = {'COPPER', 'TIN', 'IRON', 'CLAY', 'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE'}
+ROCKS = {'COPPER', 'TIN', 'IRON', 'CLAY', 'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE', 'BLURITE'}
 
 TY = [['GRASS' if y < OW_H and x < OW_W else 'VOID' for x in range(MW)] for y in range(MH)]   # cell type
 GR = [['GRASS' if y < OW_H and x < OW_W else 'VOID' for x in range(MW)] for y in range(MH)]   # ground under it
@@ -2305,6 +2305,143 @@ for (_n, _X, _Y) in (('ANVIL_VARROCK_W1', 3188, 3426), ('ANVIL_VARROCK_W2', 3188
                      ('ANVIL_VARROCK_E1', 3246, 3404), ('ANVIL_VARROCK_E2', 3248, 3404),
                      ('ANVIL_DORIC1', 2950, 3452), ('ANVIL_DORIC2', 2950, 3451)):
     forge(_n, _X, _Y, 'ANVIL')
+
+# ---- the Mining Guild: a ladder in its building in Falador (Mining 60) down to the mine ---------
+# OSRS keeps underground areas 6400 tiles north of the surface; here the mine is plane 3 at its
+# surface coordinates (OSRS (X, Y + 6400, 0)), a zone of its own like the castle floors.
+ZMG = Ctx(3012, 3360, 1, 72, ZONE_Y, 72, ZONE_Y, 72 + 48, ZONE_Y + 31)    # OSRS 3012..3060 x 3329..3360
+ZONES.append(('MINING_GUILD', ZMG, 0, 3))
+
+
+def mining_guild():
+    set_ctx(ZMG)
+    for y in YR():
+        for x in XR():
+            TY[y][x] = GR[y][x] = 'VOID'
+    cave = set()
+    # the guild's halls (OSRS 3020..3056 x 9732..9756): the west hall by the ladder, the main hall
+    # of coal and mithril, and the expansion to the south-east with adamantite and runite
+    for (cX, cY, rx, ry) in ((3022, 3339, 4, 3.5), (3031, 3344, 10, 8), (3045, 3346, 9, 7.5), (3050, 3336, 6, 4.5),
+                             (3038, 3340, 4, 3)):
+        for y in YR():
+            for x in XR():
+                X, Y = ZMG.OX + (x - ZMG.CX0), ZMG.OY - (y - ZMG.CY0)
+                if ((X - cX) / rx) ** 2 + ((Y - cY) / ry) ** 2 <= 1.0:
+                    cave.add((x, y))
+    for (x, y) in cave:
+        TY[y][x] = GR[y][x] = 'PATH'
+    for (x, y) in cave:
+        for u in (-1, 0, 1):
+            for v in (-1, 0, 1):
+                q = (x + u, y + v)
+                if q not in cave and inc(*q):
+                    TY[q[1]][q[0]], GR[q[1]][q[0]] = 'CLIFF', 'PATH'
+    ladder = zc(3020, 3339)
+    TY[ladder[1]][ladder[0]] = 'LADDER'
+    r = random.Random(7303)
+    floor = sorted(c for c in cave if c != ladder and abs(c[0] - ladder[0]) + abs(c[1] - ladder[1]) > 3)
+    r.shuffle(floor)
+    used = set()
+
+    def rocks(t, n, box):
+        k = 0
+        for (x, y) in floor:
+            X, Y = ZMG.OX + (x - ZMG.CX0), ZMG.OY - (y - ZMG.CY0)
+            if k >= n or not (box[0] <= X <= box[2] and box[1] <= Y <= box[3]) or (x, y) in used:
+                continue
+            if any((x + u, y + v) in used for u in (-1, 0, 1) for v in (-1, 0, 1)):
+                continue
+            used.add((x, y))
+            TY[y][x] = t
+            k += 1
+    rocks('RUNITE', 2, (3046, 3333, 3056, 3339))
+    rocks('ADAMANTITE', 3, (3044, 3332, 3056, 3340))
+    rocks('MITHRIL', 6, (3036, 3339, 3054, 3353))
+    rocks('COAL', 24, (3022, 3336, 3054, 3352))
+    return ladder
+
+
+MG_LADDER = mining_guild()
+QPOS['GUILD_LADDER_UP'] = MG_LADDER
+QPOS['GUILD_BOTTOM'] = (MG_LADDER[0] + 1, MG_LADDER[1])
+QUEST_OBJS.append(('LADDER', MG_LADDER[0], MG_LADDER[1]))
+set_ctx(OW)
+# the ladder down, on its OSRS tile in the guild's hall
+_lx, _ly = cx(3020), cy(3339)
+_spot = nearest_walk(_lx, _ly, lambda a, b: walk_ok(a, b) and
+                     sum(walk_ok(a + u, b + v) for (u, v) in ((1, 0), (-1, 0), (0, 1), (0, -1))) == 4, 6)
+TY[_spot[1]][_spot[0]] = 'LADDER'
+QPOS['GUILD_LADDER_DOWN'] = _spot
+QPOS['GUILD_TOP'] = nearest_walk(_spot[0], _spot[1] - 1, walk_ok, 3)
+QUEST_OBJS.append(('LADDER', _spot[0], _spot[1]))
+for (a, b) in ((QPOS['GUILD_LADDER_DOWN'], QPOS['GUILD_BOTTOM']), (QPOS['GUILD_LADDER_UP'], QPOS['GUILD_TOP'])):
+    LINKS.setdefault(a, []).append(b)
+
+# ---- Mudskipper Point (south of Port Sarim) and the Asgarnian Ice Dungeon's blurite -------------
+# The peninsula reaches south of the map; its ladder (OSRS 3008, 3150) goes down to the dungeon,
+# whose blurite rocks are the only ones in Gielinor. The dungeon is plane 4, as the Mining Guild
+# is plane 3.
+set_ctx(OW)
+opoly([(2984, 3197), (3001, 3198), (3012, 3189), (3017, 3170), (3015, 3150), (3008, 3137), (2990, 3137),
+       (2983, 3152), (2983, 3178)], lambda x, y: setg(x, y, 'SWAMP'))
+scatter(2984, 3138, 3016, 3196, 0.03, [('BUSH', 1), ('DEADTREE', 1)], on=('SWAMP',), seed=3150)
+_t = cx(3008), cy(3150)
+TY[_t[1]][_t[0]] = 'LADDER'
+QPOS['ICE_LADDER_DOWN'] = _t
+QPOS['ICE_TOP'] = (_t[0], _t[1] + 1)
+for (u, v) in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+    TY[_t[1] + v][_t[0] + u] = GR[_t[1] + v][_t[0] + u] = 'SWAMP'
+QUEST_OBJS.append(('LADDER', _t[0], _t[1]))
+
+ZICE = Ctx(3000, 3176, 1, 124, ZONE_Y, 124, ZONE_Y, 124 + 60, ZONE_Y + 30)     # OSRS 3000..3060 x 3146..3176
+ZONES.append(('ICE_DUNGEON', ZICE, 0, 4))
+
+
+def ice_dungeon():
+    set_ctx(ZICE)
+    for y in YR():
+        for x in XR():
+            TY[y][x] = GR[y][x] = 'VOID'
+    cave = set()
+    # the entrance hall, the passage east, and the chamber of blurite rocks (OSRS 3045..3055, 9560..9572)
+    for (cX, cY, rx, ry) in ((3008, 3152, 5, 4), (3018, 3155, 6, 2.5), (3029, 3158, 6, 2.5), (3040, 3162, 6, 3),
+                             (3050, 3166, 7, 5.5)):
+        for y in YR():
+            for x in XR():
+                X, Y = ZICE.OX + (x - ZICE.CX0), ZICE.OY - (y - ZICE.CY0)
+                if ((X - cX) / rx) ** 2 + ((Y - cY) / ry) ** 2 <= 1.0:
+                    cave.add((x, y))
+    for (x, y) in cave:
+        TY[y][x] = GR[y][x] = 'SNOW'
+    for (x, y) in cave:
+        for u in (-1, 0, 1):
+            for v in (-1, 0, 1):
+                q = (x + u, y + v)
+                if q not in cave and inc(*q):
+                    TY[q[1]][q[0]], GR[q[1]][q[0]] = 'CLIFF', 'SNOW'
+    ladder = zc(3008, 3150)
+    TY[ladder[1]][ladder[0]] = 'LADDER'
+    r = random.Random(9566)
+    spots = sorted(c for c in cave if 3046 <= ZICE.OX + (c[0] - ZICE.CX0) <= 3055)
+    r.shuffle(spots)
+    used = set()
+    for (x, y) in spots:
+        if len(used) >= 6:
+            break
+        if any((x + u, y + v) in used for u in (-1, 0, 1) for v in (-1, 0, 1)):
+            continue
+        used.add((x, y))
+        TY[y][x] = 'BLURITE'
+    return ladder
+
+
+ICE_LADDER = ice_dungeon()
+QPOS['ICE_LADDER_UP'] = ICE_LADDER
+QPOS['ICE_BOTTOM'] = (ICE_LADDER[0], ICE_LADDER[1] - 1)
+QUEST_OBJS.append(('LADDER', ICE_LADDER[0], ICE_LADDER[1]))
+for (a, b) in ((QPOS['ICE_LADDER_DOWN'], QPOS['ICE_BOTTOM']), (QPOS['ICE_LADDER_UP'], QPOS['ICE_TOP'])):
+    LINKS.setdefault(a, []).append(b)
+set_ctx(OW)
 def join_roads():
     """Where a countryside road reaches a town's edge off the town's own streets, pave the gap to
     the nearest street (both follow the OSRS map, but not tile for tile)."""
@@ -2556,6 +2693,7 @@ REGIONS_O = [
     ('Wizards\' Tower', 3090, 3140, 3130, 3180),
     ('Draynor Manor', 3086, 3330, 3130, 3380),
     ('Draynor Village', 3060, 3220, 3135, 3280),
+    ('Mudskipper Point', 2983, 3137, 3017, 3192),
     ('Port Sarim', 3000, 3180, 3060, 3262),
     ('Rimmington', 2930, 3190, 2999, 3255),
     ('White Knights\' Castle', 2954, 3326, 2988, 3352),
@@ -2587,7 +2725,9 @@ REGIONS_O = [
     ('Misthalin', 2928, 3137, 3343, 3552),
 ]
 REGIONS = []
-for (ctx, n, X0, Y0, X1, Y1) in ((ZF1, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
+for (ctx, n, X0, Y0, X1, Y1) in ((ZMG, 'Mining Guild', 3012, 3329, 3060, 3360),
+                                 (ZICE, 'Asgarnian Ice Dungeon', 3000, 3146, 3060, 3176),
+                                 (ZF1, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
                                  (ZF2, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
                                  (ZL0, 'Lumbridge Castle', 3199, 3200, 3231, 3236),
                                  (ZL0, 'Lumbridge Swamp', 3187, 3180, 3236, 3199),
@@ -2701,7 +2841,7 @@ CHARS.update({'CHECKER': '#', 'VOID': ' ', 'STAIRS': '/', 'TABLE': 'T', 'BED': '
               'DRAWERS': 'd', 'FIREPLACE': 'F', 'BARREL': 'o', 'WARDROBE': 'w', 'POTPLANT': 'p', 'BIGSTALL': 'L',
               'ANVIL': 'a', 'FURNACE': 'u', 'SHELF': 'k', 'THRONE': 'T', 'WELL': 'O', 'SACKS': 's', 'FLOWERBED': ',',
               'PALM': 'P', 'BENCH': 'n', 'SUNFLOWER': '*', 'LOWWALL': 'l', 'VFOUNTAIN': 'F', 'COAL': '5',
-              'SILVER': '6', 'GOLD': '7', 'MITHRIL': '8', 'ADAMANTITE': '9', 'RUNITE': 'y'})
+              'SILVER': '6', 'GOLD': '7', 'MITHRIL': '8', 'ADAMANTITE': '9', 'RUNITE': 'y', 'LADDER': 'H', 'BLURITE': 'z'})
 
 
 def ascii_map():
@@ -2781,7 +2921,7 @@ def rock_image(ore):
     if ore:
         oc, od = {'COPPER': ('CU', 'CUd'), 'TIN': ('TI', 'TId'), 'IRON': ('FE', 'FEd'), 'CLAY': ('S1', 'D1'),
                   'COAL': ('IR0', 'IR2'), 'SILVER': ('WW1', 'WW3'), 'GOLD': ('GOLD', 'CR2'), 'MITHRIL': ('W0', 'W3'),
-                  'ADAMANTITE': ('CA0', 'CA2'), 'RUNITE': ('W2', 'W1')}[ore]
+                  'ADAMANTITE': ('CA0', 'CA2'), 'RUNITE': ('W2', 'W1'), 'BLURITE': ('W1', 'W0')}[ore]
         for (fx, fy) in ((5, 9), (9, 6), (11, 11), (7, 12), (3, 11)):
             img[fy][fx] = WC[oc]
             img[fy][fx + 1] = WC[od]

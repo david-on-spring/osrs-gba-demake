@@ -4,7 +4,8 @@
 // checksum (4). Version 2 added the neck slot and quest progress over version 1. Current saves
 // use three character slots (versions 3 to 7, below); version 4 added Ranged, Magic, the ammo
 // slot and the autocast spell, 5 the seamless 1:1 world, 6 stores OSRS tiles (x, y, plane)
-// instead of cells of the generator's grid, and 7 added Smithing.
+// instead of cells of the generator's grid, and 7 added Smithing, thrown weapons and the hands and
+// ring slots.
 #include "game.h"
 
 __attribute__((used, aligned(4))) static const char sram_tag[] = "SRAM_V113";
@@ -57,7 +58,7 @@ typedef struct {
     u8 cook_item, hpbar_timer, run, music;
     u32 xp[12];
     Slot inv[28];
-    u16 equip[EQ_COUNT];
+    u16 equip[8];
     u16 ammo_qty;
     Slot bank[96];
     u32 playtime;
@@ -66,30 +67,39 @@ typedef struct {
     u8 spell, plane;
     u16 home_cd;
 } PlayerV6;
-_Static_assert(sizeof(PlayerV6) - __builtin_offsetof(PlayerV6, inv) == sizeof(Player) - __builtin_offsetof(Player, inv),
-               "the fields after xp[] keep their layout");
 
 // tools/qtest.py pokes these offsets directly
 _Static_assert(__builtin_offsetof(Player, x) == 0 && __builtin_offsetof(Player, px) == 4, "qtest.py tp_lines");
-_Static_assert(__builtin_offsetof(Player, plane) == 0x28D, "qtest.py OFF_PLANE");
+_Static_assert(__builtin_offsetof(Player, plane) == 0x291, "qtest.py OFF_PLANE");
 _Static_assert(__builtin_offsetof(Player, xp) == 0x20, "qtest.py OFF_XP");
 _Static_assert(__builtin_offsetof(Player, inv) == 0x54, "qtest.py OFF_INV");
 _Static_assert(__builtin_offsetof(Player, equip) == 0xC4, "qtest.py OFF_EQUIP");
-_Static_assert(__builtin_offsetof(Player, ammo_qty) == 0xD4, "qtest.py OFF_AMMO");
-_Static_assert(__builtin_offsetof(Player, bank) == 0xD6, "qtest.py OFF_BANK");
-_Static_assert(__builtin_offsetof(Player, qstage) == 0x25C, "qtest.py OFF_QSTAGE");
-_Static_assert(__builtin_offsetof(Player, qvar) == 0x26C, "qtest.py OFF_QVAR");
-_Static_assert(__builtin_offsetof(Player, spell) == 0x28C, "qtest.py OFF_SPELL");
-_Static_assert(__builtin_offsetof(Player, home_cd) == 0x28E, "qtest.py OFF_HOMECD");
+_Static_assert(__builtin_offsetof(Player, ammo_qty) == 0xD8, "qtest.py OFF_AMMO");
+_Static_assert(__builtin_offsetof(Player, bank) == 0xDA, "qtest.py OFF_BANK");
+_Static_assert(__builtin_offsetof(Player, qstage) == 0x260, "qtest.py OFF_QSTAGE");
+_Static_assert(__builtin_offsetof(Player, qvar) == 0x270, "qtest.py OFF_QVAR");
+_Static_assert(__builtin_offsetof(Player, spell) == 0x290, "qtest.py OFF_SPELL");
+_Static_assert(__builtin_offsetof(Player, home_cd) == 0x292, "qtest.py OFF_HOMECD");
+_Static_assert(__builtin_offsetof(Player, weapon_qty) == 0x294, "qtest.py OFF_WQTY");
 
-// a version 4-6 character in the current layout: Smithing starts at level 1
+// a version 4-6 character in the current layout: Smithing starts at level 1; no thrown weapons, and
+// nothing on the hands or ring fingers
 static void from_v6(const PlayerV6 *o, Player *p) {
     const u8 *src = (const u8 *)o;
     u8 *dst = (u8 *)p;
     for (unsigned i = 0; i < __builtin_offsetof(PlayerV6, xp); i++) dst[i] = src[i];   // position, flags
     for (int i = 0; i < SK_COUNT; i++) p->xp[i] = i < 12 ? o->xp[i] : 0;
-    unsigned tail = sizeof(PlayerV6) - __builtin_offsetof(PlayerV6, inv);
-    for (unsigned i = 0; i < tail; i++) dst[__builtin_offsetof(Player, inv) + i] = src[__builtin_offsetof(PlayerV6, inv) + i];
+    for (int i = 0; i < 28; i++) p->inv[i] = o->inv[i];
+    for (int i = 0; i < EQ_COUNT; i++) p->equip[i] = i < 8 ? o->equip[i] : 0;
+    p->ammo_qty = o->ammo_qty;
+    for (int i = 0; i < 96; i++) p->bank[i] = o->bank[i];
+    p->playtime = o->playtime;
+    for (int i = 0; i < 16; i++) p->qstage[i] = o->qstage[i], p->qvar[i] = o->qvar[i];
+    p->spell = o->spell;
+    p->plane = o->plane;
+    p->home_cd = o->home_cd;
+    p->weapon_qty = 0;
+    p->forging = 0;
 }
 
 // a version 3 character in the current layout: new skills at level 1, nothing in the ammo slot
@@ -108,6 +118,8 @@ static void from_v3(const PlayerV3 *o) {
     p->spell = 0;
     p->plane = 0;
     p->home_cd = 0;
+    p->weapon_qty = 0;
+    p->forging = 0;
 }
 
 static void sram_write(int off, const void *src, int n) {
@@ -130,7 +142,7 @@ static u32 checksum(const u8 *p, int n) {
 // Slot k at SLOT_BASE(k): magic (4) | version (2) | pad (2) | size (2) | pad (2) | name (16) |
 // Player | checksum (4, over name + Player). The old single save at offset 0 (versions 1-2)
 // is copied into slot 1 the first time the login screen sees it (and left in place).
-#define SLOT_VERSION 7             // 7: Smithing; 6: positions are OSRS tiles (x, y, plane); 5 stored cells of the 1:1 grid
+#define SLOT_VERSION 7             // 7: Smithing, thrown weapons, hands and ring; 6: positions are OSRS tiles (x, y, plane); 5 stored cells of the 1:1 grid
 #define SLOT_BASE(k) (0x1000 * ((k) + 1))
 #define SLOT_NAME 12
 #define SLOT_PLAYER 28

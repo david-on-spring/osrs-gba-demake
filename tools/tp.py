@@ -12,7 +12,7 @@ for line in open(sys.argv[1]):
     if p and p[0] == 'tp':
         x, y, d = int(p[1]), int(p[2]), int(p[3])
         out += ['press B', 'wait 2', 'poke16 @pl %x' % x, 'poke16 @pl+2 %x' % y, 'poke16 @pl+4 %x' % ((x - x0) * 16),
-                'poke16 @pl+6 %x' % ((y1 - y) * 16), 'poke8 @pl+8 %x' % d, 'poke8 @pl+0x28d %x' % (int(p[4]) if len(p) > 4 else 0),
+                'poke16 @pl+6 %x' % ((y1 - y) * 16), 'poke8 @pl+8 %x' % d, 'poke8 @pl+0x291 %x' % (int(p[4]) if len(p) > 4 else 0),
                 'wait 4']
     else:
         out.append(line.rstrip('\n'))

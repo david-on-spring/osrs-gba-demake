@@ -25,12 +25,13 @@ static const Resource rocks[] = {
     {T_MITHRIL, 55, 800, 4, 50, I_MITHRIL_ORE, 255, 200},
     {T_ADAMANTITE, 70, 950, 2, 25, I_ADAMANT_ORE, 255, 400},
     {T_RUNITE, 85, 1250, 1, 18, I_RUNE_ORE, 255, 1200},
+    {T_BLURITE, 10, 175, 90, 250, I_BLURITE_ORE, 255, 42},
 };
 static const char *const rock_msgs[] = {
     "You manage to mine some copper.", "You manage to mine some tin.", "You manage to mine some iron.",
     "You manage to mine some clay.", "You manage to mine some coal.", "You manage to mine some silver.",
     "You manage to mine some gold.", "You manage to mine some mithril.", "You manage to mine some adamantite.",
-    "You manage to mine some runite.",
+    "You manage to mine some runite.", "You manage to mine some blurite.",
 };
 #define NROCKS (int)(sizeof(rocks) / sizeof(rocks[0]))
 typedef struct { u8 raw, cooked, burnt, level; u16 xp; u8 low; u16 high; } Recipe;

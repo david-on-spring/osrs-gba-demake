@@ -411,6 +411,8 @@ void world_new_game(void) {
     for (int i = 0; i < 96; i++) p->bank[i].id = p->bank[i].qty = 0;
     for (int i = 0; i < EQ_COUNT; i++) p->equip[i] = 0;
     p->ammo_qty = 0;
+    p->weapon_qty = 0;
+    p->forging = 0;
     p->spell = 0;
     p->home_cd = 0;
     for (int i = 0; i < SK_COUNT; i++) p->xp[i] = 0;

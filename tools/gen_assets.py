@@ -667,6 +667,7 @@ METAL = {
     'mithril': (C('#8a8ad0'), C('#56569a'), C('#34345e')),
     'adamant': (C('#68a070'), C('#4a7a52'), C('#2a4a30')),
     'rune': (C('#70c8e0'), C('#4a94b0'), C('#2a5a70')),
+    'blurite': (C('#7898f0'), C('#4060c8'), C('#243a80')),
 }
 WOOD = (C('#a0703a'), C('#7a4e24'), C('#4e3014'))
 
@@ -1041,6 +1042,46 @@ def icon_anvil():
     c.rect(6, 8, 10, 11, m[2])
     c.rect(3, 11, 13, 13, m[1])
     c.line(3, 13, 13, 13, m[2])
+    return c.done()
+
+
+def icon_gem_ring(gem):
+    c = Canvas()
+    c.ell(8, 9, 5.5, 4.5, None, shade=GOLD3)
+    c.ell(8, 9.5, 3.5, 2.6, None)
+    c.ell(8, 4.5, 2.2, 2, None, shade=gem)
+    return c.done()
+
+
+def icon_gauntlets():
+    c = Canvas()
+    g = (C('#f8e060'), C('#c8a028'), C('#7a5a10'))
+    for x0 in (1, 8):
+        c.rect(x0 + 1, 2, x0 + 5, 9, g[1])
+        c.rect(x0, 9, x0 + 6, 14, g[2])
+        c.line(x0 + 1, 2, x0 + 1, 9, g[0])
+        for k in range(4):
+            c.set(x0 + 1 + k, 1, g[1])
+    return c.done()
+
+
+def icon_mould():
+    c = Canvas()
+    m = METAL['iron']
+    c.rect(2, 4, 13, 12, m[1])
+    c.line(2, 4, 13, 4, m[0])
+    c.line(2, 12, 13, 12, m[2])
+    for (x, y) in ((5, 7), (10, 7), (5, 10), (10, 10)):
+        c.ell(x, y - 0.5, 1.4, 1.2, m[2])
+    c.line(13, 8, 15, 8, WOOD[1])
+    return c.done()
+
+
+def icon_cannonball():
+    c = Canvas()
+    st = METAL['steel']
+    for (x, y) in ((5, 10), (11, 10), (8, 5)):
+        c.ell(x, y, 3, 3, None, shade=st)
     return c.done()
 
 
@@ -2021,6 +2062,14 @@ ICON_DEF = [
     ('RUNE_ORE', icon_ore(C('#78d8f0'), C('#3a8aa8'))),
     ('SK_ANVIL', icon_anvil()),
     ('SPELL_HEAT', icon_superheat()),
+    ('BLURITE_ORE', icon_ore(C('#88a8ff'), C('#3050c0'))),
+    ('BLURITE_BAR', icon_bar(METAL['blurite'])),
+    ('BLURITE_BOLTS', icon_bolts(METAL['blurite'])),
+    ('BLURITE_LIMBS', icon_limbs(METAL['blurite'])),
+    ('RING_FORGING', icon_gem_ring((C('#ff9090'), C('#d02020'), C('#801010')))),
+    ('GOLDSMITH_GAUNTLETS', icon_gauntlets()),
+    ('AMMO_MOULD', icon_mould()),
+    ('CANNONBALL', icon_cannonball()),
     ('BRONZE_SCIMITAR', icon_scimitar(METAL['bronze'])),
     ('BRONZE_LONGSWORD', icon_longsword(METAL['bronze'])),
     ('BRONZE_2H', icon_twohand(METAL['bronze'])),

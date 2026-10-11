@@ -35,7 +35,8 @@ void foe_release(int i) {
 }
 
 // ---------------------------------------------------------------------------------------
-// Attack types. A bow shoots arrows from the ammo slot; a staff casts the autocast spell (or
+// Attack types. A bow shoots arrows from the ammo slot, knives are thrown from the weapon slot;
+// a staff casts the autocast spell (or
 // hits like a club when none is set); anything else is melee.
 u8 cast_once;   // spell picked in the spellbook, cast once at the target
 
@@ -47,6 +48,8 @@ int combat_type(void) {
     return CB_MELEE;
 }
 
+int thrown_weapon(int id) { return (items[id].flags & (IF_RANGED | IF_STACK)) == (IF_RANGED | IF_STACK) && items[id].slot == EQ_WEAPON; }
+
 static int is_longbow(int w) {
     return w == I_LONGBOW || w == I_OAK_LONGBOW || w == I_WILLOW_LONGBOW || w == I_MAPLE_LONGBOW;
 }
@@ -55,7 +58,7 @@ int attack_range(void) {
     if (cast_once) return 10;
     switch (combat_type()) {
     case CB_RANGED: {
-        int r = is_longbow(pl.equip[EQ_WEAPON]) ? 9 : 7;
+        int r = thrown_weapon(pl.equip[EQ_WEAPON]) ? 4 : is_longbow(pl.equip[EQ_WEAPON]) ? 9 : 7;
         if (pl.style == STYLE_LONGRANGE) r += 2;
         return r > 10 ? 10 : r;
     }
@@ -81,7 +84,7 @@ static const u8 class_speed[] = {
 int weapon_speed(void) {
     int cb = combat_type();   // (a manual cast also takes five ticks)
     if (cb == CB_MAGIC) return 5;
-    if (cb == CB_RANGED) return (is_longbow(pl.equip[EQ_WEAPON]) ? 6 : 4) - (pl.style == STYLE_RAPID);
+    if (cb == CB_RANGED) return (thrown_weapon(pl.equip[EQ_WEAPON]) ? 3 : is_longbow(pl.equip[EQ_WEAPON]) ? 6 : 4) - (pl.style == STYLE_RAPID);
     return class_speed[items[pl.equip[EQ_WEAPON]].wclass];   // unarmed and staves: 4
 }
 
@@ -227,12 +230,17 @@ static int demon_guard(int i, int dmg) {
 }
 
 static int player_shoot(int i) {
-    int arrow = pl.equip[EQ_AMMO];
-    if (!arrow || !pl.ammo_qty) {
+    int knife = thrown_weapon(pl.equip[EQ_WEAPON]) ? pl.equip[EQ_WEAPON] : 0;
+    int arrow = knife ? knife : pl.equip[EQ_AMMO];
+    if (knife && !pl.weapon_qty) {
+        msg_col("You have run out of knives.", TC_RED);   // (never: the last one empties the slot)
+        return 0;
+    }
+    if (!knife && (!arrow || !pl.ammo_qty)) {
         msg_col("There is no ammo left in your quiver.", TC_RED);
         return 0;
     }
-    if (!ammo_ok(arrow, pl.equip[EQ_WEAPON])) {
+    if (!knife && !ammo_ok(arrow, pl.equip[EQ_WEAPON])) {
         msg_col("You can't use that ammo with your bow.", TC_RED);
         return 0;
     }
@@ -241,7 +249,11 @@ static int player_shoot(int i) {
     int maxhit = (eff * (equip_bonus(4) + 64) + 320) / 640;
     if (maxhit < 1) maxhit = 1;
     int dmg = demon_guard(i, roll(hit_chance256(a, npc_def_roll(i, CB_RANGED))) ? rnd_range(maxhit + 1) : 0);
-    if (!--pl.ammo_qty) pl.equip[EQ_AMMO] = 0;
+    if (knife) {
+        if (!--pl.weapon_qty) pl.equip[EQ_WEAPON] = 0;
+    } else if (!--pl.ammo_qty) {
+        pl.equip[EQ_AMMO] = 0;
+    }
     sfx(SFX_BOW);
     proj_launch(i, dmg, CB_RANGED, 0, ICON_PROJ_ARROW_H, arrow, 1);
     return 1;
@@ -479,11 +491,11 @@ static void npc_drops(Npc *n) {
         else if (r < 97) drop_item(x, y, p, I_IRON_CHAINBODY, 1);
         else if (r < 98) drop_item(x, y, p, I_STEEL_LONGSWORD, 1);
         else if (r < 99) {
-            // rare table: a taste of the higher tiers
-            static const u8 rare[] = {I_MITHRIL_SCIMITAR, I_MITHRIL_FULL_HELM, I_MITHRIL_KITE,
-                                      I_STEEL_BODY, I_STEEL_LEGS, I_ADAMANT_SCIMITAR, I_MITHRIL_BODY,
-                                      I_RUNE_SCIMITAR};
-            drop_item(x, y, p, rare[rnd_range(sizeof(rare))], 1);
+            // rare table: a taste of the higher tiers (and, as on OSRS's rare drop table, a runite bar)
+            static const u16 rare[] = {I_MITHRIL_SCIMITAR, I_MITHRIL_FULL_HELM, I_MITHRIL_KITE,
+                                       I_STEEL_BODY, I_STEEL_LEGS, I_ADAMANT_SCIMITAR, I_MITHRIL_BODY,
+                                       I_RUNE_SCIMITAR, I_RUNE_BAR};
+            drop_item(x, y, p, rare[rnd_range(sizeof(rare) / sizeof(rare[0]))], 1);
         }
         break;
     }

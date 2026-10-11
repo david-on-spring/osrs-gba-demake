@@ -70,13 +70,16 @@ enum {
     I_RUNE_WARHAMMER, I_RUNE_BATTLEAXE, I_RUNE_CLAWS, I_RUNE_CHAINBODY, I_RUNE_SKIRT, I_RUNE_HELM,
     I_RUNE_SHIELD, I_RUNE_NAILS, I_RUNE_DART_TIP, I_RUNE_ARROWTIPS, I_RUNE_KNIFE,
     I_RUNE_JAVELIN_TIPS, I_RUNE_BOLTS, I_RUNE_LIMBS,
+    // blurite, the furnace's tools and helpers (appended)
+    I_BLURITE_ORE, I_BLURITE_BAR, I_BLURITE_BOLTS, I_BLURITE_LIMBS, I_RING_FORGING, I_GOLDSMITH_GAUNTLETS,
+    I_AMMO_MOULD, I_CANNONBALL,
     I_COUNT
 };
 
 // IF_RANGED: bows (req is a Ranged level) and arrows; IF_MAGIC: staves (cast spells);
 // IF_2H: two-handed weapons (2h swords, claws) that leave no hand for a shield
 enum { IF_STACK = 1, IF_EAT = 2, IF_BURY = 4, IF_EQUIP = 8, IF_LIGHT = 16, IF_RANGED = 32, IF_MAGIC = 64, IF_2H = 128 };
-enum { EQ_HEAD, EQ_WEAPON, EQ_BODY, EQ_SHIELD, EQ_LEGS, EQ_FEET, EQ_NECK, EQ_AMMO, EQ_COUNT };
+enum { EQ_HEAD, EQ_WEAPON, EQ_BODY, EQ_SHIELD, EQ_LEGS, EQ_FEET, EQ_NECK, EQ_AMMO, EQ_HANDS, EQ_RING, EQ_COUNT };
 enum { TIER_NONE, TIER_BRONZE, TIER_IRON, TIER_STEEL, TIER_LEATHER, TIER_WOOD, TIER_MITHRIL,
        TIER_ADAMANT, TIER_RUNE, TIER_COUNT };
 // melee weapon classes (OSRS attack speed and main attack style); W_NONE: unarmed or not a weapon
@@ -176,6 +179,9 @@ typedef struct {
     u8 spell;                    // autocast spell (spells[] index, 0 = none), used while a staff is wielded
     u8 plane;                    // floor: 0 ground .. 3
     u16 home_cd;                 // ticks until Lumbridge Home Teleport can be cast again (counts while playing)
+    u16 weapon_qty;              // thrown weapons (knives) in the weapon slot
+    u8 forging;                  // charges the worn ring of forging has used (it crumbles at 140)
+    u8 pad_;
 } Player;
 
 extern Player pl;
@@ -245,15 +251,16 @@ void spell_manual(int s);                // cast once at the target (from the sp
 int combat_type(void);                   // CB_* for the wielded weapon, autocast or manual spell
 int attack_range(void);                  // cells (1 = melee)
 int ammo_ok(int arrow, int bow);         // the bow can fire these arrows
+int thrown_weapon(int id);               // knives: a stack wielded and thrown, no bow or arrows
 
 int bank_add(int id, int qty);
 
 // smithing.c: furnaces, anvils and Superheat Item (levels, XP, ticks: OSRS Wiki)
-typedef struct { u16 bar, ore, ore2; u8 n2, level, ticks; u16 xp; } SmeltDef;   // ore2 x n2: tin or coal
+typedef struct { u16 bar, ore, ore2; u8 n2, level, ticks; u16 xp; u8 out; u16 tool; } SmeltDef;   // ore2 x n2: tin or coal
 typedef struct { u16 item; u8 level, bars, qty; } SmithDef;
 typedef struct { u16 bar, xp; const char *metal; const SmithDef *list; u8 n; } AnvilTier;   // xp per bar
-#define SMELT_N 8
-#define ANVIL_TIERS 6
+#define SMELT_N 10
+#define ANVIL_TIERS 7
 extern const SmeltDef smelt_defs[SMELT_N];
 extern const AnvilTier anvil_tiers[ANVIL_TIERS];
 int smelt_max(int k);                    // bars of smelt_defs[k] the inventory has ore for
