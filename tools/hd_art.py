@@ -798,6 +798,137 @@ def side_door(base, wall_t, s):
 
 
 # ----------------------------------------------------------------------------------------
+# Walls on tile edges (world_gen.EDGES): drawn in a 3/4 view. A wall is a band BAND pixels
+# thick along its edge (inside the building when the other side is outdoors, astride the edge
+# between two rooms), standing WALL_H pixels tall: its top is the band shifted up, and the
+# face shows below the top where nothing stands in front of it. The front (south) wall of a
+# roofed building is cut down to CUT_H on the ground layer, so the rooms show when the roof
+# hides; its full-height facade is drawn with the roof (roof_images).
+# ----------------------------------------------------------------------------------------
+WALL_H, CUT_H, BAND, LEAF_H = 8, 2, 4, 7
+
+
+def inside(env, x, y):
+    return env.g(x, y) in INTERIOR and env.t(x, y) != 'VOID'
+
+
+def cutaway(env, x, y):
+    """The cell's walls are cut low on the ground layer: a roofed cell whose south side is the
+    building's front."""
+    r = env.roof(x, y)
+    return r != 0 and env.roof(x, y + 1) != r and inside(env, x, y)
+
+
+def edge_mat(m):
+    """(cap, cap light, cap dark, face, face light, mortar, base) for a wall type."""
+    if m == 'HWALL':
+        return (P['h2'], P['h1'], P['h3'], P['pl0'], P['paper'], P['bm0'], P['bm1'])
+    if m == 'LEAF':
+        return (P['h1'], P['h0'], P['h3'], P['h2'], P['h1'], P['h3'], P['h3'])
+    M = mat(m)
+    return (M[1], M[4], M[3], M[0], M[1], M[2], M[3])
+
+
+def edge_bands(env, key, e, height):
+    """{(gx, gy): (wall type, height)} world pixels of one edge's wall (and door leaf)."""
+    x, y, side = key
+    kind, m = e
+    a, b = ((x, y - 1), (x, y)) if side == 'N' else ((x - 1, y), (x, y))
+    ia, ib = inside(env, *a), inside(env, *b)
+    lo, hi = (-2, 1) if ia == ib else (0, BAND - 1) if ib else (-BAND, -1)   # across the edge line
+    out = {}
+    for t in range(16):
+        door_gap = kind == 'door' and 2 <= t <= 13
+        if door_gap:
+            continue
+        for u in range(lo, hi + 1):
+            gx, gy = (x * 16 + t, y * 16 + u) if side == 'N' else (x * 16 + u, y * 16 + t)
+            cell = (gx >> 4, gy >> 4)
+            out[(gx, gy)] = (m, height(cell))
+    if kind == 'door':
+        # the open leaf against the first jamb, on the indoor side
+        into = 1 if ib or not ia else -1
+        for t in range(2, 4):
+            for u in range(1, 11):
+                gx, gy = (x * 16 + t, y * 16 + u * into) if side == 'N' else (x * 16 + u * into, y * 16 + t)
+                out[(gx, gy)] = ('LEAF', min(LEAF_H, height((gx >> 4, gy >> 4))))
+    return out
+
+
+def wall_pixels(env, cells, height):
+    """Footprint pixels of every edge touching the given cells."""
+    pix = {}
+    keys = set()
+    for (x, y) in cells:
+        for k in ((x, y, 'N'), (x, y, 'W'), (x, y + 1, 'N'), (x + 1, y, 'W')):
+            keys.add(k)
+    for k in sorted(keys):
+        e = env.wg.EDGES.get(k)
+        if e:
+            pix.update(edge_bands(env, k, e, height))
+    return pix
+
+
+def project(pix, img, ox, oy, keep=None):
+    """Draw footprint pixels {(gx, gy): (type, h)} in 3/4 view onto img, whose pixel (0, 0) is
+    world pixel (ox, oy), with a dark outline round the walls; keep(gx, gy) -> False skips a
+    target pixel."""
+    H, W = len(img), len(img[0])
+    canvas = {}
+    for (gx, gy) in sorted(pix, key=lambda p: (p[1], p[0])):
+        m, h = pix[(gx, gy)]
+        C = edge_mat(m)
+        top = gy - h
+        if not (oy - 1 <= gy + 1 and top - 1 <= oy + H and ox - 1 <= gx <= ox + W):
+            continue
+        for ty in range(top, gy + 1):
+            if ty == top:
+                if (gx - 1, gy) not in pix or (gx, gy - 1) not in pix:
+                    c = C[1]
+                elif (gx + 1, gy) not in pix:
+                    c = C[2]
+                else:
+                    c = C[0]
+            else:
+                j = ty - top - 1
+                if j == h - 1 and h > 2:
+                    c = C[6]
+                elif j == 0:
+                    c = C[5] if h > 2 else C[3]
+                elif m == 'HWALL':
+                    c = C[5] if gx % 8 == 0 else C[4] if j == 1 else C[3]
+                elif m == 'LEAF':
+                    c = C[5] if gx % 3 == 0 else C[3]
+                else:
+                    row = j // 3
+                    c = C[5] if j % 3 == 0 or (gx + (4 if row % 2 else 0)) % 8 == 0 else \
+                        (C[4] if hsh(83, (gx + (4 if row % 2 else 0)) // 8, row) % 5 == 0 else C[3])
+            canvas[(gx, ty)] = c
+    edge = {}
+    for (gx, gy) in canvas:
+        for (dx, dy) in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            n = (gx + dx, gy + dy)
+            if n not in canvas:
+                edge[n] = P['c5']
+    for d in (edge, canvas):
+        for (gx, gy), c in d.items():
+            px, py = gx - ox, gy - oy
+            if 0 <= px < W and 0 <= py < H and (keep is None or keep(gx, gy)):
+                img[py][px] = c
+
+
+def ground_walls(env, x, y, img):
+    """The edge walls seen on cell (x, y)'s ground layer (walls in its row and the row south of
+    it reach up into it)."""
+    cells = [(x + dx, y + dy) for dx in (-1, 0, 1) for dy in (0, 1)]
+    height = lambda c: CUT_H if cutaway(env, *c) else WALL_H
+    pix = wall_pixels(env, cells, height)
+    if pix:
+        project(pix, img, x * 16, y * 16)
+    return img
+
+
+# ----------------------------------------------------------------------------------------
 # Roofs (overlay layer)
 # ----------------------------------------------------------------------------------------
 ROOF_COLS = {'slate': ('sl0', 'sl1', 'sl2', 'sl3', 'sl4'), 'red': ('rd0', 'rd1', 'rd2', 'rd3', 'rd4'),
@@ -807,19 +938,30 @@ ROOF_COLS = {'slate': ('sl0', 'sl1', 'sl2', 'sl3', 'sl4'), 'red': ('rd0', 'rd1',
 
 
 def roof_images(wg, g):
-    """{cell: 16x16 image} for roof group g: a hipped roof over the footprint minus its facade."""
+    """{cell: 16x16 image} for roof group g: a hipped roof over the footprint, raised WALL_H
+    pixels onto its walls (so its eaves reach into the row north of the building), with the
+    front walls' full-height facade below it and notches over the doors in the other walls."""
     env = Env(wg)
     style, cells = wg.ROOFS[g]
-    # the facade row (south wall facing the open) stays uncovered
-    covered = set(c for c in cells if (c[0], c[1] + 1) in cells or wg.ROOF[c[1] + 1][c[0]] != 0)
-    # outer doors on the other sides stay open too, so the way in is never hidden
-    covered = set(c for c in covered if not (wg.TY[c[1]][c[0]] == 'DOOR' and exterior_side(env, *c)))
-    if not covered:
+    cells = set(cells)
+    if not cells:
         return {}
-    xs, ys = [c[0] for c in covered], [c[1] for c in covered]
-    X0, Y0 = min(xs) * 16, min(ys) * 16
-    W, H = (max(xs) + 1) * 16 - X0, (max(ys) + 1) * 16 - Y0
-    inside = lambda px, py: ((X0 + px) >> 4, (Y0 + py) >> 4) in covered
+    notch = set()
+    for (x, y) in cells:
+        for (dx, dy, key) in ((0, -1, (x, y, 'N')), (-1, 0, (x, y, 'W')), (1, 0, (x + 1, y, 'W'))):
+            e = wg.EDGES.get(key)
+            if not e or e[0] != 'door' or (x + dx, y + dy) in cells:
+                continue
+            if dy:
+                xs, ys = range(x * 16 + 1, x * 16 + 15), range(y * 16 - WALL_H - 1, y * 16 + 16 - WALL_H)
+            else:
+                xs = range(x * 16, x * 16 + 7) if dx < 0 else range(x * 16 + 9, x * 16 + 16)
+                ys = range(y * 16 - WALL_H + 1, y * 16 + 14 - WALL_H)
+            notch.update((gx, gy) for gx in xs for gy in ys)
+    xs, ys = [c[0] for c in cells], [c[1] for c in cells]
+    X0, Y0 = min(xs) * 16, min(ys) * 16 - WALL_H
+    W, H = (max(xs) + 1) * 16 - X0, (max(ys) + 1) * 16 - WALL_H - Y0
+    inside = lambda px, py: ((X0 + px) >> 4, (Y0 + py + WALL_H) >> 4) in cells and (X0 + px, Y0 + py) not in notch
     # distance (in pixels) to the outside, with the nearest edge's direction
     INF = 10 ** 6
     dist = [[INF] * W for _ in range(H)]
@@ -845,6 +987,14 @@ def roof_images(wg, g):
                 dist[yy][xx] = dist[py][px] + 1
                 side[yy][xx] = side[py][px]
                 q.append((xx, yy))
+    covered = set()
+    for py in range(H):
+        for px in range(W):
+            if side[py][px] is not None:
+                covered.add(((X0 + px) >> 4, (Y0 + py) >> 4))
+    pixels = lambda c: ((py, px, c[0] * 16 + px - X0, c[1] * 16 + py - Y0) for py in range(16) for px in range(16)
+                        if 0 <= c[0] * 16 + px - X0 < W and 0 <= c[1] * 16 + py - Y0 < H and
+                        side[c[1] * 16 + py - Y0][c[0] * 16 + px - X0] is not None)
     out = {}
     if style in ('keep', 'flat', 'flatwhite'):
         cols = {'keep': [P['sl0'], P['sl1'], P['sl2'], P['c5']], 'flat': [P['sd0'], P['sd1'], P['sd2'], P['sd5']],
@@ -852,9 +1002,7 @@ def roof_images(wg, g):
         PM = mat({'flat': 'SWALL', 'flatwhite': 'WWALL'}.get(style, 'WALL'))
         for (cx_, cy_) in covered:
             img = blank()
-            for py in range(16):
-                for px in range(16):
-                    gx, gy = cx_ * 16 + px - X0, cy_ * 16 + py - Y0
+            for (py, px, gx, gy) in pixels((cx_, cy_)):
                     d = dist[gy][gx]
                     s = side[gy][gx]
                     if d < 4:
@@ -876,13 +1024,12 @@ def roof_images(wg, g):
                             (cols[0] if (lx + ly) % 2 else cols[0] if hsh(61, gx // 8, gy // 8) % 3 else cols[2])
                     img[py][px] = c
             out[(cx_, cy_)] = img
-        return out
+        return facade(env, g, cells, out)
     c0, c1, c2, c3, c4 = [P[k] for k in ROOF_COLS[style]]
     for (cx_, cy_) in covered:
         img = blank()
-        for py in range(16):
-            for px in range(16):
-                gx, gy = cx_ * 16 + px - X0, cy_ * 16 + py - Y0
+        for (py, px, gx, gy) in pixels((cx_, cy_)):
+            if True:
                 d, s = dist[gy][gx], side[gy][gx]
                 base = {'N': c1, 'W': c1, 'S': c0, 'E': c2}[s]
                 band = d % 4
@@ -908,6 +1055,49 @@ def roof_images(wg, g):
                         c = c3
                 img[py][px] = c
         out[(cx_, cy_)] = img
+    return facade(env, g, cells, out)
+
+
+def facade(env, g, cells, out):
+    """The front walls of roof group g at full height, under the roof's eaves (out: the roof's
+    images, drawn on), with windows and the front doors."""
+    wg = env.wg
+    for (x, y) in sorted(cells):
+        if not cutaway(env, x, y):
+            continue
+        img = out.setdefault((x, y), blank())
+        top = y * 16 + 16 - WALL_H
+        pix = wall_pixels(env, [(x, y)], lambda c: WALL_H)
+        pix = {p: v for p, v in pix.items() if p[1] >> 4 == y and v[0] != 'LEAF'}
+        project(pix, img, x * 16, y * 16, keep=lambda gx, gy: gy >= top and gx >> 4 == x)
+        e = wg.EDGES.get((x, y + 1, 'N'))
+        if not e:
+            continue
+        rows = range(16 - WALL_H, 16)
+        if e[0] == 'door':
+            for py in rows:
+                j = py - (16 - WALL_H)
+                for px in range(2, 14):
+                    if j == 0 or px in (2, 13):
+                        c = P['bm1']
+                    else:
+                        c = P['h3'] if px % 3 == 0 else P['h2']
+                    img[py][px] = c
+            img[16 - WALL_H + 4][11] = P['gold']
+        elif hsh(53, x, y) % 3 == 0 and all((wg.EDGES.get((x + d, y + 1, 'N')) or ('',))[0] == 'wall' and
+                                            (x + d, y) in cells for d in (-1, 1)):
+            style = THEME.get('window', 'blue')
+            glass = (P['t1'], P['t3']) if style == 'green' else (P['gl0'], P['gl1'])
+            for py in range(16 - WALL_H + 2, 16 - WALL_H + 6):
+                for px in range(5, 11):
+                    edge = px in (5, 10) or py in (16 - WALL_H + 2, 16 - WALL_H + 5)
+                    if style == 'shutter':
+                        c = P['h3'] if edge or px in (7, 8) else P['h1']
+                    elif style == 'arch':
+                        c = P['c3'] if edge else P['c5']
+                    else:
+                        c = P['bm1'] if edge else glass[1] if py < 16 - WALL_H + 4 and px < 8 else glass[0]
+                    img[py][px] = c
     return out
 
 
@@ -1758,6 +1948,13 @@ def bridge_image(env, x, y):
 # ----------------------------------------------------------------------------------------
 def render(wg, x, y, quest_art=None):
     """(ground image, canopy image for the cell above or None)."""
+    base, over = render_cell(wg, x, y, quest_art)
+    if wg.TY[y][x] != 'VOID':
+        ground_walls(Env(wg), x, y, base)
+    return base, over
+
+
+def render_cell(wg, x, y, quest_art=None):
     env = Env(wg)
     t, g = env.t(x, y), env.g(x, y)
     if t == 'VOID':

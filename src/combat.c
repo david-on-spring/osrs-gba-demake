@@ -91,7 +91,7 @@ int npc_in_reach(int i) {
     Npc *n = &npcs[i];
     int r = attack_range();
     if (n->plane != pl.plane) return 0;
-    if (r <= 1) return adjacent(pl.x, pl.y, n->x, n->y);
+    if (r <= 1) return adjacent(pl.x, pl.y, n->x, n->y, pl.plane);
     int dx = n->x - pl.x, dy = n->y - pl.y;
     if (dx < 0) dx = -dx;
     if (dy < 0) dy = -dy;

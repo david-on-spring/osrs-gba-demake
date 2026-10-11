@@ -257,7 +257,7 @@ void skill_tick(void) {
             static const u8 order[4] = {DIR_LEFT, DIR_RIGHT, DIR_DOWN, DIR_UP};
             for (int k = 0; k < 4; k++) {
                 int d = order[k];
-                if (free_tile(pl.x + DX[d], pl.y + DY[d], pl.plane)) {
+                if (step_free(pl.x, pl.y, pl.plane, d)) {
                     pl.x += DX[d];
                     pl.y += DY[d];
                     pl.moving = 1;
@@ -386,6 +386,7 @@ void npc_fight(int n) {
 
 void interact(void) {
     int fx = pl.x + DX[pl.dir], fy = pl.y + DY[pl.dir];
+    if (wall_dir(pl.x, pl.y, pl.plane, pl.dir, 0)) return;   // facing a wall: nothing beyond it
     int n = in_map(fx, fy, pl.plane) ? npc_at(fx, fy, pl.plane) : -1;
     if (n >= 0) {
         const NpcDef *d = &npc_defs[npcs[n].kind];

@@ -41,7 +41,9 @@ int spot_at(int x, int y, int p);       // fishing spot index, -1 if none
 int fire_at(int x, int y, int p);       // fires[] index, -1 if none
 int walkable(int x, int y, int p);      // terrain only (fires don't block)
 int free_tile(int x, int y, int p);     // walkable, no NPC, not the player
-int adjacent(int ax, int ay, int bx, int by);
+int adjacent(int ax, int ay, int bx, int by, int p);   // next to each other, no wall between
+int wall_dir(int x, int y, int p, int dir, int shot);   // a wall on the tile's edge toward dir
+int step_free(int x, int y, int p, int dir);            // a step that way: no wall, free tile
 int clear_shot(int ax, int ay, int bx, int by, int p);   // no wall or tree between two cells (projectiles)
 int pickup_at(int x, int y, int p);     // pick up the top ground item; 1 if one was there (even if the inventory is full)
 void splat_spawn(int wx, int wy, int dmg);

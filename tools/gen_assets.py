@@ -2476,7 +2476,8 @@ with open(os.path.join(OUT, 'spawns.txt'), 'w') as f:
         done.add(name)
         for d, (dx, dy) in enumerate(((0, 1), (0, -1), (-1, 0), (1, 0))):
             sx, sy = x - dx, y - dy
-            if wk(sx, sy) and world.TY[sy][sx] != 'DOOR':
+            e = world.EDGES.get((x, y, 'N') if dy == 1 else (x, y + 1, 'N') if dy == -1 else (x, y, 'W') if dx == 1 else (x + 1, y, 'W'))
+            if wk(sx, sy) and world.TY[sy][sx] != 'DOOR' and not (e and e[0] != 'door'):
                 f.write('stand %s %d %d %d %d\n' % ((name,) + O(sx, sy) + (d,)))
     f.write('world %d %d\n' % (world.WORLD_X0, world.WORLD_Y1))   # px = (X - X0) * 16, py = (Y1 - Y) * 16
     for n, z, ps, plane in world.ZONES:

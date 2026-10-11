@@ -32,6 +32,21 @@ if best:
         for u in (0, 1):
             if isw(X + u, Y - k):
                 zset(X + u, Y - k, 'BRIDGE', 'BRIDGE')
+# the fountain (the trace draws its rim as a little building): water in a stone rim; the pirate's
+# treasure is buried just south of it
+fountain = building_at(B, 3004, 3373)
+untrace(zc(*t) for t in fountain['tiles'])
+for (X, Y) in fountain['tiles']:
+    zset(X, Y, 'GRASS', 'GRASS')
+    g_ = ROOF[cy(Y)][cx(X)]
+    if g_:
+        ROOFS[g_][1].discard(zc(X, Y))
+        ROOF[cy(Y)][cx(X)] = 0
+B.remove(fountain)
+for X in range(3003, 3006):
+    for Y in range(3372, 3375):
+        zset(X, Y, 'FOUNTAIN', 'GRASS')
+QPOS['PARK_DIG'] = zc(3004, 3371)
 deco(3004, 3385, 'STATUE')
 for (X, Y) in ((3002, 3384), (3002, 3385), (3003, 3386), (3005, 3386), (3006, 3385), (3006, 3384)):
     deco(X, Y, 'LOWWALL')

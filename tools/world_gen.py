@@ -286,6 +286,233 @@ ROOFS = [None]      # group -> (style, cells); a group's roof hides while the pl
 ROOF_OF = {'WALL': 'slate', 'HWALL': 'thatch', 'SWALL': 'flat', 'WWALL': 'flatwhite'}
 
 
+# ========================================================================================
+# Walls on tile edges. The authoring helpers above draw buildings with walls that fill whole
+# cells; OSRS puts walls on the edges between tiles, so a wall never takes a tile. Once every
+# building is laid, convert_walls() turns each building wall cell into floor of the room it
+# belongs to and moves the wall onto the edges that cell shares with other rooms or the
+# outside. A traced town's walls were laid on the indoor tile of each OSRS edge (and between
+# two rooms on the larger room's tile), so the conversion gives back the OSRS floor plan tile
+# for tile. Free-standing walls (city walls, the castle's curtain wall) stay whole cells.
+# ========================================================================================
+EDGES = {}          # (x, y, 'N' | 'W') -> (kind, wall type): kind 'wall' or 'door'. 'N' is the
+                    # edge between cell (x, y - 1) and (x, y), 'W' the one between (x - 1, y) and (x, y)
+TRACE_EDGES = {}    # EDGES key -> (kind or None for an open archway, wall type): build_from_ref's edges
+TRACED = set()      # wall and door cells build_from_ref laid (convert_walls uses its edges for them)
+CONVERTED = set()   # cells that were building walls or doors before convert_walls()
+DEFERRED = []       # (context, fn, args): authoring that needs the edges (furnishing, service rows)
+EDGES_DONE = False
+INTERIOR_G = {'FLOOR', 'WOODFLOOR', 'CARPET', 'CHECKER', 'RUG'}
+D4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
+
+
+def ekey(x, y, dx, dy):
+    """The EDGES key of the edge between cell (x, y) and its neighbour (x + dx, y + dy)."""
+    if dx:
+        return (x + 1, y, 'W') if dx > 0 else (x, y, 'W')
+    return (x, y + 1, 'N') if dy > 0 else (x, y, 'N')
+
+
+def edge_at(x, y, dx, dy):
+    return EDGES.get(ekey(x, y, dx, dy))
+
+
+def wall_between(x, y, dx, dy):
+    e = EDGES.get(ekey(x, y, dx, dy))
+    return e is not None and e[0] != 'door'
+
+
+def door_edge(x, y):
+    """A side of cell (x, y) with a door on it, or None."""
+    for (dx, dy) in D4:
+        e = EDGES.get(ekey(x, y, dx, dy))
+        if e and e[0] == 'door':
+            return (dx, dy)
+    return None
+
+
+def step_ok(x, y, dx, dy):
+    """A walker on cell (x, y) can step onto its neighbour (dx, dy)."""
+    xx, yy = x + dx, y + dy
+    return inb(xx, yy) and TY[yy][xx] in WALKSET and not wall_between(x, y, dx, dy)
+
+
+def defer(fn, *args):
+    """Run fn(*args) now if the walls are on edges already, else right after convert_walls()."""
+    if EDGES_DONE:
+        fn(*args)
+    else:
+        DEFERRED.append((CTX, fn, args))
+
+
+def edge_cells(key):
+    """The two cells on either side of an EDGES key."""
+    x, y, side = key
+    return ((x, y - 1), (x, y)) if side == 'N' else ((x - 1, y), (x, y))
+
+
+def untrace(cells, inner_only=False):
+    """Forget build_from_ref's walls on these cells (a stamp or a ruin replaced them); with
+    inner_only, just the edges between two of them (a hall made of several rooms)."""
+    cells = set(cells)
+    for k in [k for k in TRACE_EDGES if (all if inner_only else any)(c in cells for c in edge_cells(k))]:
+        del TRACE_EDGES[k]
+    if not inner_only:
+        TRACED.difference_update(cells)
+
+
+def convert_walls():
+    global EDGES_DONE
+    keep = CTX
+    set_ctx(OW)
+    floor_of = lambda x, y: GR[y][x] if GR[y][x] in INTERIOR_G else next(
+        (GR[y + v][x + u] for (u, v) in D4 if inb(x + u, y + v) and GR[y + v][x + u] in INTERIOR_G), 'FLOOR')
+    # traced towns: the walls go back onto the edges the trace found
+    for (x, y) in TRACED:
+        t = TY[y][x]
+        if t not in WALLS and t != 'DOOR':
+            continue
+        if t == 'DOOR':                   # ensure_door() opened this wall: its outer edge is a door
+            for (dx, dy) in D4:
+                k = ekey(x, y, dx, dy)
+                n = (x + dx, y + dy)
+                if TRACE_EDGES.get(k, (None,))[0] == 'wall' and inb(*n) and TY[n[1]][n[0]] in WALKSET and \
+                        GR[n[1]][n[0]] not in INTERIOR_G:
+                    TRACE_EDGES[k] = ('door', TRACE_EDGES[k][1])
+        GR[y][x] = floor_of(x, y)
+        TY[y][x] = GR[y][x]
+        CONVERTED.add((x, y))
+    for k, (kind, mat) in TRACE_EDGES.items():
+        a, b = edge_cells(k)
+        if kind and inb(*a) and inb(*b) and not any(TY[c[1]][c[0]] in WALLS for c in (a, b)):
+            EDGES[k] = (kind, mat)
+    # everything else (hand-built buildings): each wall cell joins a room beside it and its wall
+    # goes onto the edges it shares with other rooms or the outside
+    wallc = lambda x, y: TY[y][x] in WALLS and GR[y][x] in INTERIOR_G
+    doorc = lambda x, y: TY[y][x] == 'DOOR'
+    roomc = lambda x, y: GR[y][x] in INTERIOR_G and TY[y][x] not in WALLS and TY[y][x] not in ('DOOR', 'BOOTH', 'VOID')
+    label, size = {}, [0]
+    for y in range(MH):
+        for x in range(MW):
+            if (x, y) in label or not roomc(x, y):
+                continue
+            k = len(size)
+            size.append(0)
+            label[(x, y)] = k
+            st = [(x, y)]
+            while st:
+                a, b = st.pop()
+                size[k] += 1
+                for (dx, dy) in D4:
+                    n = (a + dx, b + dy)
+                    if inb(*n) and n not in label and roomc(*n) and not wall_between(a, b, dx, dy):
+                        label[n] = k
+                        st.append(n)
+    # booth rows divide rooms but belong to the room they stand in
+    for y in range(MH):
+        for x in range(MW):
+            if TY[y][x] == 'BOOTH' and GR[y][x] in INTERIOR_G:
+                ks = [label[n] for d in D4 for n in [(x + d[0], y + d[1])] if n in label and TY[n[1]][n[0]] != 'BOOTH']
+                if ks:
+                    label[(x, y)] = max(ks, key=lambda k: (size[k], -k))
+    pend = [(x, y) for y in range(MH) for x in range(MW) if wallc(x, y) or doorc(x, y)]
+    own = {}
+    for c in pend:                        # beside a room: the largest one
+        ks = [label[n] for d in D4 for n in [(c[0] + d[0], c[1] + d[1])] if n in label]
+        if ks:
+            own[c] = max(ks, key=lambda k: (size[k], -k))
+    from collections import deque
+    q = deque(own)
+    while q:                              # corners and wall runs take a neighbouring wall's room
+        c = q.popleft()
+        for (dx, dy) in D4:
+            n = (c[0] + dx, c[1] + dy)
+            if inb(*n) and n not in own and wallc(*n):
+                own[n] = own[c]
+                q.append(n)
+    for c in pend:                        # a door between a booth row and the street
+        if c not in own and doorc(*c):
+            ks = [own[n] for d in D4 for n in [(c[0] + d[0], c[1] + d[1])] if n in own]
+            if ks:
+                own[c] = ks[0]
+    for c in pend:                        # wall blocks with no room at all are rooms themselves
+        if c in own or not wallc(*c):
+            continue
+        k = len(size)
+        size.append(0)
+        own[c] = k
+        st = [c]
+        while st:
+            a = st.pop()
+            size[k] += 1
+            for (dx, dy) in D4:
+                n = (a[0] + dx, a[1] + dy)
+                if inb(*n) and n not in own and wallc(*n):
+                    own[n] = k
+                    st.append(n)
+    lab = lambda n: own.get(n, label.get(n, 0))
+    for (x, y), k in own.items():
+        for (dx, dy) in D4:
+            n = (x + dx, y + dy)
+            if not inb(*n) or lab(n) == k:
+                continue
+            if TY[n[1]][n[0]] in WALLS and n not in own:
+                continue                  # a free-standing wall: solid already
+            door = (doorc(x, y) and not wallc(*n)) or (doorc(*n) and not wallc(x, y))
+            mat = TY[y][x] if TY[y][x] in WALLS else TY[n[1]][n[0]] if TY[n[1]][n[0]] in WALLS else None
+            if mat is None:               # a door: the wall it stands in
+                mat = next((TY[y + v][x + u] for (u, v) in D4 if inb(x + u, y + v) and TY[y + v][x + u] in WALLS), 'WALL')
+            key = ekey(x, y, dx, dy)
+            old = EDGES.get(key)
+            if old is None or (door and old[0] != 'door'):
+                EDGES[key] = ('door' if door else 'wall', mat)
+    for (x, y), k in own.items():
+        if GR[y][x] not in INTERIOR_G:    # a door laid on outdoor ground: the room's floor
+            GR[y][x] = next((GR[y + v][x + u] for (u, v) in D4 if label.get((x + u, y + v)) == k), 'FLOOR')
+        TY[y][x] = GR[y][x]
+        CONVERTED.add((x, y))
+    # a wall cell outside its building's roof (a diagonal corner) goes under it
+    for _ in range(2):
+        for (x, y), k in own.items():
+            if ROOF[y][x]:
+                continue
+            g = next((ROOF[y + v][x + u] for (u, v) in D4 if inb(x + u, y + v) and ROOF[y + v][x + u] and
+                      lab((x + u, y + v)) == k), 0)
+            if g:
+                ROOF[y][x] = g
+                ROOFS[g][1].add((x, y))
+    EDGES_DONE = True
+    set_ctx(keep)
+
+
+def run_deferred():
+    keep = CTX
+    while DEFERRED:
+        ctx, fn, args = DEFERRED.pop(0)
+        set_ctx(ctx)
+        fn(*args)
+    set_ctx(keep)
+
+
+def shift_service(staff, objs, obj, npc, d):
+    """A booth / counter row laid with walls in cells stands a tile off the wall, which is floor
+    now: move the row and its staff back against the wall, as in OSRS."""
+    dx, dy = d
+    back = [(x + dx, y + dy) for (x, y) in staff]
+    if not staff or not all(TY[y][x] == obj for (x, y) in objs):
+        return
+    if not all(c in CONVERTED and TY[c[1]][c[0]] in WALKSET and wall_between(c[0], c[1], dx, dy) for c in back):
+        return
+    for (x, y) in objs:
+        TY[y][x] = GR[y][x]
+    for (x, y) in objs:
+        TY[y + dy][x + dx] = obj
+    moved = set(staff)
+    for i, (k, x, y) in enumerate(SPAWNS):
+        if k == npc and (x, y) in moved:
+            SPAWNS[i] = (k, x + dx, y + dy)
+
+
 def zc(X, Y):
     return (cx(X), cy(Y))
 
@@ -390,7 +617,7 @@ def service(r, side, obj, npc):
     """Bank booths / shop counter row along one wall, with staff standing behind it."""
     x0, y0, x1, y1 = r
     ix0, iy0, ix1, iy1 = x0 + 1, y0 + 1, x1 - 1, y1 - 1
-    cells = []
+    cells, objs = [], []
     if side in 'NS':
         srow = iy0 if side == 'N' else iy1
         orow = srow + (1 if side == 'N' else -1)
@@ -398,6 +625,8 @@ def service(r, side, obj, npc):
         for x in range(a, b + 1):
             TY[orow][x] = obj
             cells.append((x, srow))
+            objs.append((x, orow))
+        d = (0, srow - orow)
     else:
         scol = ix0 if side == 'W' else ix1
         ocol = scol + (1 if side == 'W' else -1)
@@ -405,10 +634,13 @@ def service(r, side, obj, npc):
         for y in range(a, b + 1):
             TY[y][ocol] = obj
             cells.append((scol, y))
+            objs.append((ocol, y))
+        d = (scol - ocol, 0)
     for i, (x, y) in enumerate(cells):
         if i % 2 == 0 or len(cells) <= 2:
             if len([s for s in SPAWNS if s[0] == npc and abs(s[1] - x) + abs(s[2] - y) < 2]) == 0:
                 SPAWNS.append((npc, x, y))
+    defer(shift_service, cells, objs, obj, npc, d)
     return cells
 
 
@@ -1730,9 +1962,10 @@ def ref_doors(X0, Y0, X1, Y1, kinds='d'):
 
 
 def build_from_ref(ref, style):
-    """Lay a traced town into the current zone context. OSRS walls run along tile edges; here a
-    wall fills a whole cell, so each wall edge takes the tile on its indoor side (between two rooms,
-    the tile of the larger room; between two outdoor tiles, the northern/western one).
+    """Lay a traced town into the current zone context. OSRS walls run along tile edges; the
+    authoring helpers put a wall in a whole cell, so each wall edge takes the tile on its indoor
+    side (between two rooms, the tile of the larger room; between two outdoor tiles, the
+    northern/western one) and convert_walls() later moves it back onto that edge.
 
     Steps: ground per tile; map lines inside a building that run only a tile or two are furniture
     (counters, booths, tables) and are dropped; rooms are floor tiles joined across open edges;
@@ -1841,24 +2074,9 @@ def build_from_ref(ref, style):
     is_wood = lambda t: t in room and bwood[bld_of(t)][0] * 2 > bwood[bld_of(t)][1]
     out = []        # buildings: dict(tiles, wood, roof, rect (OSRS), special)
     host = {}       # tile -> 'wall' / 'door' / 'fence' / 'gate'
-    wall_out = set()  # walls pushed onto the outdoor tile beside a narrow passage
     ext_doors = {}    # indoor tile -> kinds of exterior entrance edges ('d' door, 'o' gap)
 
-    def run_len(t, horizontal):
-        """Floor tiles in a straight line through t (across the room) without crossing an edge."""
-        n = 1
-        for sgn in (-1, 1):
-            a = t
-            while True:
-                b = (a[0] + sgn, a[1]) if horizontal else (a[0], a[1] + sgn)
-                e = (edgeW(max(a[0], b[0]), a[1]) if horizontal else edgeN(a[0], max(a[1], b[1])))
-                if not indoor(*b) or e != '.':
-                    break
-                n += 1
-                a = b
-        return n
-
-    def place(t, kind):
+    def place(t, kind, other=None):
         old = host.get(t)
         if old in ('door', 'gate') or (old == 'wall' and kind == 'fence'):
             return
@@ -1872,21 +2090,21 @@ def build_from_ref(ref, style):
                     continue
                 door = e in 'do'
                 ia, ib = indoor(*a), indoor(*b)
+                if ia or ib:                      # the OSRS edge itself, for convert_walls()
+                    t_ = a if ia else b
+                    gk = zc(X0 + b[0], Y1 - b[1]) + ('N' if a[0] == b[0] else 'W',)
+                    TRACE_EDGES[gk] = (None if e == 'o' else 'door' if e == 'd' else 'wall',
+                                       style['wood'] if is_wood(t_) else style['stone'])
                 if ia != ib:
                     t_in, t_out = (a, b) if ia else (b, a)
                     if door:
                         ext_doors.setdefault(t_in, set()).add(e)
-                    vert = a[1] == b[1]                    # the edge runs north-south
-                    if not door and run_len(t_in, vert) <= 2 and 0 <= t_out[0] < Wd and 0 <= t_out[1] < Ht:
-                        place(t_out, 'wall')               # keep a narrow passage open
-                        wall_out.add(t_out)
-                    else:
-                        place(t_in, 'door' if door else 'wall')
+                    place(t_in, 'door' if door else 'wall', t_out)   # the indoor tile (see convert_walls)
                 elif ia and ib:
                     if find(room[a]) == find(room[b]) and not door:
                         continue                  # inside a merged room
                     t = a if size_of[find(room[a])] >= size_of[find(room[b])] else b
-                    place(t, 'door' if door else 'wall')
+                    place(t, 'door' if door else 'wall', b if t == a else a)
                 else:
                     t = a
                     if at(*a) in 'cp' and at(*b) == 'g':
@@ -1894,15 +2112,19 @@ def build_from_ref(ref, style):
                     if not (0 <= t[0] < Wd and 0 <= t[1] < Ht):
                         t = b if t == a else a
                     place(t, 'gate' if door else 'fence')
+    diag = set()
     for r in range(Ht):
         for c in range(Wd):
             if ref['X'][r][c] == '/':
                 near_in = any(indoor(c + dc, r + dr) for dc in (-1, 0, 1) for dr in (-1, 0, 1))
                 place((c, r), 'wall' if near_in else 'fence')
+                diag.add((c, r))
     for (c, r), kind in host.items():
         if not (0 <= c < Wd and 0 <= r < Ht):
             continue
         X, Y = X0 + c, Y1 - r
+        if kind in ('wall', 'door') and (c, r) not in diag:
+            TRACED.add(zc(X, Y))
         if kind == 'wall':
             t = (c, r) if (c, r) in room else next(((c + u, r + v) for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1))
                                                     if (c + u, r + v) in room), None)
@@ -1936,10 +2158,6 @@ def build_from_ref(ref, style):
     groups = {}
     for t in room:
         groups.setdefault(bld_of(t), []).append(t)
-    for t in wall_out:
-        nb = next(((t[0] + u, t[1] + v) for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)) if (t[0] + u, t[1] + v) in room), None)
-        if nb is not None and t not in room:
-            groups[bld_of(nb)].append(t)
     for comp in groups.values():
         if len(comp) < 4:
             continue
@@ -1986,9 +2204,11 @@ def stamp(blds, X0, Y0, X1, Y1, wall, floor, doors=None, roof='slate', shape=Non
         if g:
             ROOFS[g][1].discard((x, y))
             ROOF[y][x] = 0
+    untrace(zc(*t) for t in tiles_)
     for b in list(blds):
         if b['tiles'] & ts:
             # what the trace made of this spot goes entirely (its leftovers become open ground)
+            untrace(zc(*t) for t in b['tiles'])
             for (X, Y) in b['tiles'] - ts:
                 x, y = cx(X), cy(Y)
                 g = ROOF[y][x]
@@ -2087,6 +2307,7 @@ def deco_near(X, Y, t, r=4, on=('GRASS', 'FLOWERS', 'FERN')):
 
 def ruin(blds, b, gap=3):
     """Turn a traced building into roofless ruins: grass floor, broken walls, no roof."""
+    untrace(zc(*t) for t in b['tiles'])
     for (X, Y) in b['tiles']:
         x, y = cx(X), cy(Y)
         g = ROOF[y][x]
@@ -2103,6 +2324,7 @@ def ruin(blds, b, gap=3):
 
 def clear_inside(b):
     """Remove a building's inner walls (keeps its outline) to make one hall."""
+    untrace((zc(*t) for t in b['tiles']), inner_only=True)
     for (X, Y) in b['tiles']:
         if TY[cy(Y)][cx(X)] in WALLS and all((X + u, Y + v) in b['tiles'] for u in (-1, 0, 1) for v in (-1, 0, 1)):
             zset(X, Y, GR[cy(Y)][cx(X)] if GR[cy(Y)][cx(X)] in WALKSET else 'FLOOR')
@@ -2117,20 +2339,25 @@ def bank(b, side, booths=None):
 
 def furnish(b, kit=None, seed=0):
     """Fill a house with OSRS-style furniture against its walls, keeping every floor tile it does
-    not take reachable from the doors."""
+    not take reachable from the doors. Runs once the walls are on tile edges."""
+    if not EDGES_DONE:
+        DEFERRED.append((CTX, furnish, (b, kit, seed)))
+        return
     kit = kit or ['BED', 'TABLE', 'CHAIR', 'DRAWERS', 'BOOKCASE', 'FIREPLACE', 'BARREL', 'CHAIR', 'POTPLANT']
     r = random.Random(hsh(*b['rect'], seed))
     floor = interior_of(b)
     fl = set(floor)
-    doors = [t for t in b['tiles'] if TY[cy(t[1])][cx(t[0])] == 'DOOR']
+    E = lambda t, u, v: edge_at(cx(t[0]), cy(t[1]), u, -v)          # OSRS (u, v): v grows north
+    doors = [t for t in floor if door_edge(cx(t[0]), cy(t[1]))]
     near_door = set((d[0] + u, d[1] + v) for d in doors for u in (-1, 0, 1) for v in (-1, 0, 1))
-    walls = lambda t: sum(TY[cy(t[1] + v)][cx(t[0] + u)] in WALLS for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+    walls = lambda t: sum(1 for (u, v) in D4 if (E(t, u, v) and E(t, u, v)[0] == 'wall') or
+                          TY[cy(t[1] + v)][cx(t[0] + u)] in WALLS)
     spots = [t for t in floor if walls(t) >= 1 and t not in near_door]
     r.shuffle(spots)
     spots.sort(key=lambda t: -walls(t))
+    opened = lambda a, u, v: not (E(a, u, v) and E(a, u, v)[0] == 'wall')
 
     def ncomp(free):
-        graph = free | set(doors)
         seen, n = set(), 0
         for t0 in free:
             if t0 in seen:
@@ -2140,15 +2367,13 @@ def furnish(b, kit=None, seed=0):
             st = [t0]
             while st:
                 a = st.pop()
-                for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                for u, v in D4:
                     q = (a[0] + u, a[1] + v)
-                    if q in graph and q not in seen:
+                    if q in free and q not in seen and opened(a, u, v):
                         seen.add(q)
                         st.append(q)
         return n
     comps0 = ncomp(fl)
-    connected = lambda free: ncomp(free) <= comps0
-    door_need = [d for d in doors if any((d[0] + u, d[1] + v) in fl for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)))]
     budget = max(1, len(floor) // 5)
     placed = 0
     for item in kit:
@@ -2157,12 +2382,11 @@ def furnish(b, kit=None, seed=0):
         for t in spots:
             if t not in fl:
                 continue
-            if item == 'FIREPLACE' and TY[cy(t[1] + 1)][cx(t[0])] not in WALLS:
+            if item == 'FIREPLACE' and not (E(t, 0, 1) and E(t, 0, 1)[0] == 'wall'):
                 continue                        # against the north wall
             if item == 'TABLE' and walls(t) >= 2:
                 continue
-            if connected(fl - {t}) and all(any((d[0] + u, d[1] + v) in fl - {t} for u, v in ((1, 0), (-1, 0), (0, 1), (0, -1)))
-                                           for d in door_need):
+            if ncomp(fl - {t}) <= comps0:
                 zput(t[0], t[1], item)
                 fl.discard(t)
                 placed += 1
@@ -2271,7 +2495,7 @@ def forge(name, X, Y, t, r=2):
                 a = st.pop()
                 for (u, v) in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                     q = (a[0] + u, a[1] + v)
-                    if q in win and q not in seen:
+                    if q in win and q not in seen and not wall_between(a[0], a[1], u, v):
                         seen.add(q)
                         st.append(q)
         return n
@@ -2283,8 +2507,8 @@ def forge(name, X, Y, t, r=2):
         for (x, y) in ring:
             if not inb(x, y) or TY[y][x] not in FORGE_ON or not ROOF[y][x]:
                 continue
-            nb = [(x + u, y + v) for (u, v) in ((1, 0), (-1, 0), (0, 1), (0, -1))]
-            if any(inb(a, b) and TY[b][a] == 'DOOR' for (a, b) in nb) or not any(walk(a, b) and TY[b][a] != 'DOOR' for (a, b) in nb):
+            if door_edge(x, y) or any(door_edge(x + u, y + v) for (u, v) in D4) or \
+                    not any(step_ok(x, y, u, v) for (u, v) in D4):
                 continue
             old = TY[y][x]
             before = parts(x, y)
@@ -2297,14 +2521,6 @@ def forge(name, X, Y, t, r=2):
     raise SystemExit('no room for %s near %d,%d' % (name, X, Y))
 
 
-for (_n, _X, _Y) in (('FURNACE_LUMBRIDGE', 3227, 3257), ('FURNACE_ALKHARID', 3273, 3187),
-                     ('FURNACE_FALADOR', 2976, 3369), ('FURNACE_EDGEVILLE', 3110, 3499)):
-    forge(_n, _X, _Y, 'FURNACE')
-for (_n, _X, _Y) in (('ANVIL_VARROCK_W1', 3188, 3426), ('ANVIL_VARROCK_W2', 3188, 3424), ('ANVIL_VARROCK_W3', 3188, 3421),
-                     ('ANVIL_VARROCK_C1', 3228, 3436), ('ANVIL_VARROCK_C2', 3228, 3434),
-                     ('ANVIL_VARROCK_E1', 3246, 3404), ('ANVIL_VARROCK_E2', 3248, 3404),
-                     ('ANVIL_DORIC1', 2950, 3452), ('ANVIL_DORIC2', 2950, 3451)):
-    forge(_n, _X, _Y, 'ANVIL')
 def join_roads():
     """Where a countryside road reaches a town's edge off the town's own streets, pave the gap to
     the nearest street (both follow the OSRS map, but not tile for tile)."""
@@ -2349,6 +2565,18 @@ for _y in range(1, OW_H):              # no canopy over a roof (canopies are dra
             TY[_y][_x] = GR[_y][_x] = 'GRASS'
 
 
+convert_walls()
+run_deferred()
+for (_n, _X, _Y) in (('FURNACE_LUMBRIDGE', 3227, 3257), ('FURNACE_ALKHARID', 3273, 3187),
+                     ('FURNACE_FALADOR', 2976, 3369), ('FURNACE_EDGEVILLE', 3110, 3499)):
+    forge(_n, _X, _Y, 'FURNACE')
+for (_n, _X, _Y) in (('ANVIL_VARROCK_W1', 3188, 3426), ('ANVIL_VARROCK_W2', 3188, 3424), ('ANVIL_VARROCK_W3', 3188, 3421),
+                     ('ANVIL_VARROCK_C1', 3228, 3436), ('ANVIL_VARROCK_C2', 3228, 3434),
+                     ('ANVIL_VARROCK_E1', 3246, 3404), ('ANVIL_VARROCK_E2', 3248, 3404),
+                     ('ANVIL_DORIC1', 2950, 3452), ('ANVIL_DORIC2', 2950, 3451)):
+    forge(_n, _X, _Y, 'ANVIL')
+
+
 # ========================================================================================
 # NPCs
 # ========================================================================================
@@ -2368,6 +2596,8 @@ def flood():
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             xx, yy = x + dx, y + dy
             if not inb(xx, yy) or seen[yy][xx]:
+                continue
+            if wall_between(x, y, dx, dy):
                 continue
             if (xx, yy) in LINKS:
                 for d in LINKS[(xx, yy)]:
@@ -2627,7 +2857,7 @@ def check_reachability():
     errs = []
 
     def near(x, y):
-        return any(inb(x + dx, y + dy) and seen[y + dy][x + dx] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+        return any(inb(x + dx, y + dy) and seen[y + dy][x + dx] and not wall_between(x, y, dx, dy) for dx, dy in D4)
     for (k, x, y) in FISH_SPOTS:
         if not near(x, y):
             errs.append('fish spot %s %d,%d' % (k, x, y))
@@ -2670,7 +2900,7 @@ def check_reachability():
             break
         for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
             n = (c[0] + dx, c[1] + dy)
-            if not inb(*n) or n in dist or TY[n[1]][n[0]] not in WALKSET:
+            if not inb(*n) or n in dist or not step_ok(c[0], c[1], dx, dy):
                 continue
             dist[n] = dist[c] + 1
             if GR[n[1]][n[0]] == 'SWAMP':
@@ -3155,7 +3385,8 @@ def render_cached(x, y):
         tuple((T_at(x + dx, y + dy), G_at(x + dx, y + dy), ROOF[y + dy][x + dx] if inb(x + dx, y + dy) else 0)
               for dx in (-1, 0, 1) for dy in (-3, -2, 2, 3)) + \
         tuple(ROOF[y + dy][x + dx] if inb(x + dx, y + dy) else 0 for dx, dy in DIRS8 + [(0, 0)]) + \
-        (hsh(x, y) % 6, x & 1, y & 1, hsh(53, x, y) % 6)
+        (hsh(x, y) % 6, x & 1, y & 1, hsh(53, x, y) % 6) + \
+        tuple(EDGES.get((x + dx, y + dy, s_)) for dx in (-1, 0, 1, 2) for dy in (0, 1, 2) for s_ in 'NW')
     if t in ('FLOWERS', 'STAIRS', 'FERN', 'BIGSTALL', 'FLOWERBED', 'VFOUNTAIN', 'SUNFLOWER'):
         key = key + (x, y)
     if t == 'CLIFF':
@@ -3176,12 +3407,21 @@ for y in range(MH):
         map_meta[y][x] = m
         if o and y > 0:
             map_over[y - 1][x] = o
-# roofs on the overlay layer (above sprites), one image per covered cell
+# roofs on the overlay layer (above sprites), one image per covered cell. A roof stands on its
+# walls, so its eaves reach into the row north of the building: those cells keep their own roof
+# group, or else are marked as that roof's eaves (bit 7, see world_roof() in src/world.c).
+EAVES = {}
 for g in range(1, len(ROOFS)):
     if ROOFS[g][1]:
         hd_art.set_theme(theme_of(*next(iter(ROOFS[g][1]))))
-    for (x, y), img in hd_art.roof_images(sys.modules[__name__], g).items():
+    for (x, y), img in sorted(hd_art.roof_images(sys.modules[__name__], g).items()):
+        if map_over[y][x]:
+            under = [r[:] for r in meta_imgs[map_over[y][x]]]
+            hd_art.paste(under, img)
+            img = under
         map_over[y][x] = add_meta(img, pset_of(x, y))
+        if not ROOF[y][x]:
+            EAVES[(x, y)] = g
 # upper castle floors: outside the keep the player looks down onto the ground floor
 for (x, y), (sx, sy) in VIEW.items():
     map_meta[y][x] = map_meta[sy][sx]
@@ -3408,15 +3648,38 @@ def cell_of(X, Y, p):
     return (gx, gy) if 0 <= gx < MW and 0 <= gy < MH else None
 
 
+def roof_ids():
+    """Roof group -> id in the ROM's roof bytes (1..127; bit 7 marks eaves). Groups more than
+    two screens apart share ids: hiding the roof the player is under hides every roof with its
+    id, and only the ones near the camera show."""
+    box = {}
+    for g in range(1, len(ROOFS)):
+        cs = ROOFS[g][1] | set(c for c, h in EAVES.items() if h == g)
+        if cs:
+            xs, ys = [c[0] for c in cs], [c[1] for c in cs]
+            box[g] = (min(xs), min(ys), max(xs), max(ys))
+    near = lambda a, b: a[0] - 40 <= b[2] and b[0] - 40 <= a[2] and a[1] - 30 <= b[3] and b[1] - 30 <= a[3]
+    ids = [0] * len(ROOFS)
+    for g in sorted(box):
+        used = set(ids[h] for h in box if h < g and near(box[g], box[h]))
+        ids[g] = next(i for i in range(1, 128) if i not in used)
+    return ids
+
+
+ROOF_ID = roof_ids()
+
+
 def build_regions():
-    """-> list of (plane, rx, ry, pal_set, flags, [block stream or None] * 16, walk words)."""
+    """-> list of (plane, rx, ry, pal_set, flags, [block stream or None] * 16, walk words, edge words or
+    None). Edge words: four 64x64 bitmaps like walk, for a wall on each tile's north edge, on its
+    west edge (both stop walkers), then the same two for walls that also stop projectiles."""
     from collections import Counter
     regs = []
     for p in sorted(BOUNDS):
         X0, Y0, X1, Y1 = BOUNDS[p]
         for rx in range(X0 // REGION, X1 // REGION + 1):
             for ry in range(Y0 // REGION, Y1 // REGION + 1):
-                blocks, walk = [], [0] * (REGION * REGION // 32)
+                blocks, walk, edge = [], [0] * (REGION * REGION // 32), [0] * (REGION * REGION // 8)
                 psets, flags = Counter(), 0
                 for b in range(16):
                     bx0, by0 = rx * REGION + (b & 3) * BLOCK, ry * REGION + (b >> 2) * BLOCK
@@ -3431,12 +3694,18 @@ def build_regions():
                             gx, gy = c
                             i = ly * BLOCK + lx
                             inside += 1
-                            meta[i], over[i], typ[i], roof[i] = map_meta[gy][gx], map_over[gy][gx], T[TY[gy][gx]], ROOF[gy][gx]
+                            meta[i], over[i], typ[i], roof[i] = map_meta[gy][gx], map_over[gy][gx], T[TY[gy][gx]], \
+                                ROOF_ID[ROOF[gy][gx]] or (0x80 | ROOF_ID[EAVES[(gx, gy)]] if (gx, gy) in EAVES else 0)
                             psets[pset_of(gx, gy)] += 1
                             flags |= (RF_ROOFS if roof[i] else 0) | (RF_OVERLAY if over[i] else 0)
+                            rl, rr = (b >> 2) * BLOCK + ly, (b & 3) * BLOCK + lx
                             if typ[i] <= T['DOOR']:      # T_WALKABLE_MAX
-                                rl, rr = (b >> 2) * BLOCK + ly, (b & 3) * BLOCK + lx
                                 walk[rl * 2 + (rr >> 5)] |= 1 << (rr & 31)
+                            for (k, side) in ((0, 'N'), (1, 'W')):
+                                e = EDGES.get((gx, gy, side))
+                                if e and e[0] != 'door':
+                                    for j in ((k, k + 2) if e[0] == 'wall' else (k,)):
+                                        edge[j * 128 + rl * 2 + (rr >> 5)] |= 1 << (rr & 31)
                     if not inside:
                         blocks.append(None)
                         continue
@@ -3444,7 +3713,7 @@ def build_regions():
                         bytes(typ) + bytes(roof)
                     blocks.append(lz77.compress(raw))
                 if any(blocks):
-                    regs.append((p, rx, ry, psets.most_common(1)[0][0], flags, blocks, walk))
+                    regs.append((p, rx, ry, psets.most_common(1)[0][0], flags, blocks, walk, edge if any(edge) else None))
     return regs
 
 

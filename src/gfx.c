@@ -288,7 +288,7 @@ static void draw_tile(int tx, int ty) {
     if (memo.in) {
         int k = ((ty & 1) << 1) | (tx & 1);
         ge = meta_tiles[memo.meta][k];
-        if (!hidden_roof || memo.roof != hidden_roof) oe = meta_tiles[memo.over][k];
+        if (!hidden_roof || (memo.roof & 0x7F) != hidden_roof) oe = meta_tiles[memo.over][k];
     }
     u16 g = (CACHE_BASE + cache_get(ge & 0xFFFF)) | (ge >> 16);
     u16 o = (CACHE_BASE + cache_get(oe & 0xFFFF)) | (oe >> 16);
