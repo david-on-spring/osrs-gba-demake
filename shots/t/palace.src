@@ -1,0 +1,68 @@
+# Varrock Palace's floors and the Grand Exchange. Up the north-west tower to the first and second
+# floors and the tower top by its ladder, down the south-east tower, the middle and north-east
+# staircases, then the Grand Exchange: in through the gap in the city wall, a booth and a clerk.
+wait 60
+newgame
+world
+tpz VARROCK 3203 3495 UP
+press UP
+wait 40
+expectat PALACE_1 3203 3495
+shot shots/t/palace_first.png
+press UP
+press UP
+choose 0
+wait 40
+expectat PALACE_2 3203 3495
+tpz PALACE_2 3206 3496 UP
+press A
+wait 40
+expectat PALACE_3 3206 3496
+shot shots/t/palace_tower.png
+press UP
+press A
+wait 40
+expectat PALACE_2 3206 3496
+tpz PALACE_2 3221 3472 RIGHT
+press A
+wait 40
+expectat PALACE_3 3221 3472
+tpz PALACE_2 3224 3472 RIGHT
+press RIGHT
+wait 40
+expectat PALACE_1 3224 3472
+tpz PALACE_1 3213 3475 DOWN
+press DOWN
+wait 40
+expectat VARROCK 3213 3475
+press DOWN
+wait 40
+expectat PALACE_1 3213 3475
+tpz VARROCK 3217 3495 RIGHT
+press RIGHT
+wait 40
+expectat PALACE_1 3217 3495
+press RIGHT
+press RIGHT
+wait 40
+expectat VARROCK 3217 3495
+# the Grand Exchange: walk in from Varrock's side of the wall, bank at the clerks' desk
+tpz VARROCK 3164 3465 UP
+press UP
+wait 8
+press UP
+wait 8
+press UP
+wait 8
+expectat OVERWORLD 3164 3468
+tpz OVERWORLD 3164 3492 DOWN
+press A
+wait 20
+expectstate BANK
+shot shots/t/palace_ge.png
+press B
+wait 10
+tpz OVERWORLD 3158 3496 UP
+press A
+wait 20
+expectstate BANK

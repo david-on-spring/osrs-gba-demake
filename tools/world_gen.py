@@ -13,6 +13,7 @@ more than the cache holds.
 
 Imported by gen_assets.py; exposes emit_header(h) / emit_source(c, arr, tile_words).
 """
+from collections import Counter
 import math
 import os
 import random
@@ -1329,22 +1330,68 @@ scatter(VX0, VY0, VX1, VY1, 0.03, [('TREE', 2), ('FLOWERS', 3), ('BUSH', 1)], se
 # outside the walls: Juliet's house, Grand Exchange, Champions' Guild, mines, stone circle
 JULIET_H = building(3154, 3424, 3165, 3437, 'HWALL', 'WOODFLOOR', [('E', 3430)])
 JULIET = (JULIET_H[0] + 2, JULIET_H[1] + 2)
-gcx, gcy = fpt(3165, 3490)
-for y in YR():
-    for x in XR():
-        d = max(abs(x + 0.5 - gcx), abs(y + 0.5 - gcy)) * 0.8 + 0.2 * (abs(x + 0.5 - gcx) + abs(y + 0.5 - gcy))
-        if d <= 10:
-            TY[y][x] = 'WALL' if d > 9.1 else 'FLOOR'
-            GR[y][x] = 'FLOOR'
-reserve(int(gcx) - 12, int(gcy) - 12, int(gcx) + 12, int(gcy) + 12)
-for (dx, dy) in ((0, -9), (0, 9), (-9, 0), (9, 0)):
-    TY[int(gcy) + dy][int(gcx) + dx] = 'DOOR'
-    setg(int(gcx) + dx + (1 if dx > 0 else -1 if dx < 0 else 0), int(gcy) + dy + (1 if dy > 0 else -1 if dy < 0 else 0), 'COBBLE')
-GE_BOOTHS = []
-for (dx, dy) in ((-1, -1), (0, -1), (1, -1), (-1, 1), (0, 1), (1, 1)):
-    put(int(gcx) + dx, int(gcy) + dy, 'BOOTH')
-for (dx, dy) in ((-2, -2), (2, 2)):
-    SPAWNS.append(('BANKER', int(gcx) + dx, int(gcy) + dy))
+# The Grand Exchange (OSRS map): a round plaza of paving in a ring of dirt, its exits north to the
+# Edgeville road, south through the gap in Varrock's wall and east to the palace. In the middle an
+# octagon of low walls, open on its four sides, with bank booths on its four diagonals and the
+# clerks' round desk at the centre.
+GE_N = [17, 17, 17, 17, 17, 17, 16, 16, 15, 15, 14, 14, 13, 12, 10, 8, 6, 3, 1, -1]   # half widths
+
+
+def ge_half(Y, ring=0):
+    """Tiles east and west of the centre line (between X 3164 and 3165) that row Y's plaza (ring 0)
+    or its dirt ring (ring 3) reaches, or -1."""
+    k = Y - 3490 if Y >= 3490 else 3489 - Y
+    if ring:
+        return GE_N[k] + ring if k <= 16 else (10, 8, 6)[k - 17] if k <= 19 else -1
+    return GE_N[k] if k <= 16 else -1
+
+
+def ge_set(X, Y, t, g=None):
+    put(cx(X), cy(Y), t)
+    if g:
+        GR[cy(Y)][cx(X)] = g
+
+
+for Y in range(3469, 3511):
+    for (ring, g) in ((3, 'PATH'), (0, 'COBBLE')):
+        n = ge_half(Y, ring)
+        for X in range(3165 - n, 3165 + n):
+            ge_set(X, Y, g, g)
+for X in range(3163, 3167):                     # south, to the gap in the city wall
+    for Y in range(3466, 3470):
+        ge_set(X, Y, 'PATH', 'PATH')
+for Y in range(3488, 3492):                     # east, toward the palace
+    for X in range(3181, 3186):
+        if TY[cy(Y)][cx(X)] not in ('COBBLE',):
+            ge_set(X, Y, 'PATH', 'PATH')
+for X in range(3162, 3168):                     # north, to the Edgeville road
+    for Y in range(3507, 3513):
+        ge_set(X, Y, 'PATH', 'PATH')
+# the inner octagon: wall pieces on tile edges, and the diagonals as low wall blocks
+for (X, Y) in ((3160, 3499), (3159, 3498), (3169, 3499), (3170, 3498), (3156, 3495), (3155, 3494),
+               (3173, 3495), (3174, 3494), (3155, 3485), (3156, 3484), (3174, 3485), (3173, 3484),
+               (3159, 3481), (3160, 3480), (3169, 3481), (3170, 3480)):
+    ge_set(X, Y, 'WALL', 'COBBLE')
+for X in (3161, 3162, 3167, 3168):
+    EDGES[(cx(X), cy(3499), 'N')] = EDGES[(cx(X), cy(3479), 'N')] = ('wall', 'WALL')
+for Y in (3486, 3487, 3492, 3493):
+    EDGES[(cx(3155), cy(Y), 'W')] = EDGES[(cx(3175), cy(Y), 'W')] = ('wall', 'WALL')
+# bank booths on the diagonals, their bankers just outside
+for (bs, bk) in ((((3157, 3496), (3158, 3497)), ((3156, 3497), (3157, 3498))),
+                 (((3171, 3497), (3172, 3496)), ((3172, 3498), (3173, 3497))),
+                 (((3157, 3483), (3158, 3482)), ((3156, 3482), (3157, 3481))),
+                 (((3171, 3482), (3172, 3483)), ((3172, 3481), (3173, 3482)))):
+    for (X, Y) in bs:
+        ge_set(X, Y, 'BOOTH', 'COBBLE')
+    for (X, Y) in bk:
+        SPAWNS.append(('BANKER',) + (cx(X), cy(Y)))
+# the clerks' desk: an octagon of booths round the four Grand Exchange clerks
+for (X, Y) in ((3164, 3491), (3165, 3491), (3164, 3488), (3165, 3488), (3163, 3489), (3163, 3490),
+               (3166, 3489), (3166, 3490), (3163, 3491), (3166, 3491), (3163, 3488), (3166, 3488)):
+    ge_set(X, Y, 'BOOTH', 'COBBLE')
+for (X, Y) in ((3164, 3490), (3165, 3490), (3164, 3489), (3165, 3489)):
+    SPAWNS.append(('GE_CLERK',) + (cx(X), cy(Y)))
+reserve(*orect(3144, 3466, 3185, 3512))
 CHAMPIONS = building(3186, 3356, 3198, 3366, 'WALL', 'FLOOR', [('N', 3192)])
 mine(3172, 3362, 3186, 3376, [('TIN', 4), ('IRON', 3), ('CLAY', 3), ('SILVER', 3)], 'PATH', 2)
 mine(3278, 3358, 3294, 3374, [('COPPER', 4), ('TIN', 4), ('IRON', 3)], 'PATH', 2)
@@ -1523,6 +1570,7 @@ ZB = Ctx(3203, 3229, 1, 188, ZONE_Y, 188, ZONE_Y, 208, ZONE_Y + 18)        # OSR
 # (name, context, palette set, plane). The camera stays inside the player's zone. The floors use
 # Lumbridge's palette set (filled in by assign_palette_sets()).
 ZONES = [('OVERWORLD', OW, 0, 0), ('CASTLE_1', ZF1, None, 1), ('CASTLE_2', ZF2, None, 2), ('CELLAR', ZB, None, 5)]
+ZONE_THEMES = []    # (context, town): zones drawn in a town's theme (default: Lumbridge's)
 LINKS = {}          # stair cell -> [dest cells] (for the reachability checks)
 VIEW = {}           # upper-floor cell -> ground-floor cell it shows (looking down from the castle)
 
@@ -2112,17 +2160,44 @@ def build_from_ref(ref, style):
     Wd, Ht = X1 - X0 + 1, Y1 - Y0 + 1
     G = ref['G']
     at = lambda c, r: G[r][c] if 0 <= c < Wd and 0 <= r < Ht else 'g'
-    indoor = lambda c, r: at(c, r) in 'fwk'
+    exact = style.get('exact')
+    # exact: a diagonal wall across a building's corner leaves that tile outside, the walls going
+    # onto its edges with the rooms beside it (OSRS's chamfered corners, cut a tile in)
+    slash = lambda c, r: exact and 0 <= c < Wd and 0 <= r < Ht and ref['X'][r][c] == '/'
+    indoor = lambda c, r: at(c, r) in 'fwk' and not slash(c, r)
     ground = dict(REF_GROUND, c=style.get('road', 'COBBLE'), s=style.get('sand', 'SAND'))
     for r in range(Ht):
         for c in range(Wd):
             ch = at(c, r)
+            if slash(c, r) and ch in 'fwk':
+                ch = Counter(at(c + u, r + v) for (u, v) in D4 if at(c + u, r + v) in 'gpcsm').most_common(1)
+                ch = ch[0][0] if ch else 'g'
             if ch == '#':
                 zset(X0 + c, Y1 - r, style.get('city', 'WALL'), style.get('city_ground', 'GRASS'))
             else:
                 zfill(X0 + c, Y1 - r, X0 + c, Y1 - r, ground[ch])
-    rawN = lambda c, r: ref['N'][r][c] if 0 <= r <= Ht and 0 <= c < Wd else '.'
-    rawW = lambda c, r: ref['W'][r][c] if 0 <= r < Ht and 0 <= c <= Wd else '.'
+    mapN = lambda c, r: ref['N'][r][c] if 0 <= r <= Ht and 0 <= c < Wd else '.'
+    mapW = lambda c, r: ref['W'][r][c] if 0 <= r < Ht and 0 <= c <= Wd else '.'
+    cut = lambda a, b: (slash(*a) and indoor(*b)) or (slash(*b) and indoor(*a))
+    rawN = lambda c, r: '-' if mapN(c, r) == '.' and cut((c, r - 1), (c, r)) else mapN(c, r)
+    rawW = lambda c, r: '|' if mapW(c, r) == '.' and cut((c - 1, r), (c, r)) else mapW(c, r)
+
+    def attached(run, kind, end):
+        """With style 'exact': how a run of interior wall edges meets the map at one end, the
+        vertex past its last edge (end=1) or before its first (end=0): 'door' when a door or
+        doorway carries on in line with it, 'wall' when any other line meets it there, else None."""
+        (c, r) = run[-1] if end else run[0]
+        if kind == 'N':
+            v = (c + 1, r) if end else (c, r)
+            line = rawN(v[0], v[1]) if end else rawN(v[0] - 1, v[1])
+            other = (rawW(v[0], v[1] - 1), rawW(v[0], v[1]))
+        else:
+            v = (c, r + 1) if end else (c, r)
+            line = rawW(v[0], v[1]) if end else rawW(v[0], v[1] - 1)
+            other = (rawN(v[0] - 1, v[1]), rawN(v[0], v[1]))
+        if line in 'do':
+            return 'door'
+        return 'wall' if line in '-|' or any(e in '-|do' for e in other) else None
     # short interior runs (furniture lines)
     stub = set()
     for (kind, along, E) in (('N', (1, 0), rawN), ('W', (0, 1), rawW)):
@@ -2138,6 +2213,12 @@ def build_from_ref(ref, style):
                     run.append((a, b))
                     a, b = a + along[0], b + along[1]
                 if len(run) <= 2:
+                    if exact:
+                        # a short run that carries a wall on past a door, or spans between two
+                        # walls, divides rooms; a counter or a booth stands free at one end at least
+                        ends = (attached(run, kind, 0), attached(run, kind, 1))
+                        if 'door' in ends or ends == ('wall', 'wall'):
+                            continue
                     stub.update((kind,) + t for t in run)
     edgeN = lambda c, r: '.' if ('N', c, r) in stub else rawN(c, r)
     edgeW = lambda c, r: '.' if ('W', c, r) in stub else rawW(c, r)
@@ -2171,8 +2252,9 @@ def build_from_ref(ref, style):
     rsize = lambda k: sum(sizes[j] for j in range(len(sizes)) if find(j) == find(k))
     # tiny rooms (closets, booth bays) open into a neighbouring room: drop the walls between them
     merged = set()
+    doored = set(room[t] for t in room for (da, db, e) in nbrs(*t) if e == 'd') if exact else set()
     for (a, b), k in list(room.items()):
-        if sizes[k] > 4:
+        if sizes[k] > 4 or k in doored:       # (exact: a closet with its own door stays one)
             continue
         for (da, db, e) in nbrs(a, b):
             t = (a + da, b + db)
@@ -2248,6 +2330,8 @@ def build_from_ref(ref, style):
         for c in range(Wd):
             if ref['X'][r][c] == '/':
                 near_in = any(indoor(c + dc, r + dr) for dc in (-1, 0, 1) for dr in (-1, 0, 1))
+                if exact and near_in:
+                    continue                  # cut (see slash above)
                 place((c, r), 'wall' if near_in else 'fence')
                 diag.add((c, r))
     for (c, r), kind in host.items():
@@ -2468,6 +2552,9 @@ def bank(b, side, booths=None):
     service((x0, y0, x1, y1), side, 'BOOTH', 'BANKER')
 
 
+NO_FURNISH = set()      # cells kept clear of furniture (beside staircases, where the player arrives)
+
+
 def furnish(b, kit=None, seed=0):
     """Fill a house with OSRS-style furniture against its walls, keeping every floor tile it does
     not take reachable from the doors. Runs once the walls are on tile edges."""
@@ -2483,7 +2570,7 @@ def furnish(b, kit=None, seed=0):
     near_door = set((d[0] + u, d[1] + v) for d in doors for u in (-1, 0, 1) for v in (-1, 0, 1))
     walls = lambda t: sum(1 for (u, v) in D4 if (E(t, u, v) and E(t, u, v)[0] == 'wall') or
                           TY[cy(t[1] + v)][cx(t[0] + u)] in WALLS)
-    spots = [t for t in floor if walls(t) >= 1 and t not in near_door]
+    spots = [t for t in floor if walls(t) >= 1 and t not in near_door and zc(*t) not in NO_FURNISH]
     r.shuffle(spots)
     spots.sort(key=lambda t: -walls(t))
     opened = lambda a, u, v: not (E(a, u, v) and E(a, u, v)[0] == 'wall')
@@ -3066,7 +3153,7 @@ REGIONS_O = [
     ('Edgeville', 3066, 3460, 3130, 3520),
     ('Barbarian Village', 3062, 3405, 3100, 3455),
     ('Cooking Guild', 3136, 3436, 3150, 3450),
-    ('Grand Exchange', 3150, 3476, 3180, 3505),
+    ('Grand Exchange', 3145, 3469, 3184, 3510),
     ('Varrock Palace', 3196, 3458, 3230, 3504),
     ('Varrock Square', 3200, 3416, 3226, 3440),
     ('Varrock', 3172, 3380, 3278, 3507),
@@ -3088,6 +3175,9 @@ REGIONS = []
 for (ctx, n, X0, Y0, X1, Y1) in ((ZB, 'Lumbridge Castle Cellar', 3203, 3211, 3223, 3229),
                                  (ZMG, 'Mining Guild', 3012, 3329, 3060, 3360),
                                  (ZICE, 'Asgarnian Ice Dungeon', 3000, 3146, 3060, 3176),
+                                 (ZV[0], 'Varrock Palace', 3199, 3466, 3228, 3501),
+                                 (ZV[1], 'Varrock Palace', 3199, 3466, 3228, 3501),
+                                 (ZV[2], 'Varrock Palace', 3199, 3466, 3228, 3501),
                                  (ZF1, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
                                  (ZF2, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
                                  (ZL0, 'Lumbridge Castle', 3199, 3200, 3231, 3236),
@@ -3147,7 +3237,7 @@ def check_reachability():
             if TY[y][x] in ('CROPS', 'CLAY') and not near(x, y) and TY[y][x] == 'CLAY':
                 errs.append('%s at %d,%d unreachable' % (TY[y][x], x, y))
     for (k, x, y) in SPAWNS:
-        if k in ('BANKER', 'SHOPKEEPER'):
+        if k in ('BANKER', 'SHOPKEEPER', 'GE_CLERK'):
             continue
         if not seen[y][x]:
             errs.append('npc %s at %d,%d unreachable' % (k, x, y))
@@ -3516,7 +3606,8 @@ import hd_art  # noqa: E402
 
 def theme_of(x, y):
     if y >= OW_H:
-        return 'LUMBRIDGE'          # the castle's upper floors
+        # a town's upper floors take its theme; the castle floors and the caves Lumbridge's
+        return next((t for (z, t) in ZONE_THEMES if z.X0 <= x <= z.X1 and z.Y0 <= y <= z.Y1), 'LUMBRIDGE')
     c = OWNER[y][x]
     return c.name if c else 'OVERWORLD'
 
@@ -3624,7 +3715,8 @@ def assign_palette_sets():
 
 
 PAL_REGIONS = assign_palette_sets()
-ZONES = [(n, z, LUMBRIDGE.pset if ps is None else ps, pl_) for (n, z, ps, pl_) in ZONES]
+ZONES = [(n, z, LUMBRIDGE.pset if ps is None else next(c.pset for c in CITIES if c.name == ps) if isinstance(ps, str)
+          else ps, pl_) for (n, z, ps, pl_) in ZONES]
 NSETS = max(c.pset for c in CITIES) + 1   # world palette sets: 0 countryside only, then the town groups
 SHARED = int(os.environ.get('WG_SHARED', 9))   # world banks shared by every set
 meta_imgs = []
