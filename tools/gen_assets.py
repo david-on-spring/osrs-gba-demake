@@ -1484,15 +1484,13 @@ def icon_arrows(m):
     return c.done()
 
 
-def icon_arrow_proj(d):
+def icon_arrow_proj(deg):
+    """An arrow in flight pointing deg degrees anticlockwise from east (0..90 in 22.5 steps);
+    flips give the other twelve of OSRS-like sixteen headings."""
     c = Canvas()
-    head = METAL['steel']
-    if d == 'h':
-        arrow_onto(c, 2, 8, 12, 8, head)
-    elif d == 'v':
-        arrow_onto(c, 8, 13, 8, 3, head)
-    else:
-        arrow_onto(c, 3, 12, 11, 4, head)
+    a = math.radians(deg)
+    ux, uy = math.cos(a) * 5, -math.sin(a) * 5
+    arrow_onto(c, 7.5 - ux, 8 - uy, 7.5 + ux, 8 + uy, METAL['steel'])
     return c.done()
 
 
@@ -1571,11 +1569,47 @@ def icon_wizard_hat():
     return c.done()
 
 
-def icon_orb(cols, core):
+def icon_orb(cols, core, r=4, glow=None):
+    """A spell in flight: strikes are small, bolts, blasts and waves bigger (waves with a halo)."""
     c = Canvas()
-    c.ell(8, 8, 4, 4, None, shade=cols)
-    c.ell(7, 7, 1.5, 1.5, core)
-    return c.done()
+    if glow:
+        for y in range(16):
+            for x in range(16):
+                d = math.hypot(x - 7.5, y - 7.5)
+                if r < d <= r + 1.6 and (x + y) % 2 == 0:
+                    c.set(x, y, glow)
+    c.ell(7.5, 7.5, r, r, None, shade=cols)
+    c.ell(7.5 - r * 0.3, 7.5 - r * 0.3, r * 0.38, r * 0.38, core)
+    return c.p if glow else c.done()
+
+
+def icon_impact(cols, core):
+    """A spell landing: a starburst of its colour around a bright core."""
+    c = Canvas()
+    for k in range(8):
+        a = k * math.pi / 4 + 0.2
+        L = 7 if k % 2 == 0 else 5
+        c.line(7.5 + math.cos(a) * 2, 7.5 + math.sin(a) * 2, 7.5 + math.cos(a) * L, 7.5 + math.sin(a) * L, cols[1])
+        c.set(7.5 + math.cos(a) * L, 7.5 + math.sin(a) * L, cols[0])
+    c.ell(7.5, 7.5, 3, 3, None, shade=cols)
+    c.ell(7.5, 7.5, 1.4, 1.4, core)
+    return c.p
+
+
+def icon_splash(big):
+    """OSRS's splash: a puff of pale blue smoke where a spell fails to hit."""
+    c = Canvas()
+    hi, mid, lo = C('#e8f4ff'), C('#a8c8f0'), C('#6890c8')
+    puffs = ((5, 9, 3), (10, 9, 3), (7.5, 6, 3.2), (7.5, 11, 2.5)) if not big else \
+            ((4, 9, 3.5), (11, 9, 3.5), (7.5, 5, 3.5), (7.5, 11.5, 3), (7.5, 8, 3))
+    for x, y, r in puffs:
+        c.ell(x, y, r, r, None, shade=(hi, mid, lo))
+    if big:   # breaking up: holes in the cloud
+        for y in range(16):
+            for x in range(16):
+                if (x * 3 + y * 5) % 7 == 0:
+                    c.p[y][x] = blank(1, 1)[0][0]
+    return c.p
 
 
 def icon_home_ring():
@@ -1627,6 +1661,15 @@ def icon_alch():
 RAW_SHRIMP = (C('#f8a8a0'), C('#e07870'), C('#a04840'))
 COOKED_SHRIMP = (C('#f8b868'), C('#e08030'), C('#a05018'))
 BURNT = (C('#5a4a40'), C('#3a2e28'), C('#1e1814'))
+
+SPELL_COLS = [
+    ('PROJ_WIND', WHITE3, C('#ffffff')),
+    ('PROJ_WATER', (C('#80b0ff'), C('#3070e0'), C('#183c90')), C('#d0e8ff')),
+    ('PROJ_EARTH', (C('#a0c060'), C('#6a8a30'), C('#3a501a')), C('#d8f0a0')),
+    ('PROJ_FIRE', (C('#f8c040'), C('#f06010'), C('#a02008')), C('#fff0a0')),
+    ('PROJ_CURSE', (C('#d090f0'), C('#9040c0'), C('#501a78')), C('#f0d0ff')),
+    ('PROJ_BIND', (C('#70e070'), C('#30a030'), C('#186018')), C('#c8ffc8')),
+]
 
 ICONS = []   # (name, image)
 ICON_DEF = [
@@ -1817,15 +1860,20 @@ ICON_DEF = [
     ('SK_BOW', icon_bow(BOWWOOD['maple'], True)),
     ('SK_MAGIC', icon_wizard_hat()),
     # projectiles, the target marker and spellbook pictures
-    ('PROJ_ARROW_H', icon_arrow_proj('h')),
-    ('PROJ_ARROW_V', icon_arrow_proj('v')),
-    ('PROJ_ARROW_D', icon_arrow_proj('d')),
-    ('PROJ_WIND', icon_orb(WHITE3, C('#ffffff'))),
-    ('PROJ_WATER', icon_orb((C('#80b0ff'), C('#3070e0'), C('#183c90')), C('#d0e8ff'))),
-    ('PROJ_EARTH', icon_orb((C('#a0c060'), C('#6a8a30'), C('#3a501a')), C('#d8f0a0'))),
-    ('PROJ_FIRE', icon_orb((C('#f8c040'), C('#f06010'), C('#a02008')), C('#fff0a0'))),
-    ('PROJ_CURSE', icon_orb((C('#d090f0'), C('#9040c0'), C('#501a78')), C('#f0d0ff'))),
-    ('PROJ_BIND', icon_orb((C('#70e070'), C('#30a030'), C('#186018')), C('#c8ffc8'))),
+    ('PROJ_ARROW0', icon_arrow_proj(0)),
+    ('PROJ_ARROW1', icon_arrow_proj(22.5)),
+    ('PROJ_ARROW2', icon_arrow_proj(45)),
+    ('PROJ_ARROW3', icon_arrow_proj(67.5)),
+    ('PROJ_ARROW4', icon_arrow_proj(90)),
+    # spells: wind, water, earth, fire strikes, curse, bind (this order: combat.c, world_draw.c),
+    # then the same four elements as bolts, blasts and waves, then where each one lands
+    *[(n, icon_orb(c, k, 2.6)) for n, c, k in SPELL_COLS],
+    *[(n + '_BOLT', icon_orb(c, k, 3.4)) for n, c, k in SPELL_COLS[:4]],
+    *[(n + '_BLAST', icon_orb(c, k, 4.3)) for n, c, k in SPELL_COLS[:4]],
+    *[(n + '_WAVE', icon_orb(c, k, 4.6, c[0])) for n, c, k in SPELL_COLS[:4]],
+    *[('HIT' + n[4:], icon_impact(c, k)) for n, c, k in SPELL_COLS],
+    ('SPLASH0', icon_splash(False)),
+    ('SPLASH1', icon_splash(True)),
     ('TARGET_MARK', icon_target()),
     ('SPELL_TELE', icon_teleport()),
     ('SPELL_ALCH', icon_alch()),

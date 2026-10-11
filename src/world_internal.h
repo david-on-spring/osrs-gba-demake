@@ -56,11 +56,24 @@ int weapon_speed(void);                 // ticks between attacks
 int player_attack(int i);               // 0 if no attack could be made (out of ammo or runes)
 int npc_in_reach(int i);                // the player can attack npc i from where they stand
 void npc_attack(int i);
-#define MAX_PROJ 4
-typedef struct { u8 active, npc, dmg, cb, spell, icon, t, dur, hit; u16 drop; s16 sx, sy; } Proj;
+// Projectiles fly like OSRS's: released a few frames into the attack, arcing to the target and
+// following it, landing on the tick OSRS's hit delay gives (1 + (3 + d) / 6 ticks for arrows,
+// 1 + (1 + d) / 3 for spells, d the distance in tiles)
+#define MAX_PROJ 6
+typedef struct {
+    u8 active, npc, dmg, cb, spell, icon, hit, at_pl;   // at_pl: an NPC's spell flying at the player
+    u8 t, dur, rel, arc;                                // frames: flown, to land, before release; arc peak px
+    u16 drop;
+    s16 sx, sy;
+} Proj;
 extern Proj projs[MAX_PROJ];            // arrows and spells in flight
 void proj_update(void);                 // every frame: move, land hits on arrival
 void proj_clear(void);
+void proj_pos(const Proj *p, int *x, int *y, int *vx, int *vy);   // where it is drawn, and its heading
+// spell graphics where a projectile lands: an element burst, or the pale blue splash of a miss
+#define MAX_SPOTS 4
+typedef struct { u8 timer, icon, npc, on_pl; } Spot;   // icon 0 = splash
+extern Spot spots[MAX_SPOTS];
 extern u8 cast_once;
 void home_update(void);                 // spells.c: the home teleport's cast, every frame
 void home_cancel(void);                    // spell to cast once at the target (spellbook), 0 = none

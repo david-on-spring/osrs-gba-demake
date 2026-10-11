@@ -96,22 +96,49 @@ void world_draw_sprites(int unused) {
     for (int i = 0; i < MAX_SPLATS && fx; i++)
         if (splats[i].timer) obj_sprite(splats[i].wx - cam_x, splats[i].wy - cam_y - (splats[i].timer > 34 ? 40 - splats[i].timer : 6) + 4, DYN_TILE_BASE + i * 4, 6, 1, 0, 1, 0);
 
-    // arrows and spells in flight, then the target marker (a bobbing chevron over the NPC)
+    // arrows and spells in flight, where spells land, then the target marker (a bobbing
+    // chevron over the NPC)
     for (int i = 0; i < MAX_PROJ && fx; i++) {
         const Proj *p = &projs[i];
         if (!p->active) continue;
-        const Npc *n = &npcs[p->npc];
-        int tx = n->px, ty = n->py - 4;
-        int x = p->sx + (tx - p->sx) * p->t / p->dur, y = p->sy + (ty - p->sy) * p->t / p->dur;
-        int icon = p->icon, hf = 0, vf = 0;
-        if (icon == ICON_PROJ_ARROW_H) {
-            // one of three arrow drawings, mirrored into eight directions
-            int dx = tx - p->sx, dy = ty - p->sy, ax = dx < 0 ? -dx : dx, ay = dy < 0 ? -dy : dy;
-            if (ay * 2 < ax) icon = ICON_PROJ_ARROW_H, hf = dx < 0;
-            else if (ax * 2 < ay) icon = ICON_PROJ_ARROW_V, vf = dy > 0;
-            else icon = ICON_PROJ_ARROW_D, hf = dx < 0, vf = dy > 0;
+        int x, y, vx, vy;
+        proj_pos(p, &x, &y, &vx, &vy);
+        if (p->cb == CB_RANGED) {
+            if (p->t < p->rel) continue;   // still on the string
+            // five drawings (0, 22.5, 45, 67.5 and 90 degrees) mirrored into sixteen headings,
+            // turning with the arc: nose up as it leaves, nose down as it lands
+            int ax = vx < 0 ? -vx : vx, ay = vy < 0 ? -vy : vy;
+            int k = ay * 256 < ax * 51 ? 0 : ay * 256 < ax * 171 ? 1 : ay * 256 < ax * 383 ? 2 : ay * 256 < ax * 1287 ? 3 : 4;
+            obj_icon_flip(x - cam_x, y - cam_y, ICON_PROJ_ARROW0 + k, 1, vx < 0, vy > 0);
+            continue;
         }
-        obj_icon_flip(x - cam_x, y - cam_y, icon, 1, hf, vf);
+        // spells grow with their tier (strike, bolt, blast, wave); bolts and waves trail sparks
+        const SpellDef *sp = &spells[p->spell];
+        int e = p->icon - ICON_PROJ_WIND, g = p->at_pl ? SPG_STRIKE : sp->group, icon = p->icon, trail = 0;
+        if (e < 4 && g >= SPG_BOLT) {
+            icon = ICON_PROJ_WIND_BOLT + ((g > SPG_WAVE ? SPG_WAVE : g) - SPG_BOLT) * 4 + e;
+            trail = g == SPG_BOLT ? 1 : g >= SPG_WAVE ? 2 : 0;
+        }
+        if (p->t < p->rel) {   // gathering in the caster's hands
+            obj_icon_flip(x - cam_x, y - cam_y - p->t / 2, p->icon, 1, (p->t >> 2) & 1, 0);
+            continue;
+        }
+        obj_icon_flip(x - cam_x, y - cam_y, icon, 1, (p->t >> 2) & 1, 0);
+        for (int k = 1; k <= trail; k++) {
+            Proj q = *p;
+            q.t = p->t - k * 4 > p->rel ? p->t - k * 4 : p->rel;
+            int tx, ty, u, v;
+            proj_pos(&q, &tx, &ty, &u, &v);
+            obj_icon_flip(tx - cam_x, ty - cam_y, p->icon, 1, ((p->t >> 2) + k) & 1, 0);
+        }
+    }
+    for (int i = 0; i < MAX_SPOTS && fx; i++) {
+        const Spot *f = &spots[i];
+        if (!f->timer) continue;
+        const Npc *n = &npcs[f->npc];
+        int x = f->on_pl ? pl.px : n->px, y = (f->on_pl ? pl.py : n->py) - 2;
+        if (f->icon) obj_icon_flip(x - cam_x, y - cam_y, f->icon, 1, (f->timer >> 2) & 1, (f->timer >> 3) & 1);
+        else obj_icon_flip(x - cam_x, y - cam_y - (24 - f->timer) / 4, f->timer > 12 ? ICON_SPLASH0 : ICON_SPLASH1, 1, (f->timer >> 3) & 1, 0);
     }
     // home teleport: blue light rising around the player once the book is closed
     if (home_cast >= 14 * TICK_FRAMES && fx) {
