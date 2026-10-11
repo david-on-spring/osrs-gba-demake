@@ -109,7 +109,7 @@ wait 200
 world
 expectitem 2 BRONZE_ARROWTIPS
 expectqty 2 15
-# --- R switches the anvil to iron; with no iron bars nothing can be made
+# --- R switches the anvil to the next metal (blurite); with no blurite bars nothing can be made
 item 3 BRONZE_BAR
 press A
 wait 8
@@ -169,3 +169,126 @@ expecthas STEEL_BAR
 expectitem 3 NONE
 expectxp MAGIC 503920
 expectxp SMITHING 133805
+press B
+wait 10
+press START
+wait 20
+world
+# --- the Mining Guild (Falador): its ladder needs Mining 60; runite rocks in the mine below
+clearinv
+item 0 RUNE_PICK
+xp MINING 2737320
+tpz OVERWORLD 3019 3340 DOWN
+press A
+wait 60
+expectat OVERWORLD 3019 3340
+xp MINING 32585940
+press A
+wait 90
+expectat MINING_GUILD 3021 3339
+tpz MINING_GUILD 3050 3339 LEFT
+press A
+wait 3000
+expectitem 1 RUNE_ORE
+shot shots/t/smithing_guild.png
+# --- knives are thrown from the weapon slot, a stack that runs down
+clearinv
+xp RANGED 0
+equip WEAPON BRONZE_KNIFE 100
+tpz OVERWORLD 3286 3306 RIGHT
+npcpos COW OVERWORLD 3290 3306
+wait 4
+press L
+wait 4
+press A
+wait 4
+press A
+untildead COW
+world
+expectequip WEAPON BRONZE_KNIFE
+expectxp RANGED 40
+# --- Mudskipper Point: down to the Asgarnian Ice Dungeon for blurite (Mining 10)
+clearinv
+equip WEAPON NONE
+item 0 RUNE_PICK
+tpz OVERWORLD 3008 3149 UP
+press A
+wait 90
+expectat ICE_DUNGEON 3008 3151
+tpz ICE_DUNGEON 3053 3166 LEFT
+press A
+wait 900
+expectitem 1 BLURITE_ORE
+shot shots/t/smithing_ice.png
+# --- blurite: smelted at level 13 (8 XP) in Falador, hammered into ten unfinished bolts
+xp SMITHING 20000
+face FURNACE_FALADOR DOWN
+press A
+wait 8
+press A
+wait 4
+press A
+wait 200
+world
+expecthas BLURITE_BAR
+expectxp SMITHING 20080
+item 2 HAMMER
+face ANVIL_VARROCK_W1 LEFT
+press A
+wait 8
+press A
+wait 4
+press A
+wait 200
+world
+expecthas BLURITE_BOLTS
+expectxp SMITHING 20255
+# --- a ring of forging: iron never fails, one charge a bar
+clearinv
+equip RING RING_FORGING
+xp SMITHING 30000
+item 0 IRON_ORE
+item 1 IRON_ORE
+item 2 IRON_ORE
+item 3 IRON_ORE
+item 4 IRON_ORE
+face FURNACE_FALADOR DOWN
+press A
+wait 8
+press A
+wait 4
+press A
+wait 700
+world
+expectxp SMITHING 30625
+expect8 @pl+0x296 5 forging_charges_used
+expectequip RING RING_FORGING
+# --- goldsmith gauntlets: 56.2 XP a gold bar
+clearinv
+equip HANDS GOLDSMITH_GAUNTLETS
+xp SMITHING 400000
+item 0 GOLD_ORE
+press A
+wait 8
+press A
+wait 4
+press A
+wait 200
+world
+expectxp SMITHING 400562
+# --- cannonballs: a steel bar poured into the ammo mould makes four
+clearinv
+xp SMITHING 400000
+item 0 AMMO_MOULD
+item 1 STEEL_BAR
+press A
+wait 8
+shot shots/t/smithing_cannon.png
+press A
+wait 4
+press A
+wait 300
+world
+expectitem 1 CANNONBALL
+expectqty 1 4
+expectxp SMITHING 400256

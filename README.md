@@ -158,14 +158,18 @@ The demake has no Crafting skill, so rewards that originally gave Crafting XP gi
   hitsplats, HP bars, aggressive monsters and loot tables, including a rare mithril/adamant/rune drop.
 - **Skilling**: normal, oak, willow and yew trees that turn to stumps and regrow; copper, tin, clay,
   iron, coal, silver, gold, mithril and adamantite rocks where OSRS has them (Al Kharid, Barbarian
-  Village, Rimmington, Lumbridge Swamp, Varrock); net and fly-fishing spots; fires and ranges with burn
-  chances that fall as you level.
-- **Smithing:** the furnaces in Lumbridge, Al Kharid, Falador and Edgeville smelt bronze, iron (half the
-  time, as in OSRS), silver, steel, gold, mithril, adamantite and runite bars; the anvils in Varrock and
+  Village, Rimmington, Lumbridge Swamp, Varrock); the Mining Guild's mine under Falador (Mining 60)
+  with its coal, mithril, adamantite and runite; blurite in the Asgarnian Ice Dungeon below Mudskipper
+  Point; net and fly-fishing spots; fires and ranges with burn chances that fall as you level.
+- **Smithing:** the furnaces in Lumbridge, Al Kharid, Falador and Edgeville smelt bronze, blurite, iron
+  (half the time, as in OSRS, unless you wear a ring of forging), silver, steel, gold (56.2 XP with
+  goldsmith gauntlets), mithril, adamantite and runite bars, and pour steel bars into an ammo mould
+  for cannonballs; the anvils in Varrock and
   at Doric's house (once Doric's Quest is done) hammer them into every item OSRS's anvil makes, from
   daggers to platebodies, 2h swords, claws and warhammers to nails, arrowtips, dart tips, knives,
-  javelin tips, unfinished bolts and crossbow limbs, plus bronze wire, iron spits, oil lantern frames
-  and steel studs. Levels, bars, XP and ticks come from the OSRS Wiki. Facing a furnace or anvil and
+  javelin tips, unfinished bolts and crossbow limbs (blurite too), plus bronze wire, iron spits, oil
+  lantern frames and steel studs. Knives are thrown from the weapon slot. A runite bar sits on the rare
+  drop table. Levels, bars, XP and ticks come from the OSRS Wiki. Facing a furnace or anvil and
   pressing A opens a one-screen picker: L/R switch metal, A then 1 / 5 / 10 / All (it remembers your
   last amount), and you keep working until done. Superheat Item smelts ore anywhere.
 - **Ranged:** shortbows and longbows from normal to maple, bronze to adamant arrows in a new ammo slot

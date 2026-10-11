@@ -5,9 +5,10 @@ Adds to the harness commands:
   tp X Y DIR [PLANE]     teleport to an OSRS tile (DIR 0 down, 1 up, 2 left, 3 right)
   item SLOT NAME [QTY]   put an item (I_NAME) in inventory slot SLOT
   clearinv               empty the inventory
-  equip SLOT NAME [QTY]  wear an item (SLOT = HEAD WEAPON BODY SHIELD LEGS FEET NECK AMMO; QTY for AMMO)
+  equip SLOT NAME [QTY]  wear an item (SLOT = HEAD WEAPON BODY SHIELD LEGS FEET NECK AMMO HANDS RING; QTY for AMMO and knives)
   spell NAME             set the autocast spell (a src/spells.c name in capitals, e.g. WIND_STRIKE; NONE)
   expectammo NAME N      PASS/FAIL check of the ammo slot and its quantity
+  expectwqty N           PASS/FAIL check of the thrown weapons (knives) left in the weapon slot
   expectspell NAME       PASS/FAIL check of the autocast spell
   expectnpcat I|KIND [ZONE] X Y  PASS/FAIL check of an NPC's OSRS tile
   expecthpbelow N        PASS/FAIL check that current hitpoints are below N
@@ -66,10 +67,10 @@ for line in open(os.path.join(root, 'tools/quests.txt')):
         QUEST[m.group(1)] = len(QUEST)
 SKILLS = ['ATTACK', 'STRENGTH', 'DEFENCE', 'HITPOINTS', 'PRAYER', 'WOODCUTTING', 'FIREMAKING', 'FISHING',
           'COOKING', 'MINING', 'RANGED', 'MAGIC', 'SMITHING']
-EQ = ['HEAD', 'WEAPON', 'BODY', 'SHIELD', 'LEGS', 'FEET', 'NECK', 'AMMO']
+EQ = ['HEAD', 'WEAPON', 'BODY', 'SHIELD', 'LEGS', 'FEET', 'NECK', 'AMMO', 'HANDS', 'RING']
 # (src/save.c asserts these against the struct)
-OFF_XP, OFF_INV, OFF_EQUIP, OFF_AMMO, OFF_BANK, OFF_QSTAGE, OFF_QVAR, OFF_SPELL, OFF_PLANE, OFF_HOMECD = \
-    0x20, 0x54, 0xC4, 0xD4, 0xD6, 0x25C, 0x26C, 0x28C, 0x28D, 0x28E
+OFF_XP, OFF_INV, OFF_EQUIP, OFF_AMMO, OFF_BANK, OFF_QSTAGE, OFF_QVAR, OFF_SPELL, OFF_PLANE, OFF_HOMECD, OFF_WQTY = \
+    0x20, 0x54, 0xC4, 0xD8, 0xDA, 0x260, 0x270, 0x290, 0x291, 0x292, 0x294
 STATES = ['TITLE', 'WORLD', 'MENU', 'DIALOG', 'BANK', 'SHOP', 'LEVELUP', 'QUESTDONE', 'TARGET', 'SMITH']   # GS_* in src/game.h
 NPC_SIZE = 32      # sizeof(Npc), asserted in src/world.c
 # spell names in book order from src/spells.c ("Wind Strike" -> WIND_STRIKE)
@@ -160,11 +161,15 @@ for line in open(sys.argv[1]):
         out.append('poke16 @pl+0x%x %x' % (OFF_EQUIP + EQ.index(p[1]) * 2, ITEM[p[2]]))
         if p[1] == 'AMMO':
             out.append('poke16 @pl+0x%x %x' % (OFF_AMMO, int(p[3]) if len(p) > 3 else 1))
+        elif p[1] == 'WEAPON' and len(p) > 3:        # thrown weapons: the stack size
+            out.append('poke16 @pl+0x%x %x' % (OFF_WQTY, int(p[3])))
     elif c == 'spell':
         out.append('poke8 @pl+0x%x %x' % (OFF_SPELL, SPELLS.index(p[1])))
     elif c == 'expectammo':
         out += ['expect16 @pl+0x%x %x ammo_%s' % (OFF_EQUIP + EQ.index('AMMO') * 2, ITEM[p[1]], p[1]),
                 'expect16 @pl+0x%x %x ammo_qty_%s' % (OFF_AMMO, int(p[2]), p[2])]
+    elif c == 'expectwqty':
+        out.append('expect16 @pl+0x%x %x wqty_%s' % (OFF_WQTY, int(p[1]), p[1]))
     elif c == 'expecttarget':
         v = 0xFFFF if p[1] == 'NONE' else npc_index(p[1])
         out.append('expect16 @lock_target %x target_%s' % (v, p[1]))

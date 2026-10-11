@@ -28,7 +28,7 @@ press A
 wait 40
 expectat CELLAR 3210 3216
 shot shots/t/castle_cellar.png
-face obj:LADDER LEFT
+tpz CELLAR 3210 3216 LEFT
 press A
 wait 40
 expectat LUMBRIDGE 3210 3216
