@@ -1647,84 +1647,157 @@ def zline(pts, w, t, g=None, keep=()):
     opolyline(pts, w, f)
 
 
-# ---- keep floor plans (cells are OSRS tiles; walls take a whole tile) ------------------------
-def castle_towers():
-    """NW and SW stair towers (shared by all three floors). Returns the stair cells."""
-    stairs = []
-    for (Yb, Ys) in ((3227, 3229), (3204, 3205)):          # tower bottom row, first stair row
-        for X in range(3202, 3207):
-            for Y in range(Yb, Yb + 5):
-                zset(X, Y, 'WALL', 'FLOOR')
-        for X in range(3203, 3206):
-            for Y in range(Yb + 1, Yb + 4):
-                zset(X, Y, 'FLOOR', 'FLOOR')
-        for X in (3203, 3204):
-            for Y in (Ys, Ys + 1):
-                zset(X, Y, 'STAIRS', 'FLOOR')
-                stairs.append(zc(X, Y))
-    return stairs
+# ---- keep floor plans, read off the OSRS map (walls on tile edges) ------------------------------
+def zplan(X0, Y1, rows, floors, mat='WALL', doors=(), opens=(), walls=()):
+    """Lay floor plan rows (north to south, one character per tile from X0; ' ' or '.' leaves a
+    tile alone) and put a wall on every edge between two tiles of different rooms, or between a
+    room and a tile left alone. floors: room letter -> ground. doors / opens: pairs of tiles
+    whose edge gets a door / no wall; walls: extra pairs that get a wall inside a room."""
+    plan = {}
+    for i, row in enumerate(rows):
+        for j, ch in enumerate(row):
+            if ch not in ' .':
+                plan[(X0 + j, Y1 - i)] = ch
+                zset(X0 + j, Y1 - i, floors[ch], floors[ch])
+    pair = lambda a, b: frozenset((a, b))
+    doors, opens = set(pair(*d) for d in doors), set(pair(*o) for o in opens)
+    for (X, Y), ch in plan.items():
+        for (u, v) in D4:
+            n = (X + u, Y + v)
+            if plan.get(n) == ch or pair((X, Y), n) in opens:
+                continue
+            x, y = zc(X, Y)
+            k = ekey(x, y, u, -v)
+            EDGES[k] = ('door' if pair((X, Y), n) in doors else 'wall', mat)
+    for (a, b) in walls:
+        x, y = zc(*a)
+        EDGES[ekey(x, y, b[0] - a[0], a[1] - b[1])] = ('wall', mat)
+    return plan
+
+
+def castle_stairs():
+    """The 2x2 staircases in the north-west and south-west towers, the same on every floor."""
+    for (X, Y) in ((3204, 3229), (3204, 3207)):
+        for dX in (0, 1):
+            for dY in (0, 1):
+                zset(X + dX, Y - dY, 'STAIRS', 'FLOOR')
 
 
 def keep_ground():
-    inner = tiles(3205, 3208, 3216, 3227)
-    castle_towers()
-    zwalls(inner, 'WALL', 'FLOOR')
-    for (X, Y) in ((3205, 3228), (3204, 3228), (3205, 3207), (3204, 3207)):   # tower doorways
-        zset(X, Y, 'FLOOR', 'FLOOR')
-    # north corridor / dining hall / kitchen / south corridor, west of the great hall
-    for X in range(3205, 3212):
-        zset(X, 3226, 'WALL', 'FLOOR')
-        zset(X, 3217, 'WALL', 'FLOOR')
-        zset(X, 3210, 'WALL', 'FLOOR')
-    for Y in range(3210, 3227):
-        zset(3212, Y, 'WALL', 'FLOOR')
-    zset(3207, 3217, 'DOOR')                     # dining hall <-> kitchen
-    zset(3212, 3221, 'DOOR')                     # dining hall <-> great hall
-    zset(3212, 3222, 'DOOR')
-    zfill(3213, 3210, 3216, 3226, 'CHECKER')     # the chequered great hall
-    for Y in (3218, 3219):
-        zset(3217, Y, 'DOOR')                    # front doors onto the courtyard
-    zset(3204, 3214, 'DOOR')                     # kitchen back door
-    zfill(3202, 3214, 3203, 3214, 'PATH')
+    #        X 3204          3217
+    zplan(3203, 3230, [
+        ' CC',                      # 3230  north-west tower
+        ' CCC',                     # 3229
+        ' CCCCCCCCCCC',             # 3228  north corridor
+        '  CCCCCCCCCCC',            # 3227
+        '  DDDDDDDDCCC',            # 3226  dining room / vestibule
+        '  DDDDDDDDHHHH',           # 3225  great hall (chequered)
+        '  DDDDDDDDHHHH',           # 3224
+        '  DDDDDDDDHHHH',           # 3223
+        '  DDDDDDDDHHHH',           # 3222
+        '  DDDDDDDDHHHH',           # 3221
+        '  DDDDDDDDHHHH',           # 3220
+        '  DDDDDDDDHHHH',           # 3219
+        '  DDDDDDDDHHHH',           # 3218
+        '  KKKKKKKKHHHH',           # 3217  kitchen
+        '  KKKKKKKKHHHH',           # 3216
+        '  KKKKKKKKHHHH',           # 3215
+        '  KKKKKKKKHHHH',           # 3214
+        '  KKKKKKKKHHHH',           # 3213
+        '  KKKKKKKKHHHH',           # 3212
+        '  SSSSSSSSSSSS',           # 3211  south corridor
+        '  SSSSSSSSSSS',            # 3210
+        '  SSSSSSSSSS',             # 3209
+        ' SSS',                     # 3208  south-west tower
+        ' SSS',                     # 3207
+        ' SSS',                     # 3206
+    ], dict(C='FLOOR', D='FLOOR', H='CHECKER', K='FLOOR', S='FLOOR'),
+        doors=[((3212, 3221), (3213, 3221)), ((3212, 3222), (3213, 3222)),      # dining hall <-> great hall
+               ((3207, 3218), (3207, 3217)),                                    # dining hall <-> kitchen
+               ((3204, 3214), (3205, 3214)),                                    # kitchen back door
+               ((3216, 3218), (3217, 3218)), ((3216, 3219), (3217, 3219))],     # front doors onto the courtyard
+        opens=[((3215, 3226), (3215, 3225)), ((3208, 3212), (3208, 3211)), ((3215, 3212), (3215, 3211))],
+        walls=[((3207, 3211), (3208, 3211))])
+    castle_stairs()
+    zset(3204, 3214, 'PATH', 'PATH')             # the step outside the kitchen door
+    zset(3203, 3214, 'PATH', 'PATH')
     for X in range(3207, 3211):                  # the long dining table
         for Y in (3221, 3222):
             zset(X, Y, 'TABLE')
-    zset(3206, 3216, 'RANGE')
-    zset(3211, 3216, 'CRATE')
-    zset(3205, 3211, 'CRATE')
+    zset(3209, 3216, 'RANGE')
+    zset(3212, 3216, 'CRATE')
+    zset(3205, 3212, 'CRATE')
     zfill(3213, 3218, 3216, 3219, 'CARPET')      # runner from the doors
 
 
 def keep_first():
-    inner = tiles(3205, 3208, 3216, 3227)
-    castle_towers()
-    zwalls(inner, 'WALL', 'FLOOR')
-    for (X, Y) in ((3205, 3228), (3204, 3228), (3205, 3207), (3204, 3207)):
-        zset(X, Y, 'FLOOR', 'FLOOR')
-    zwalls(tiles(3209, 3218, 3213, 3225), 'WALL', 'CARPET')     # Duke Horacio's bedroom
-    zwalls(tiles(3209, 3211, 3213, 3216), 'WALL', 'WOODFLOOR')  # spinning wheel room
-    zset(3208, 3222, 'DOOR')
-    zset(3208, 3214, 'DOOR')
+    zplan(3203, 3230, [
+        ' WW',                      # 3230
+        ' WWW',                     # 3229
+        ' WWWWRRRRRRR',             # 3228  west corridor / north hall
+        '  WWWRRRRRRRR',            # 3227
+        '  WWWRRRRRRRRR',           # 3226
+        '  WWWUUUUUURRR',           # 3225  Duke Horacio's bedroom
+        '  WWWUUUUUURRR',           # 3224
+        '  WWWUUUUUURRR',           # 3223
+        '  WWWUUUUUURRR',           # 3222
+        '  WWWUUUUUURRR',           # 3221
+        '  WWWUUUUUURRR',           # 3220
+        '  WWWUUUUUURRR',           # 3219
+        '  WWWUUUUUURRR',           # 3218
+        '  WWWPPPPPPRRR',           # 3217  spinning wheel room
+        '  WWWPPPPPPRRR',           # 3216
+        '  WWWPPPPPPRRR',           # 3215
+        '  WWWPPPPPPRRR',           # 3214
+        '  WWWPPPPPPRRR',           # 3213
+        '  WWWPPPPPPRRR',           # 3212
+        '  WWWRRRRRRRRR',           # 3211
+        '  WWWRRRRRRRR',            # 3210
+        '  WWWRRRRRRR',             # 3209
+        ' WWW',                     # 3208
+        ' WWW',                     # 3207
+        ' WWW',                     # 3206
+    ], dict(W='FLOOR', R='FLOOR', U='CARPET', P='WOODFLOOR'),
+        doors=[((3207, 3227), (3208, 3227)), ((3207, 3222), (3208, 3222)), ((3207, 3214), (3208, 3214)),
+               ((3207, 3210), (3208, 3210))])
+    castle_stairs()
     zset(3212, 3225, 'BED')
     zset(3213, 3225, 'BED')
     zset(3209, 3218, 'TABLE')
 
 
 def keep_second():
-    inner = tiles(3205, 3208, 3207, 3227) + tiles(3208, 3212, 3213, 3225)
-    castle_towers()
-    zwalls(inner, 'WALL', 'FLOOR')
-    for (X, Y) in ((3205, 3228), (3204, 3228), (3205, 3207), (3204, 3207)):
-        zset(X, Y, 'FLOOR', 'FLOOR')
-    # the bank: tellers inside an enclosure in the middle of the room, booths on its west face
-    for X in range(3207, 3212):
-        zset(X, 3223, 'WALL', 'FLOOR')
-        zset(X, 3214, 'WALL', 'FLOOR')
-    for Y in range(3214, 3224):
-        zset(3211, Y, 'WALL', 'FLOOR')
-    for Y in range(3215, 3223):
-        zset(3207, Y, 'BOOTH' if Y in (3216, 3217, 3220, 3221) else 'WALL', 'FLOOR')
-    zfill(3208, 3215, 3210, 3222, 'CARPET')
+    zplan(3203, 3230, [
+        ' MM',                      # 3230
+        ' MMM',                     # 3229
+        ' MMMM',                    # 3228
+        '  MMM',                    # 3227
+        '  MMM',                    # 3226
+        '  MMMMMMMMM',              # 3225
+        '  MMMMMMMMM',              # 3224
+        '  MMMMMMMMM',              # 3223
+        '  MMBBBBMMM',              # 3222  the bank: tellers in an enclosure, booths on its west face
+        '  MMBBBBMMM',              # 3221
+        '  MMBBBBMMM',              # 3220
+        '  MMBBBBMMM',              # 3219
+        '  MMBBBBMMM',              # 3218
+        '  MMBBBBMMM',              # 3217
+        '  MMBBBBMMM',              # 3216
+        '  MMBBBBMMM',              # 3215
+        '  MMMMMMMMM',              # 3214
+        '  MMMMMMMMM',              # 3213
+        '  MMMMMMMMM',              # 3212
+        '  MMM',                    # 3211
+        '  MMM',                    # 3210
+        '  MMM',                    # 3209
+        ' MMM',                     # 3208
+        ' MMM',                     # 3207
+        ' MMM',                     # 3206
+    ], dict(M='FLOOR', B='CARPET'),
+        opens=[((3206, Y), (3207, Y)) for Y in (3216, 3217, 3220, 3221)])
+    castle_stairs()
+    for Y in (3216, 3217, 3220, 3221):
+        zset(3207, Y, 'BOOTH', 'FLOOR')
 
 
 # ---- Lumbridge ground floor -------------------------------------------------------------
@@ -1751,12 +1824,20 @@ road([(3201, 3217), (3195, 3217), (3186, 3220)], 1)                             
 # the castle: curtain wall around the courtyard, gate towers, keep
 CURTAIN = [(3201, 3204), (3201, 3232), (3204, 3235), (3213, 3235), (3216, 3232), (3223, 3232), (3227, 3228),
            (3227, 3208), (3223, 3204), (3216, 3204), (3213, 3201), (3204, 3201)]
-opoly(CURTAIN, lambda x, y: (setg(x, y, 'GRASS'), RES[y].__setitem__(x, True)))
-zline(CURTAIN + [CURTAIN[0]], 1, 'WALL', 'GRASS')
+COURT = set()
+opoly(CURTAIN, lambda x, y: (setg(x, y, 'GRASS'), RES[y].__setitem__(x, True), COURT.add((x, y))))
+GATE_TOWERS = [(3226, 3221, 3230, 3225), (3226, 3211, 3230, 3215)]
+in_tower = lambda x, y: any(cx(a) <= x <= cx(c) and cy(d) <= y <= cy(b) for (a, b, c, d) in GATE_TOWERS)
+for (x, y) in COURT:                    # the curtain wall stands on the courtyard's outline
+    for (u, v) in D4:
+        if (x + u, y + v) not in COURT and not (in_tower(x, y) or in_tower(x + u, y + v)):
+            EDGES[ekey(x, y, u, v)] = ('wall', 'WALL')
 for Y in (3217, 3218):
-    zset(3201, Y, 'PATH', 'PATH')                                                 # west gate
+    zset(3200, Y, 'PATH', 'PATH')                                                 # west gate
+    del EDGES[ekey(*zc(3201, Y), -1, 0)]
 for Y in (3218, 3219):
-    zset(3227, Y, 'PATH', 'PATH')                                                 # main gate
+    zset(3228, Y, 'PATH', 'PATH')                                                 # main gate
+    EDGES.pop(ekey(*zc(3227, Y), 1, 0), None)
 for (Y0, Y1, Yd) in ((3221, 3225, 3223), (3211, 3215, 3214)):                     # gate towers, doors on the courtyard
     for X in range(3226, 3231):
         for Y in range(Y0, Y1 + 1):
@@ -1786,7 +1867,7 @@ keep_ground()
 KEEP_CELLS = [(X, Y) for X in range(3202, 3218) for Y in range(3204, 3232)
               if TY[cy(Y)][cx(X)] not in ('GRASS', 'FLOWERS', 'PATH')]
 zroof('keep', KEEP_CELLS)
-STAIRS_L0 = {'N': zc(3203, 3230), 'S': zc(3203, 3206)}     # top-left cell of each 2x2 staircase
+STAIRS_L0 = {'N': zc(3204, 3229), 'S': zc(3204, 3207)}     # top-left cell of each 2x2 staircase
 LUMB_COOK = zc(3208, 3213)
 HANS = zc(3219, 3223)
 START = zc(3222, 3218)
@@ -1854,9 +1935,9 @@ for (ctx, plan) in ((ZF1, keep_first), (ZF2, keep_second)):
                 VIEW[(x, y)] = (ZL0.CX0 + X - ZL0.OX, ZL0.CY0 + ZL0.OY - Y)
 set_ctx(ZF1)
 DUKE = zc(3211, 3222)
-STAIRS_F1 = {'N': zc(3203, 3230), 'S': zc(3203, 3206)}
+STAIRS_F1 = {'N': zc(3204, 3229), 'S': zc(3204, 3207)}
 set_ctx(ZF2)
-STAIRS_F2 = {'N': zc(3203, 3230), 'S': zc(3203, 3206)}
+STAIRS_F2 = {'N': zc(3204, 3229), 'S': zc(3204, 3207)}
 
 # named cells for the staircase scripts: the stair's corner and where the player arrives
 for (fl, st) in ((0, STAIRS_L0), (1, STAIRS_F1), (2, STAIRS_F2)):
