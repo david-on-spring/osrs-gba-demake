@@ -22,6 +22,16 @@ press LEFT
 choose 1
 wait 40
 expectat LUMBRIDGE 3206 3206
+# the kitchen trapdoor down to the cellar, and the ladder back up
+face obj:TRAPDOOR LEFT
+press A
+wait 40
+expectat CELLAR 3210 3216
+shot shots/t/castle_cellar.png
+face obj:LADDER LEFT
+press A
+wait 40
+expectat LUMBRIDGE 3210 3216
 # out of town to the west and back in: one world, no warp
 tpz LUMBRIDGE 3187 3245 LEFT
 press LEFT

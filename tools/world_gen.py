@@ -152,7 +152,9 @@ BLOCK = ['WATER', 'WALL', 'HWALL', 'WWALL', 'SWALL', 'FENCE', 'TREE', 'OAK', 'WI
          'FURNACE', 'SHELF', 'THRONE', 'WELL', 'SACKS', 'FLOWERBED', 'PALM', 'BENCH', 'SUNFLOWER', 'LOWWALL',
          'VFOUNTAIN',
          # the ores smithing needs
-         'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE']
+         'COAL', 'SILVER', 'GOLD', 'MITHRIL', 'ADAMANTITE', 'RUNITE',
+         # the way down to Lumbridge Castle's cellar and back
+         'TRAPDOOR', 'LADDER']
 TYPES = WALK + BLOCK
 T = {n: i for i, n in enumerate(TYPES)}
 WALKSET = set(WALK)
@@ -1515,9 +1517,12 @@ QPOS['PARK_DIG'] = (cx(3005), cy(3374))     # just south of the Falador park fou
 LUM_R = (3196, 3188, 3261, 3254)        # Lumbridge proper (OSRS X0, Y0, X1, Y1); Al Kharid starts at 3262
 ZF1 = Ctx(3195, 3236, 1, 0, ZONE_Y, 0, ZONE_Y, 31, ZONE_Y + 36)          # OSRS 3195..3226 x 3200..3236
 ZF2 = Ctx(3195, 3236, 1, 36, ZONE_Y, 36, ZONE_Y, 67, ZONE_Y + 36)
+# the castle cellar: OSRS keeps it 6400 tiles north (3208..3219 x 9615..9625); here it is a plane
+# of its own at the surface coordinates, under the kitchen
+ZB = Ctx(3203, 3229, 1, 72, ZONE_Y, 72, ZONE_Y, 92, ZONE_Y + 18)        # OSRS 3203..3223 x 3211..3229
 # (name, context, palette set, plane). The camera stays inside the player's zone. The floors use
 # Lumbridge's palette set (filled in by assign_palette_sets()).
-ZONES = [('OVERWORLD', OW, 0, 0), ('CASTLE_1', ZF1, None, 1), ('CASTLE_2', ZF2, None, 2)]
+ZONES = [('OVERWORLD', OW, 0, 0), ('CASTLE_1', ZF1, None, 1), ('CASTLE_2', ZF2, None, 2), ('CELLAR', ZB, None, 5)]
 LINKS = {}          # stair cell -> [dest cells] (for the reachability checks)
 VIEW = {}           # upper-floor cell -> ground-floor cell it shows (looking down from the castle)
 
@@ -1724,8 +1729,9 @@ def keep_ground():
     for X in range(3207, 3211):                  # the long dining table
         for Y in (3221, 3222):
             zset(X, Y, 'TABLE')
-    zset(3209, 3216, 'RANGE')
-    zset(3212, 3216, 'CRATE')
+    zset(3212, 3215, 'RANGE')
+    zset(3209, 3216, 'TRAPDOOR', 'FLOOR')        # down to the cellar
+    zset(3212, 3217, 'CRATE')
     zset(3205, 3212, 'CRATE')
     zfill(3213, 3218, 3216, 3219, 'CARPET')      # runner from the doors
 
@@ -1798,6 +1804,28 @@ def keep_second():
     castle_stairs()
     for Y in (3216, 3217, 3220, 3221):
         zset(3207, Y, 'BOOTH', 'FLOOR')
+
+
+def cellar():
+    zplan(3208, 3225, [
+        '   MMMMMM',                # 3225  north alcove
+        '   MMMMMM',                # 3224
+        'MMMMMMMMMMMM',             # 3223
+        'MMMMMMMMMMMM',             # 3222
+        'MMMMMMMMMMMM',             # 3221
+        'MMMMMMMMMMMM',             # 3220
+        'MMMMMMMMEEEE',             # 3219
+        'LLLMMMMMEEEE',             # 3218  the ladder up to the kitchen
+        'LLLMMMMMEEEE',             # 3217
+        'LLLMMMMMEEEE',             # 3216
+        'LLLMMMMMEEEE',             # 3215
+    ], dict(M='FLOOR', L='FLOOR', E='FLOOR'),
+        opens=[((3208, 3219), (3208, 3218)), ((3209, 3219), (3209, 3218)),
+               ((3215, 3216), (3216, 3216)), ((3215, 3215), (3216, 3215))])
+    zset(3209, 3216, 'LADDER', 'FLOOR')
+    for (X, Y, t) in ((3208, 3223, 'CRATE'), (3209, 3223, 'BARREL'), (3219, 3223, 'BARREL'), (3218, 3223, 'CRATE'),
+                      (3219, 3215, 'SACKS'), (3219, 3216, 'BARREL'), (3211, 3225, 'BARREL'), (3216, 3225, 'CRATE')):
+        zset(X, Y, t)
 
 
 # ---- Lumbridge ground floor -------------------------------------------------------------
@@ -1933,6 +1961,16 @@ for (ctx, plan) in ((ZF1, keep_first), (ZF2, keep_second)):
             if TY[y][x] == 'VOID':
                 X, Y = ctx.OX + (x - ctx.CX0), ctx.OY - (y - ctx.CY0)
                 VIEW[(x, y)] = (ZL0.CX0 + X - ZL0.OX, ZL0.CY0 + ZL0.OY - Y)
+set_ctx(ZB)
+cellar()
+QPOS['CELLAR_DOWN'] = zc(3210, 3216)                         # beside the ladder
+QUEST_OBJS.append(('LADDER',) + zc(3209, 3216))
+_ladder = zc(3209, 3216)
+set_ctx(ZL0)
+QPOS['CELLAR_UP'] = zc(3210, 3216)                           # beside the trapdoor
+QUEST_OBJS.append(('TRAPDOOR',) + zc(3209, 3216))
+LINKS[zc(3209, 3216)] = [QPOS['CELLAR_DOWN']]
+LINKS[_ladder] = [QPOS['CELLAR_UP']]
 set_ctx(ZF1)
 DUKE = zc(3211, 3222)
 STAIRS_F1 = {'N': zc(3204, 3229), 'S': zc(3204, 3207)}
@@ -2898,7 +2936,8 @@ REGIONS_O = [
     ('Misthalin', 2928, 3137, 3343, 3552),
 ]
 REGIONS = []
-for (ctx, n, X0, Y0, X1, Y1) in ((ZF1, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
+for (ctx, n, X0, Y0, X1, Y1) in ((ZB, 'Lumbridge Castle Cellar', 3203, 3211, 3223, 3229),
+                                 (ZF1, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
                                  (ZF2, 'Lumbridge Castle', 3195, 3200, 3226, 3236),
                                  (ZL0, 'Lumbridge Castle', 3199, 3200, 3231, 3236),
                                  (ZL0, 'Lumbridge Swamp', 3187, 3180, 3236, 3199),
@@ -3012,7 +3051,8 @@ CHARS.update({'CHECKER': '#', 'VOID': ' ', 'STAIRS': '/', 'TABLE': 'T', 'BED': '
               'DRAWERS': 'd', 'FIREPLACE': 'F', 'BARREL': 'o', 'WARDROBE': 'w', 'POTPLANT': 'p', 'BIGSTALL': 'L',
               'ANVIL': 'a', 'FURNACE': 'u', 'SHELF': 'k', 'THRONE': 'T', 'WELL': 'O', 'SACKS': 's', 'FLOWERBED': ',',
               'PALM': 'P', 'BENCH': 'n', 'SUNFLOWER': '*', 'LOWWALL': 'l', 'VFOUNTAIN': 'F', 'COAL': '5',
-              'SILVER': '6', 'GOLD': '7', 'MITHRIL': '8', 'ADAMANTITE': '9', 'RUNITE': 'y'})
+              'SILVER': '6', 'GOLD': '7', 'MITHRIL': '8', 'ADAMANTITE': '9', 'RUNITE': 'y',
+              'TRAPDOOR': '_', 'LADDER': 'H'})
 
 
 def ascii_map():
@@ -3224,6 +3264,24 @@ def quest_art():
     ellipse_fill(im, 8, 8.5, 5.5, 3, WC['IR2'])
     ellipse_fill(im, 8, 10, 4, 2, WC['OUT'])
     A['HOLE'] = im
+    # trapdoor: a planked hatch in a dark frame, with an iron ring
+    im = blank(16, 16)
+    for y in range(2, 14):
+        for x in range(2, 14):
+            edge = x in (2, 13) or y in (2, 13)
+            im[y][x] = WC['OUT'] if edge else (WC['K0'] if x % 4 == 1 else WC['K1'] if y > 3 else WC['K2'])
+    im[8][7] = im[8][8] = WC['IR1']
+    im[9][6] = im[9][9] = WC['IR1']
+    A['TRAPDOOR'] = im
+    # ladder against the cellar wall
+    im = blank(16, 16)
+    for y in range(0, 16):
+        im[y][4] = im[y][11] = WC['K0']
+        im[y][5] = im[y][12] = WC['K2']
+        if y % 4 == 1:
+            for x in range(5, 11):
+                im[y][x] = WC['K1']
+    A['LADDER'] = outline(im, WC['OUT'])
     # drain grate
     im = blank(16, 16)
     for y in range(4, 13):
