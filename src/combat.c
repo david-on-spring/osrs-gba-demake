@@ -107,14 +107,9 @@ static int cursed(const Npc *n, int base, int bit5, int bit10) {
     return base * (100 - pct) / 100;
 }
 
-// a hit lands: hitsplat, XP for the attack type, maybe a kill
-static void land_hit(int i, int dmg, int cb, int spell) {
-    Npc *n = &npcs[i];
-    if (!n->active) return;
-    if (dmg > n->hp) dmg = n->hp;
-    n->hpbar_timer = 200;
-    splat_spawn(n->px, n->py, dmg);
-    sfx(dmg ? SFX_HIT : SFX_MISS);
+// XP for a hit is given as the attack is made, as in OSRS (the XP drop comes before the
+// hitsplat); dmg is what the hit will deal, already capped at the target's hitpoints
+static void hit_xp(int dmg, int cb, int spell) {
     if (cb == CB_MAGIC) add_xp(SK_MAGIC, spells[spell].xp + dmg * 20);   // a splash still earns the base XP
     if (!dmg) return;
     if (cb == CB_RANGED && pl.style == STYLE_LONGRANGE) {
@@ -127,15 +122,57 @@ static void land_hit(int i, int dmg, int cb, int spell) {
         add_xp(sk, dmg * 40);
     }
     add_xp(SK_HITPOINTS, dmg * 40 / 3);
+}
+
+// a hit lands: hitsplat (none for a splash), maybe a kill
+static void land_hit(int i, int dmg, int splat) {
+    Npc *n = &npcs[i];
+    if (!n->active) return;
+    if (dmg > n->hp) dmg = n->hp;
+    n->hpbar_timer = 200;
+    if (splat) splat_spawn(n->px, n->py, dmg);
+    sfx(dmg ? SFX_HIT : SFX_MISS);
+    if (!dmg) return;
     n->hp -= dmg;
     if (!n->hp) npc_die(i);
 }
 
-// ---------------------------------------------------------------------------------------
-// Projectiles: arrows and spells fly from the player to the target; the hit lands on arrival
-Proj projs[MAX_PROJ];
+// the player takes a hit from npc i (on the swing for melee, when the spell lands for magic)
+static void player_hurt(int i, int dmg, int splat) {
+    if (dmg > pl.hp) dmg = pl.hp;
+    pl.hpbar_timer = 200;
+    if (splat) splat_spawn(pl.px, pl.py, dmg);
+    pl.hp -= dmg;
+    if (pl.action != ACT_COMBAT && pl.autoret && !pl.moving && npcs[i].active) {
+        pl.action = ACT_COMBAT;
+        pl.target = i;
+        if (!pl.attack_cd) pl.attack_cd = 1;
+        ui_set_target(i);
+        target_set(i);
+    }
+    if (!pl.hp) {
+        msg_col("Oh dear, you are dead!", TC_RED);
+        sfx(SFX_DEATH);
+        player_respawn();
+    }
+}
 
-static void proj_launch(int i, int dmg, int cb, int spell, int icon, int drop, int hit) {
+// ---------------------------------------------------------------------------------------
+// Projectiles: arrows and spells fly between the player and an NPC; the hit lands on arrival
+Proj projs[MAX_PROJ];
+Spot spots[MAX_SPOTS];
+static u8 spot_next;
+
+static void spot_spawn(int icon, int npc, int on_pl) {
+    Spot *f = &spots[spot_next];
+    spot_next = (spot_next + 1) % MAX_SPOTS;
+    f->timer = icon ? 14 : 24;
+    f->icon = icon;
+    f->npc = npc;
+    f->on_pl = on_pl;
+}
+
+static void proj_launch(int i, int at_pl, int dmg, int cb, int spell, int icon, int drop, int hit) {
     Proj *p = &projs[0];
     for (int k = 0; k < MAX_PROJ; k++)
         if (!projs[k].active) {
@@ -144,9 +181,14 @@ static void proj_launch(int i, int dmg, int cb, int spell, int icon, int drop, i
         }
     Npc *n = &npcs[i];
     int dx = n->x - pl.x, dy = n->y - pl.y;
-    int d = (dx < 0 ? -dx : dx) > (dy < 0 ? -dy : dy) ? (dx < 0 ? -dx : dx) : (dy < 0 ? -dy : dy);
+    if (dx < 0) dx = -dx;
+    if (dy < 0) dy = -dy;
+    int d = dx > dy ? dx : dy;
+    // OSRS hit delays: shortbows and longbows 1 + (3 + d) / 6 ticks, spells 1 + (1 + d) / 3
+    int ticks = cb == CB_RANGED ? 1 + (3 + d) / 6 : 1 + (1 + d) / 3;
     p->active = 1;
     p->npc = i;
+    p->at_pl = at_pl;
     p->dmg = dmg;
     p->cb = cb;
     p->spell = spell;
@@ -154,41 +196,67 @@ static void proj_launch(int i, int dmg, int cb, int spell, int icon, int drop, i
     p->drop = drop;
     p->hit = hit;
     p->t = 0;
-    p->dur = 6 + d * 3;
-    p->sx = pl.px;
-    p->sy = pl.py - 4;
+    p->dur = ticks * TICK_FRAMES;
+    p->rel = cb == CB_RANGED ? 2 : 8;           // the bow string snaps; the spell gathers in the hands
+    p->arc = cb == CB_RANGED ? 4 + d * 2 : d;   // arrows lob, spells fly almost flat
+    p->sx = at_pl ? n->px : pl.px;
+    p->sy = (at_pl ? n->py : pl.py) - 4;
+}
+
+// where projectile p is drawn this frame, and its heading on screen (for arrows)
+void proj_pos(const Proj *p, int *x, int *y, int *vx, int *vy) {
+    const Npc *n = &npcs[p->npc];
+    int tx = p->at_pl ? pl.px : n->px, ty = (p->at_pl ? pl.py : n->py) - 2;   // the body, not the feet
+    int den = p->dur - p->rel, num = p->t > p->rel ? p->t - p->rel : 0;
+    int h = p->arc * 4 * num * (den - num) / (den * den);   // a parabola, peaking halfway
+    *x = p->sx + (tx - p->sx) * num / den;
+    *y = p->sy + (ty - p->sy) * num / den - h;
+    *vx = tx - p->sx;
+    *vy = (ty - p->sy) - p->arc * 4 * (den - 2 * num) / den;
 }
 
 void proj_update(void) {
+    for (int k = 0; k < MAX_SPOTS; k++)
+        if (spots[k].timer) spots[k].timer--;
     for (int k = 0; k < MAX_PROJ; k++) {
         Proj *p = &projs[k];
         if (!p->active || ++p->t < p->dur) continue;
         p->active = 0;
         Npc *n = &npcs[p->npc];
+        const SpellDef *sp = &spells[p->spell];
+        int magic = p->cb == CB_MAGIC;
+        // where a spell lands: its element's burst, or the splash of a miss
+        int fx = !magic ? -1 : p->hit ? ICON_HIT_WIND + (p->icon - ICON_PROJ_WIND) : 0;
+        if (p->at_pl) {
+            if (fx >= 0) spot_spawn(fx, 0, 1);
+            sfx(p->hit ? SFX_HIT : SFX_MISS);
+            player_hurt(p->npc, p->dmg, p->hit);
+            continue;
+        }
         if (!n->active) continue;
+        if (fx >= 0) spot_spawn(fx, p->npc, 0);
         // most arrows can be picked up again under the target
         if (p->drop && rnd_range(100) < 80) drop_item(n->x, n->y, n->plane, p->drop, 1);
-        const SpellDef *sp = &spells[p->spell];
-        if (p->cb == CB_MAGIC && (sp->kind == SPK_CURSE || sp->kind == SPK_BIND)) {
+        if (magic && (sp->kind == SPK_CURSE || sp->kind == SPK_BIND)) {
             // dmg holds hit (1) or splash (0) for curses; binds also deal a little damage
             if (p->hit) {
                 if (sp->kind == SPK_CURSE) n->curse |= sp->param;
                 else n->bound = sp->param;
             }
-            if (sp->kind == SPK_CURSE) {
+            if (sp->kind == SPK_CURSE || !sp->maxhit) {
                 n->hpbar_timer = 200;
-                splat_spawn(n->px, n->py, 0);
-                add_xp(SK_MAGIC, sp->xp);
                 sfx(p->hit ? SFX_HIT : SFX_MISS);
                 continue;
             }
         }
-        land_hit(p->npc, p->dmg, p->cb, p->spell);
+        // a spell that splashes shows no hitsplat, only the splash
+        land_hit(p->npc, p->dmg, !magic || p->hit);
     }
 }
 
 void proj_clear(void) {
     for (int k = 0; k < MAX_PROJ; k++) projs[k].active = 0;
+    for (int k = 0; k < MAX_SPOTS; k++) spots[k].timer = 0;
 }
 
 // what the wielded weapon hits with in OSRS (its main style): swords, daggers and pickaxes
@@ -251,9 +319,11 @@ static int player_shoot(int i) {
     int maxhit = (eff * (equip_bonus(4) + 64) + 320) / 640;
     if (maxhit < 1) maxhit = 1;
     int dmg = demon_guard(i, roll(hit_chance256(a, npc_def_roll(i, CB_RANGED))) ? rnd_range(maxhit + 1) : 0);
+    if (dmg > npcs[i].hp) dmg = npcs[i].hp;
     if (!--pl.ammo_qty) pl.equip[EQ_AMMO] = 0;
     sfx(SFX_BOW);
-    proj_launch(i, dmg, CB_RANGED, 0, ICON_PROJ_ARROW_H, arrow, 1);
+    hit_xp(dmg, CB_RANGED, 0);
+    proj_launch(i, 0, dmg, CB_RANGED, 0, ICON_PROJ_ARROW0, arrow, 1);
     return 1;
 }
 
@@ -322,7 +392,9 @@ static int player_cast(int i) {
     int dmg = 0;
     if (sp->kind == SPK_COMBAT || sp->kind == SPK_BIND) dmg = hit ? rnd_range(maxhit + 1) : 0;
     dmg = demon_guard(i, dmg);
-    proj_launch(i, dmg, CB_MAGIC, s, sp->icon, 0, hit);
+    if (dmg > n->hp) dmg = n->hp;
+    hit_xp(dmg, CB_MAGIC, s);   // curses deal no damage: their base XP
+    proj_launch(i, 0, dmg, CB_MAGIC, s, sp->icon, 0, hit);
     return 1;
 }
 
@@ -342,7 +414,9 @@ int player_attack(int i) {
     int dmg = demon_guard(i, roll(hit_chance256(a, npc_def_roll(i, CB_MELEE))) ? rnd_range(maxhit + 1) : 0);
     engage(i);
     pl.lunge = 8;
-    land_hit(i, dmg, CB_MELEE, 0);
+    if (dmg > npcs[i].hp) dmg = npcs[i].hp;
+    hit_xp(dmg, CB_MELEE, 0);
+    land_hit(i, dmg, 1);
     return 1;
 }
 
@@ -362,27 +436,19 @@ void npc_attack(int i) {
         def = eff_d * (equip_bonus(2) + 64);
         maxhit = ((cursed(n, d->str, CU_STR5, CU_STR10) + 9) * (d->strb + 64) + 320) / 640;   // 0 for chickens, rats, imps
     }
-    int dmg = roll(hit_chance256(a, def)) ? rnd_range(maxhit + 1) : 0;
-    if (dmg > pl.hp) dmg = pl.hp;
+    int hit = roll(hit_chance256(a, def));
+    int dmg = hit ? rnd_range(maxhit + 1) : 0;
     foe_engage(i);
     home_cancel();   // combat interrupts the home teleport
     n->lunge = 8;
-    pl.hpbar_timer = 200;
-    splat_spawn(pl.px, pl.py, dmg);
-    sfx(d->magic_max ? SFX_CAST : dmg ? SFX_HIT : SFX_MISS);
-    pl.hp -= dmg;
-    if (pl.action != ACT_COMBAT && pl.autoret && !pl.moving) {
-        pl.action = ACT_COMBAT;
-        pl.target = i;
-        if (!pl.attack_cd) pl.attack_cd = 1;
-        ui_set_target(i);
-        target_set(i);
+    if (d->magic_max) {
+        // Water Strike: lands when it reaches the player (a miss is a splash)
+        sfx(SFX_CAST);
+        proj_launch(i, 1, dmg, CB_MAGIC, 0, ICON_PROJ_WATER, 0, hit);
+        return;
     }
-    if (!pl.hp) {
-        msg_col("Oh dear, you are dead!", TC_RED);
-        sfx(SFX_DEATH);
-        player_respawn();
-    }
+    sfx(dmg ? SFX_HIT : SFX_MISS);
+    player_hurt(i, dmg, 1);
 }
 
 void player_respawn(void) {
