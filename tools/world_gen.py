@@ -1913,7 +1913,8 @@ for Y in (3217, 3218):
     del EDGES[ekey(*zc(3201, Y), -1, 0)]
 for Y in (3218, 3219):
     zset(3228, Y, 'PATH', 'PATH')                                                 # main gate
-    EDGES.pop(ekey(*zc(3227, Y), 1, 0), None)
+    for X in (3226, 3227):                                                        # (wall sits on one edge or the other)
+        EDGES.pop(ekey(*zc(X, Y), 1, 0), None)
 for (Y0, Y1, Yd) in ((3221, 3225, 3223), (3211, 3215, 3214)):                     # gate towers, doors on the courtyard
     for X in range(3226, 3231):
         for Y in range(Y0, Y1 + 1):
