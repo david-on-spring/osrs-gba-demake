@@ -60,6 +60,17 @@ is done, and what it costs on the hardware.
     around the camera; positions are absolute OSRS tiles and the castle floors are planes 1 and 2
     (slot version 6 converts version 5 saves). See `docs/regions.md`.
 
+12. **Walls on tile edges** (done). OSRS walls stand between tiles; the old cell walls took a tile
+    each, so rooms lost a ring of floor and traced towns sat a tile off the map. The authoring
+    helpers still lay walls in cells; `convert_walls()` then turns each building's wall cells into
+    floor and puts the walls on edges (`EDGES`): traced towns get the trace's own edges back,
+    hand-built buildings infer theirs from their rooms. Furnishing, bank and shop rows and forges run
+    after it, against the real walls. `hd_art` draws a wall as a band on its edge in a 3/4 view
+    (`WALL_H` pixels tall); the front wall of a roofed building is cut low on the ground layer so the
+    rooms show when the roof hides, and its full-height facade (windows, front doors) is drawn with
+    the roof, which sits on the walls. Lumbridge Castle (three floors, the curtain wall and the
+    cellar on plane 5) and the Lumbridge houses are laid out from the OSRS map.
+
 ## Hardware budget
 
 | | 1:2 overworld | 1:1 towns | One 1:1 world | Limit |

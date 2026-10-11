@@ -11,7 +11,8 @@ Every position in the game is an absolute OSRS tile: `x` grows east, `y` grows n
 the floor (0 ground .. 3). That covers the player (and saves), NPCs and their homes, ground items,
 fires, depleted trees and rocks, fishing spots, shops, area names, zones, quest places and
 teleport destinations. The castle's first and second floors are planes 1 and 2 at their real
-coordinates.
+coordinates. Underground areas sit on planes of their own at surface coordinates (OSRS keeps them
+6400 tiles north): the castle cellar is plane 5, under the kitchen.
 
 Pixels (`px`, `py`, `cam_x`, `cam_y`) grow east and south from the tile `WORLD_X0`, `WORLD_Y1`
 (`TILE_PX`, `TILE_PY` in `game.h`) and are the same on every floor, so a floor is drawn over the
@@ -29,6 +30,7 @@ typedef struct {
     u8 flags;                     // RF_EDGE (partly outside the bounds), RF_ROOFS, RF_OVERLAY
     const u32 *blk[16];           // 16x16-tile blocks, [(y >> 4 & 3) * 4 + (x >> 4 & 3)]; 0 = none
     const u32 *walk;              // 64x64 bits: walkable cells
+    const u32 *edge;              // 0, or 4 x 64x64 bits: walls on tile edges (see below)
 } MapRegion;
 extern const MapRegion map_regions[];   // sorted by (plane, rx, ry)
 extern const u16 map_bounds[PLANE_COUNT][4];
@@ -41,6 +43,16 @@ extern const u16 map_bounds[PLANE_COUNT][4];
 - **Walk bitmap**: one bit per tile (type `<= T_WALKABLE_MAX`), uncompressed (512 bytes per
   region; identical bitmaps are shared). NPCs wander, chase and respawn all over the world every
   tick, so their walkability checks read this and never decompress anything.
+- **Edge bitmaps**: walls stand on the edges between tiles, as in OSRS, never on a tile. Four
+  bitmaps like the walk bitmap: a wall on each tile's north edge, on its west edge (both stop
+  walkers), then the same two for walls that also stop projectiles (fences do not). A region with
+  no walls has none; identical sets are shared. `map_edge_at()` reads them and `wall_dir()` in
+  `world.c` turns a step direction into the right bit; movement, NPC AI, melee and talking reach
+  (`adjacent()`), line of sight (`clear_shot()`) and `interact()` all check it.
+- **Roof byte**: the roof group (`1..127`, ids shared only by buildings far apart, see
+  `roof_ids()`). Bit 7 marks the eaves of that roof over a cell outside the building (roofs sit
+  on walls, so they reach into the row north of it): drawn and hidden with the roof, but nobody
+  standing there is under it (`world_roof()`).
 - **Header**: palette set and flags describe the region for tools and for a future importer; the
   camera still picks palette sets from `pal_regions[]`.
 - `res_cell[]` (trees and rocks and their depleted metatiles) is keyed by
